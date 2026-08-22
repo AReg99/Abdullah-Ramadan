@@ -1,0 +1,6 @@
+<!-- TRACED APPROXIMATION of the Aura droplet mark, for layout only.
+     Replace with the vector artwork from the Aura brand package before release. -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 124" fill="none" role="img" aria-label="Aura">
+  <path d="M62 12 C62 12 21 60 21 83 C21 102 36 114 54 111 C69 108 79 95 76 83 C73 71 61 69 53 75"
+        stroke="currentColor" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

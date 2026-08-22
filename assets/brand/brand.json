@@ -1,0 +1,77 @@
+{
+  "_comment": "Aura Furniture brand tokens. This is the ONLY file that changes on a rebrand. Source: Aura Brand Identity (Balanat).",
+  "meta": {
+    "brand": "Aura",
+    "legal": "Aura Furniture",
+    "tagline": "Furnish a new beginning",
+    "taglineAr": "ابدأ صفحة جديدة",
+    "address": "October, 301 Central Axis, in front of Mecca Center"
+  },
+
+  "color": {
+    "primary":      "#6B5033",
+    "primaryName":  "Tol Barad",
+    "primaryInk":   "#FFFFFF",
+    "primaryDeep":  "#4A3726",
+    "primaryMuted": "#EDE3D5",
+
+    "secondary":     "#B1A697",
+    "secondaryName": "Horizon Grey",
+    "sage":          "#A9B6B1",
+
+    "neutral": {
+      "0": "#F2EDE7",
+      "1": "#FAF8F4",
+      "2": "#EBE4DA",
+      "3": "#DDD4C7",
+      "6": "#6F6559",
+      "9": "#2A211A"
+    },
+    "neutralDark": {
+      "0": "#1A1411",
+      "1": "#241C17",
+      "2": "#2E2520",
+      "3": "#3A2F28",
+      "6": "#A79A8B",
+      "9": "#F2EDE7"
+    },
+    "accentDark": "#C9A87C",
+
+    "status": {
+      "ok":        "#2E7D5B",
+      "okSoft":    "#DEEDE5",
+      "warn":      "#C77C00",
+      "warnText":  "#8F5A00",
+      "warnSoft":  "#FAECD4",
+      "danger":    "#B3341F",
+      "dangerSoft":"#F7E2DC"
+    }
+  },
+
+  "font": {
+    "displayLatin":   "Portada",
+    "displayFallback":"Literata, Georgia, serif",
+    "bodyLatin":      "Portada",
+    "uiLatin":        "IBM Plex Sans",
+    "displayArabic":  "Portada Arabic",
+    "arabicFallback": "Readex Pro, IBM Plex Sans Arabic, sans-serif",
+    "script":         "Monsieur La Doulaise",
+    "scriptUse":      "MARKETING ONLY — never in application UI",
+    "mono":           "IBM Plex Mono"
+  },
+
+  "shape": {
+    "radius":      "8px",
+    "radiusLarge": "16px",
+    "radiusPill":  "999px",
+    "borderWidth": "1px"
+  },
+
+  "logo": {
+    "wordmark":  "assets/brand/aura-wordmark.svg",
+    "monogram":  "assets/brand/aura-mark.svg",
+    "reversed":  "assets/brand/aura-wordmark-reversed.svg",
+    "mono":      "assets/brand/aura-mark-mono.svg",
+    "_status":   "aura-mark.svg here is a TRACED APPROXIMATION for layout only. Replace with the vector artwork from the brand package before release."
+  }
+}

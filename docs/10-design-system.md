@@ -5,8 +5,9 @@ colour, type and shape decision in five applications, the printed documents and
 the customer tracking page resolves through that file. Applying the real Aura
 identity is a token swap, not a redesign.
 
-Until the brand assets arrive, the system runs on clearly-marked placeholders.
-Section 9 lists exactly what is needed and where each piece lands.
+**Aura's brand has been applied.** The values are in
+`assets/brand/brand.json`; section 11 records what was extracted, the two
+conflicts it created, and how each was resolved.
 
 ---
 
@@ -35,33 +36,30 @@ CI lint rule fails the build on any raw hex outside `brand.json`.
 
 ## 2. The one file
 
-`packages/design-tokens/brand.json` — the entire identity surface:
+`assets/brand/brand.json` — the entire identity surface, now filled with Aura's:
 
 ```jsonc
 {
   "color": {
-    "primary":        "#______",   // the main brand colour
-    "primaryInk":     "#______",   // text/icons ON primary — must pass 4.5:1
-    "primaryMuted":   "#______",   // 10–15% tint, for selected rows and chips
-    "secondary":      "#______",   // optional supporting colour
-    "neutral": {
-      "0": "#______",  // page ground, light theme
-      "1": "#______",  // card surface
-      "2": "#______",  // secondary surface, table header
-      "3": "#______",  // hairline rules
-      "6": "#______",  // muted text
-      "9": "#______"   // body text / near-black
-    },
-    "neutralDark": { "0":"#______", "1":"#______", "2":"#______",
-                     "3":"#______", "6":"#______", "9":"#______" }
+    "primary":      "#6B5033",   // Tol Barad
+    "primaryInk":   "#FFFFFF",   // 7.45:1 on primary — passes comfortably
+    "primaryDeep":  "#4A3726",   // for text-on-cream where the primary is too light
+    "primaryMuted": "#EDE3D5",   // selected rows, active chips
+    "secondary":    "#B1A697",   // Horizon Grey — SURFACE ONLY, see §11
+    "sage":         "#A9B6B1",   // from the collateral, not the core palette
+    "neutral":      { "0":"#F2EDE7",  // Valhallan Blizzard — the page ground
+                      "1":"#FAF8F4", "2":"#EBE4DA", "3":"#DDD4C7",
+                      "6":"#6F6559", "9":"#2A211A" },
+    "neutralDark":  { "0":"#1A1411", "1":"#241C17", "2":"#2E2520",
+                      "3":"#3A2F28", "6":"#A79A8B", "9":"#F2EDE7" },
+    "accentDark":   "#C9A87C"    // the primary, lifted for dark theme — 8.14:1
   },
   "font": {
-    "displayLatin": "____",  "bodyLatin":  "____",
-    "displayArabic":"____",  "bodyArabic": "____",
-    "mono":         "____"
+    "displayLatin": "Portada",          "displayArabic": "Portada Arabic",
+    "uiLatin":      "IBM Plex Sans",    "script": "Monsieur La Doulaise",
+    "mono":         "IBM Plex Mono"
   },
-  "shape": { "radius": "2px", "radiusLarge": "6px", "borderWidth": "1px" },
-  "logo":  { "wordmark":"…", "monogram":"…", "reversed":"…", "mono":"…" }
+  "shape": { "radius": "8px", "radiusLarge": "16px" }
 }
 ```
 
@@ -267,3 +265,121 @@ Then, in order:
 
 **Time to apply, once the assets are in hand: about a day**, most of it in steps
 5 and 6.
+
+---
+
+## 11. Aura's brand, as applied
+
+### What was taken from the identity
+
+| Brand element | Value | Where it lands in the app |
+| --- | --- | --- |
+| **Tol Barad** | `#6B5033` | Primary actions, active navigation, focus rings, the logo, document rules |
+| **Horizon Grey** | `#B1A697` | Surfaces and dividers only — see the conflict below |
+| **Valhallan Blizzard** | `#F2EDE7` | The page ground of every screen, light theme |
+| Sage (from collateral) | `#A9B6B1` | Quiet informational surfaces; not a core palette colour |
+| **Portada** | serif | Headings, customer-facing surfaces, printed documents |
+| **Portada Arabic** | serif | Arabic headings and documents |
+| **Monsieur La Doulaise** | script | Marketing only — barred from the app, see below |
+| Droplet mark | vector | App icon, favicon, unit label, splash |
+| Rounded corners | 16 px on cards | `radiusLarge: 16px`, `radius: 8px` for controls |
+
+### Contrast, measured
+
+| Pair | Ratio | Verdict |
+| --- | --- | --- |
+| Tol Barad on Valhallan Blizzard | **6.40:1** | Passes — safe for body text and icons |
+| White on Tol Barad | **7.45:1** | Passes — buttons need no adjustment |
+| Ink `#2A211A` on Valhallan Blizzard | **13.56:1** | Passes |
+| Muted `#6F6559` on Valhallan Blizzard | **4.90:1** | Passes — this is why muted text is not Horizon Grey |
+| `#C9A87C` on dark ground `#1A1411` | **8.14:1** | Passes — the dark-theme accent |
+| **Horizon Grey on Valhallan Blizzard** | **2.06:1** | **Fails** |
+
+### Conflict 1 — Horizon Grey cannot carry text
+
+At 2.06:1 against the cream ground, Horizon Grey is unreadable as text. In the
+brand collateral it always appears as a large field or a rule, never as small
+type, so this is consistent with how the identity is actually used.
+
+**Resolution:** Horizon Grey is registered as a *surface* token, not a text
+token. Secondary text uses `#6F6559`, a darkened member of the same warm neutral
+family — it reads as the brand's grey and clears 4.5:1. The lint rule rejects
+Horizon Grey in any text role.
+
+### Conflict 2 — the brand owns the warm end of the spectrum
+
+Aura's whole palette is warm brown and cream. The conventional at-risk amber sits
+in the same hue family as Tol Barad, so on a glance across a dusty workshop an
+amber "at risk" pill and a brown primary button are not reliably distinguishable.
+
+Three ways to resolve it; only the third is correct:
+
+1. Shift at-risk away from amber — breaks a universal convention, worse.
+2. Shift the brand — not on the table.
+3. **Separate them by context, not by hue.**
+
+**Resolution:** the brand accent is *barred from status contexts*. Tol Barad
+appears in navigation, buttons, the logo and document rules; it never appears in
+a status pill, a capacity bar, or a timeline marker. Because a pill can only ever
+be green, amber or red, an amber pill has exactly one meaning. The redundancy
+rule already in §3 does the rest: every status carries a word as well as a
+colour.
+
+Final status trio, chosen for high chroma against the brand's low-chroma warmth:
+
+| State | Fill | Text on light | Soft background |
+| --- | --- | --- | --- |
+| Passed / on time | `#2E7D5B` | `#2E7D5B` | `#DEEDE5` |
+| At risk | `#C77C00` | `#8F5A00` | `#FAECD4` |
+| Late / failed | `#B3341F` | `#B3341F` | `#F7E2DC` |
+
+### Conflict 3 — a brand serif is not a UI font
+
+Portada is a serif, and Monsieur La Doulaise is a formal script. Both are right
+for Aura's marketing, and both are wrong for a worker reading a job card at
+arm's length in bad light.
+
+**Resolution — a split the brand guidelines do not cover, so it is recorded here:**
+
+| Surface | Face | Why |
+| --- | --- | --- |
+| Customer tracking page, quotations, invoices, warranty, showroom presentation | **Portada / Portada Arabic** | These carry the brand. The customer should feel Aura. |
+| Headings and section titles everywhere | **Portada** | Brand voice without costing legibility |
+| Dense operational UI — tables, forms, job cards, labels, floor apps | **IBM Plex Sans / IBM Plex Sans Arabic** | A serif at 13 px on a 600-nit screen behind a dusty protector is a legibility problem, not a style choice |
+| Numbers, codes, serials, times | **IBM Plex Mono** | Tabular figures; unchanged |
+| Monsieur La Doulaise | **marketing only** | Illegible at UI sizes; barred from the app by lint rule |
+
+### Licensing — needs action
+
+**Portada and Portada Arabic are commercial fonts** (TypeTogether). The identity
+PDF does not state what licence Aura holds. Desktop licences do **not** cover web
+embedding or mobile app embedding — those are separate licences priced by
+pageviews and by app.
+
+Before launch, confirm Aura holds:
+
+- [ ] a **web font licence** for Portada and Portada Arabic — for the showroom
+      app, the office consoles and the customer tracking page
+- [ ] an **app embedding licence** — for the React Native apps
+- [ ] Monsieur La Doulaise's licence, if it is used in generated PDFs
+
+Until confirmed, everything renders in the fallback stack: **Literata** for
+Portada and **Readex Pro** for Portada Arabic — both open-licensed, both close in
+weight and width. The published mockups use these fallbacks, which is why the
+type is very close to but not identical to the brand book.
+
+### Logo — one asset still needed
+
+`assets/brand/aura-mark.svg` is currently a **traced approximation** of the
+droplet, good enough for layout and clearly labelled as such. Before release,
+drop in the real vector artwork from the brand package, in four variants:
+
+- [ ] Wordmark — the lowercase `aura` with the droplet, horizontal
+- [ ] Monogram — droplet alone, square (already used as a logo avatar in the
+      brand book, so this exists)
+- [ ] Reversed — cream on dark, for the dark theme
+- [ ] Mono — single-colour outline for thermal label printing at 8 mm
+
+The brand book's droplet pattern is a nice fit for the customer tracking page
+header and the quotation footer, at very low opacity. It must not appear behind
+operational screens, where it would compete with the data.
