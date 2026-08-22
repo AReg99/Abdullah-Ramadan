@@ -1,4 +1,10 @@
-# Atelier — Furniture Factory & Showroom Management System
+# Aura — Factory & Showroom Management System
+
+**نظام أورا لإدارة المصنع والمعرض**
+
+Built for **Aura Furniture**. Fully bilingual: Arabic and English, with true
+right-to-left layout — Arabic is the default on the factory floor, in the
+showroom, and for the customer.
 
 A single system that tracks a piece of furniture from the moment a customer walks
 into the showroom until it is installed in their home — and gives the owner one
@@ -11,7 +17,7 @@ of that one event stream.
 
 ## The problem it solves
 
-| Today (without a system) | With Atelier |
+| Today (without a system) | With Aura |
 | --- | --- |
 | Showroom promises "20 days", factory never agreed to it | Promise date is computed from real factory capacity before the customer signs |
 | Owner calls the factory manager to ask "where is order 412?" | Owner opens the order and sees the exact stage, who is working on it, and photos |
@@ -56,6 +62,8 @@ are ready, or in split shipments if the customer prefers.
 | [06 — Notifications & reports](docs/06-notifications-and-reports.md) | The rule engine, the full notification matrix, the owner's report pack |
 | [07 — Technical architecture](docs/07-tech-architecture.md) | Stack, offline sync, hardware, security, integrations |
 | [08 — Roadmap](docs/08-roadmap.md) | Five phases, what ships when, rollout and adoption plan |
+| [09 — Arabic & English](docs/09-localization.md) | The bilingual specification: RTL rules, fonts, formats, and the full EN↔AR terminology glossary |
+| [**User guide**](docs/guide/README.md) | How to actually use the app, one short guide per role, in Arabic and English |
 
 ## Design principles
 
