@@ -368,17 +368,31 @@ Portada and **Readex Pro** for Portada Arabic — both open-licensed, both close
 weight and width. The published mockups use these fallbacks, which is why the
 type is very close to but not identical to the brand book.
 
-### Logo — one asset still needed
+### Logo — redrawn as vector
 
-`assets/brand/aura-mark.svg` is currently a **traced approximation** of the
-droplet, good enough for layout and clearly labelled as such. Before release,
-drop in the real vector artwork from the brand package, in four variants:
+The droplet has been redrawn from the identity as a **single calligraphic
+gesture**: one continuous centreline running from the lower tail, up the left
+bowl, through a sharp apex, down the right side and into the inward hook. The
+taper is generated as true outline geometry from a variable-width centreline,
+not simulated with a uniform stroke — so it holds its character from a 16 px
+favicon up to a printed header.
 
-- [ ] Wordmark — the lowercase `aura` with the droplet, horizontal
-- [ ] Monogram — droplet alone, square (already used as a logo avatar in the
-      brand book, so this exists)
-- [ ] Reversed — cream on dark, for the dark theme
-- [ ] Mono — single-colour outline for thermal label printing at 8 mm
+Committed in `assets/brand/`:
+
+| File | Use |
+| --- | --- |
+| `aura-mark.svg` | The droplet, `currentColor` — inherits the surrounding text colour |
+| `aura-wordmark.svg` | Horizontal lockup, droplet + `aura` |
+| `aura-wordmark-reversed.svg` | Cream on dark, for the dark theme |
+| `aura-mark-mono.svg` | Single colour, for thermal labels at 8 mm and photocopying |
+| `aura-avatar.svg` | Circular app icon and favicon master, Tol Barad ground |
+
+**One gap remains.** The brand book names Portada and Monsieur La Doulaise but
+not the geometric sans the `aura` wordmark is set in. The lockup currently uses
+**Poppins Light**, which is very close but not identical — check the `r` and the
+terminals. Either name the face, or supply the wordmark as outlined paths, and
+`aura-wordmark.svg` can stop depending on a live font altogether. For print
+production it should be outlines regardless.
 
 The brand book's droplet pattern is a nice fit for the customer tracking page
 header and the quotation footer, at very low opacity. It must not appear behind
