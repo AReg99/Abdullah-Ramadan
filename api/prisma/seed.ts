@@ -31,6 +31,12 @@ const ROUTE: [string, string, string, string, number, boolean, PhotoRule, PhotoR
 ];
 
 async function main() {
+  // Containers run this on every start. Re-seeding would wipe a real trial, so
+  // SEED_IF_EMPTY makes it a no-op once there is anything in the database.
+  if (process.env.SEED_IF_EMPTY === "1" && (await db.role.count()) > 0) {
+    console.log("database already seeded — skipping");
+    return;
+  }
   console.log("seeding…");
   // Order matters: children before parents.
   await db.trackingEvent.deleteMany();

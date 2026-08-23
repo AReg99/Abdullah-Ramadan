@@ -19,6 +19,7 @@ services:
       PORT: "4000"
       UPLOAD_DIR: /data/uploads
       DEV_OTP: "1234"
+      SEED_IF_EMPTY: "1"
     volumes: [aura-uploads:/data/uploads]
     depends_on:
       db: { condition: service_healthy }

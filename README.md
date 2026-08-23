@@ -53,8 +53,12 @@ are ready, or in split shipments if the customer prefers.
 ## Running the code
 
 Phase 1 — the tracking spine — is built and runs: Fastify + Prisma + PostgreSQL
-behind a React client, in Arabic and English. See **[RUNNING.md](RUNNING.md)**
-for setup, sign-in credentials, and what is deliberately not built yet.
+behind a React client, in Arabic and English.
+
+- **[MAC.md](MAC.md)** — running it on a Mac and installing it on a phone, one
+  command, with the offline test worth trying
+- **[RUNNING.md](RUNNING.md)** — general setup, the loop worth seeing, and what
+  is deliberately not built yet
 
 ```
 api/   Fastify + Prisma + PostgreSQL — auth, work flow, photos, dashboard, orders

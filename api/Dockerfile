@@ -8,5 +8,6 @@ COPY tsconfig.json ./
 COPY src ./src
 ENV NODE_ENV=production
 EXPOSE 4000
-# db push + seed run at start so a fresh volume comes up populated.
+# Schema push is safe to repeat; the seed no-ops once the database has data
+# (SEED_IF_EMPTY), so restarting a container never wipes a trial.
 CMD sh -c "npx prisma db push --skip-generate && npx tsx prisma/seed.ts && npx tsx src/server.ts"
