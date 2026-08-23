@@ -57,6 +57,8 @@ behind a React client, in Arabic and English.
 
 - **[MAC.md](MAC.md)** — running it on a Mac and installing it on a phone, one
   command, with the offline test worth trying
+- **[DEPLOY.md](DEPLOY.md)** — hosting it so phones work anywhere, and the honest
+  answer on the App Store
 - **[RUNNING.md](RUNNING.md)** — general setup, the loop worth seeing, and what
   is deliberately not built yet
 

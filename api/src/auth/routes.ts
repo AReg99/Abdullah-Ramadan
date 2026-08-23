@@ -12,11 +12,17 @@ export default async function authRoutes(app: FastifyInstance) {
     const { phone } = z.object({ phone: z.string().min(6) }).parse(req.body);
     const user = await db.user.findUnique({ where: { phone } });
     if (!user || !user.isActive) return reply.code(404).send({ error: "no_such_user" });
-    const code = env.devOtp;
+    const code = env.newOtp();
     await db.otpCode.create({
       data: { userId: user.id, code, expiresAt: new Date(Date.now() + 5 * 60_000) },
     });
-    // Phase 4 sends this over SMS. In development it is returned so the flow is testable.
+    // Phase 4 delivers this by SMS. Until then it is disclosed only in
+    // development; in production it goes to the server log and nowhere else,
+    // because returning it would make the phone number the only credential.
+    if (!env.discloseOtp) {
+      req.log.info({ phone, code }, "OTP issued — SMS delivery is not implemented yet");
+      return { sent: true };
+    }
     return { sent: true, devCode: code };
   });
 

@@ -1,0 +1,59 @@
+# Production stack. Caddy terminates TLS and obtains a certificate from
+# Let's Encrypt automatically, which is what the phone needs: the camera, the
+# service worker and Add to Home Screen all require a real secure origin.
+#
+#   1. Point a domain's A record at this server
+#   2. cp .env.prod.example .env.prod  and fill it in
+#   3. docker compose -f docker-compose.prod.yml --env-file .env.prod up -d --build
+
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: aura
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env.prod}
+      POSTGRES_DB: aura
+    volumes: [aura-db:/var/lib/postgresql/data]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U aura"]
+      interval: 5s
+      retries: 20
+
+  api:
+    build: ./api
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgresql://aura:${POSTGRES_PASSWORD}@db:5432/aura?schema=public
+      # The API refuses to start if this is missing, short, or the dev default.
+      JWT_SECRET: ${JWT_SECRET:?set JWT_SECRET in .env.prod — openssl rand -hex 32}
+      PORT: "4000"
+      UPLOAD_DIR: /data/uploads
+      SEED_IF_EMPTY: "1"
+    volumes: [aura-uploads:/data/uploads]
+    depends_on:
+      db: { condition: service_healthy }
+
+  web:
+    build: ./web
+    restart: unless-stopped
+    depends_on: [api]
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports: ["80:80", "443:443"]
+    environment:
+      DOMAIN: ${DOMAIN:?set DOMAIN in .env.prod}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on: [web, api]
+
+volumes:
+  aura-db:
+  aura-uploads:
+  caddy-data:
+  caddy-config:

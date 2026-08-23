@@ -3,3 +3,5 @@ dist/
 .env
 api/uploads/
 *.log
+.env.prod
+api/prisma/dev.db*
