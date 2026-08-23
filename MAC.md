@@ -1,5 +1,30 @@
 # Running Aura on your Mac and your phone
 
+## 0. Install Node first
+
+**This is the one thing you need before anything else.** The setup script checks
+for it and stops if it is missing — that is not an error in the code, it is the
+script telling you what to install.
+
+1. Open **https://nodejs.org**
+2. Download the **macOS Installer (.pkg)** — take the LTS version
+3. Double-click it and click through
+4. **Quit Terminal completely (⌘Q) and reopen it.** This step matters: a Terminal
+   window opened before the install will not see Node.
+
+Check it worked:
+
+```bash
+node -v
+```
+
+You should see something like `v22.11.0`. If you get `command not found`, you
+skipped step 4.
+
+You will also need PostgreSQL. The setup script installs it via Homebrew if you
+have it; if you do not, download **https://postgresapp.com**, drag it to
+Applications, open it and click **Initialize**. The script finds it either way.
+
 ## 1. Get the code
 
 ```bash
@@ -21,19 +46,18 @@ for your Mac and your phone.
 
 If anything is missing it says exactly what and stops — it will not half-install.
 
-## 3. Start it — two terminals
+## 3. Start it — one command
 
 ```bash
-# Terminal 1
-cd api && npm run dev
-
-# Terminal 2
-cd web && npm run dev:https
+./scripts/start.sh
 ```
 
-Use `dev:https`, not `dev`. **The phone camera and Add to Home Screen only work
-on a secure origin**, and a LAN address is not one — this is a browser rule, not
-a setting you can turn off.
+Runs the API and the app together and prints both addresses. **Ctrl-C stops
+both.** Run it from anywhere inside the project folder — it finds its own way.
+
+It uses HTTPS deliberately. **The phone camera and Add to Home Screen only work
+on a secure origin**, and a LAN address is not one — a browser rule, not a
+setting you can turn off.
 
 ## 4. On your Mac
 
@@ -92,6 +116,12 @@ always works as a fallback.
 ```bash
 brew services restart postgresql@16
 ```
+
+**`command not found: npm`** — Node is not installed, or you did not reopen
+Terminal after installing it. See step 0.
+
+**`cd: no such file or directory: web`** — you were already inside `api/`. Use
+`./scripts/start.sh` from the project root instead; it avoids this entirely.
 
 **Port 4000 or 5173 already in use**
 ```bash

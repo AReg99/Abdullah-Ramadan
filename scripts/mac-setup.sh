@@ -12,29 +12,63 @@ die()  { echo "${RED}✗${OFF} $1"; exit 1; }
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
 
+# Node and Postgres often live outside the default PATH on macOS. Look where
+# the common installers actually put them before deciding anything is missing.
+for d in /opt/homebrew/bin /usr/local/bin; do
+  [ -d "$d" ] && export PATH="$PATH:$d"
+done
+for d in /Applications/Postgres.app/Contents/Versions/*/bin; do
+  [ -d "$d" ] && export PATH="$PATH:$d" && POSTGRES_APP=1 && break
+done
+if [ -s "$HOME/.nvm/nvm.sh" ]; then
+  # shellcheck disable=SC1091
+  . "$HOME/.nvm/nvm.sh" >/dev/null 2>&1 || true
+fi
+
 echo "${BOLD}Aura setup${OFF}"
 echo "${DIM}$ROOT${OFF}"
 echo
 
 # ---------- prerequisites ----------
-command -v node >/dev/null || die "Node is not installed. Install Node 20+ from https://nodejs.org (or: brew install node)"
+if ! command -v node >/dev/null; then
+  echo "${RED}✗ Node is not installed.${OFF}"
+  echo
+  echo "  ${BOLD}Easiest fix${OFF} — no terminal needed:"
+  echo "    1. Open ${BOLD}https://nodejs.org${OFF}"
+  echo "    2. Download the ${BOLD}macOS Installer (.pkg)${OFF} — take the LTS one"
+  echo "    3. Double-click it, click through, done"
+  echo "    4. ${BOLD}Quit Terminal completely${OFF} (⌘Q) and reopen it — this step matters,"
+  echo "       a Terminal window opened before the install will not see Node"
+  echo "    5. Run this script again"
+  echo
+  echo "  ${DIM}If you have Homebrew: brew install node${OFF}"
+  echo
+  exit 1
+fi
 NODE_MAJOR=$(node -p "process.versions.node.split('.')[0]")
 [ "$NODE_MAJOR" -ge 20 ] || die "Node $NODE_MAJOR is too old. Aura needs Node 20 or newer."
 ok "Node $(node -v)"
 
 if command -v psql >/dev/null && pg_isready -q 2>/dev/null; then
-  ok "PostgreSQL is running"
+  ok "PostgreSQL is running${POSTGRES_APP:+ (Postgres.app)}"
+elif command -v brew >/dev/null; then
+  warn "PostgreSQL is not running — starting it with Homebrew"
+  brew list postgresql@16 >/dev/null 2>&1 || brew install postgresql@16
+  brew services start postgresql@16
+  for _ in $(seq 1 20); do pg_isready -q 2>/dev/null && break; sleep 1; done
+  pg_isready -q 2>/dev/null || die "PostgreSQL still is not answering. Try: brew services restart postgresql@16"
+  ok "PostgreSQL started"
 else
-  if command -v brew >/dev/null; then
-    warn "PostgreSQL is not running — starting it with Homebrew"
-    brew list postgresql@16 >/dev/null 2>&1 || brew install postgresql@16
-    brew services start postgresql@16
-    for _ in $(seq 1 20); do pg_isready -q 2>/dev/null && break; sleep 1; done
-    pg_isready -q 2>/dev/null || die "PostgreSQL still is not answering. Try: brew services restart postgresql@16"
-    ok "PostgreSQL started"
-  else
-    die "PostgreSQL is not running and Homebrew is not installed. Install Postgres 16, or install Homebrew from https://brew.sh"
-  fi
+  echo "${RED}✗ PostgreSQL is not running.${OFF}"
+  echo
+  echo "  ${BOLD}Easiest fix${OFF} — no terminal needed:"
+  echo "    1. Open ${BOLD}https://postgresapp.com${OFF}"
+  echo "    2. Download it, drag it to Applications, open it, click ${BOLD}Initialize${OFF}"
+  echo "    3. Leave it running and run this script again — it finds it automatically"
+  echo
+  echo "  ${DIM}If you have Homebrew: brew install postgresql@16 && brew services start postgresql@16${OFF}"
+  echo
+  exit 1
 fi
 
 # ---------- database ----------
@@ -75,10 +109,11 @@ ok "Database seeded"
 LAN_IP="$(ipconfig getifaddr en0 2>/dev/null || ipconfig getifaddr en1 2>/dev/null || echo "")"
 
 echo
-echo "${BOLD}Ready.${OFF} Start it with two terminals:"
+echo "${BOLD}Ready.${OFF} Start it with one command, from anywhere in this folder:"
 echo
-echo "  ${DIM}Terminal 1${OFF}   cd api && npm run dev"
-echo "  ${DIM}Terminal 2${OFF}   cd web && npm run dev:https"
+echo "  ${BOLD}./scripts/start.sh${OFF}"
+echo
+echo "${DIM}It runs both the API and the app. Ctrl-C stops both.${OFF}"
 echo
 echo "${BOLD}On this Mac${OFF}      https://localhost:5173"
 if [ -n "$LAN_IP" ]; then
