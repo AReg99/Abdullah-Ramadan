@@ -92,6 +92,27 @@ three buttons: **Start** · **Pause** (opens the fixed reason list) · **Finish*
 A running timer since Start. One more button: **Report a problem** — take a
 photo, pick a reason, send; it lands on the supervisor's screen instantly.
 
+A strip of thumbnails at the bottom shows the photos already on this stage, and
+the *after* photo from the previous stage — so the worker can see the condition
+the piece was handed over in before they touch it.
+
+**W3b — Capture (before / after).** Tapping **Start** on a stage that wants an
+arrival photo opens the camera immediately; the same happens on **Finish**. Not a
+separate flow to remember — one extra tap, the shutter.
+
+- A faint **ghost outline** of the previous photo for this product and stage sits
+  over the viewfinder, so before and after are shot from the same angle and are
+  actually comparable. Without it you get two photos of different corners of the
+  workshop.
+- Big shutter, then **Retake** or **Use**. Nothing else.
+- A blur and darkness check runs on-device and asks for a retake once, then lets
+  the worker through — a nagging camera gets worked around, usually by
+  photographing the floor.
+- **Add another** for multiple angles where the stage asks for more than one.
+- On an `OPTIONAL` stage there is a **Skip** button. Skips are recorded.
+- Offline: the photo is written to the local queue and the stage proceeds
+  immediately. **The camera never blocks the work.**
+
 **W4 — My day.** Units finished, minutes worked, comparison to standard. Shown
 because a worker who can see their own numbers scans reliably; a worker who
 cannot, does not.

@@ -45,6 +45,7 @@ actually read — with SMS as fallback and email for documents.
 | Approval required (discount, PO, promise change, scrap, refund) | Push | Deep-links to the approvals inbox |
 | QC fail rate above threshold for a station, per day | Push | |
 | Material below reorder point | Digest | |
+| Photo coverage below threshold at a station | Digest | Weekly, per station |
 | Payment received above threshold | Push | |
 | Delivery failed | Push | |
 | Override used | Digest | |
@@ -123,6 +124,13 @@ the previous period, and exports to PDF and Excel.
     conversion, discount given, spec errors attributed, customer rating.
 20. **Overrides & approvals** — every threshold override with who, why, and what
     it cost.
+
+### Photo coverage
+23. **Photo coverage** — percentage of required photos actually captured, by
+    station and by worker, and the list of optional gates being skipped. A
+    station at 100 % is genuinely documenting; a station at 60 % has found a way
+    around the gate, which is worth knowing before a dispute rather than during
+    one.
 
 ### Live (not periodic)
 21. **Order pipeline value** by stage — how much money is sitting in each stage.

@@ -66,6 +66,28 @@ never blocks on the network.**
 6. Device clock skew is measured at each sync and corrected, so a phone with the
    wrong date does not poison the productivity reports.
 
+### Stage photos specifically
+
+Photos are the heaviest thing the system moves, and the worker apps are on the
+worst network in the business, so they are handled separately from events:
+
+- **Resize and compress on device** before anything else — longest edge 1600 px,
+  JPEG quality 0.7, roughly 150–250 KB. Full-resolution originals are never
+  uploaded; nobody zooms into a job-card photo far enough to need them.
+- The **event syncs immediately, the photo follows.** A finished stage is never
+  held up waiting for an image. The photo carries the same `client_event_id` and
+  is attached when it lands.
+- Uploads are **queued, resumable and Wi-Fi-preferred**, retried with backoff,
+  and capped in parallelism so one phone cannot saturate the factory link.
+- **Thumbnails are generated server-side**; the apps request thumbnails
+  everywhere except the full-screen viewer.
+- **Storage planning:** roughly 12 photos per unit across a typical routing, at
+  ~200 KB, is about 2.5 MB per unit. At 300 units a month that is ~9 GB a year,
+  which is cheap — but it grows forever, so set a retention policy on day one:
+  full resolution for 12 months, thumbnails kept indefinitely, and photos on
+  delivered-and-closed orders older than 3 years archived to cold storage.
+  Photos attached to a dispute or warranty ticket are exempt and never expire.
+
 ## Hardware you need in the factory
 
 | Item | Qty | Note |

@@ -87,7 +87,10 @@ invoices(id, order_id, number, issued_at, total, status, pdf_url)
 ```
 routings(id, name, category_id, is_default)
 routing_stages(id, routing_id, seq, key, name_ar, name_en, station_id,
-               std_minutes, qc_checklist_id, is_customer_visible)
+               std_minutes, qc_checklist_id, is_customer_visible,
+               photo_before[OFF|OPTIONAL|REQUIRED],
+               photo_after[OFF|OPTIONAL|REQUIRED],
+               photo_min_count, photo_guide_url)
 
 work_orders(id, code, order_line_id, product_id, variant_id, qty, routing_id,
             status, priority, planned_start, planned_end,
@@ -95,6 +98,12 @@ work_orders(id, code, order_line_id, product_id, variant_id, qty, routing_id,
 work_order_stages(id, work_order_id, routing_stage_id, seq, status,
                   assigned_to, started_at, finished_at, actual_minutes,
                   blocked_reason, blocked_minutes)
+
+stage_photos(id, work_order_stage_id, unit_label_id, work_order_id,
+             kind[BEFORE|AFTER|ISSUE|EXTRA], url, thumb_url,
+             width, height, bytes, captured_at, uploaded_at,
+             actor_id, device_id, geo, client_event_id,
+             is_customer_visible, caption)
 unit_labels(id, work_order_id, serial, qr_payload, printed_at, current_stage_id, scrapped)
 
 material_issues(id, work_order_id, material_id, qty_planned, qty_issued,
@@ -162,6 +171,7 @@ customer-visible by default.
 | Custom | `BRIEF_CREATED`, `DESIGN_SUBMITTED*`, `DESIGN_CHANGE_REQUESTED`, `DESIGN_APPROVED*`, `PREVIEW_SENT*`, `PREVIEW_APPROVED*` |
 | Factory handover | `FACTORY_ACCEPTED*`, `FACTORY_REJECTED`, `PROMISE_DATE_SET*`, `PROMISE_DATE_CHANGED*` |
 | Production | `WO_CREATED`, `WO_SCHEDULED`, `PRODUCTION_STARTED*`, `STAGE_STARTED`, `STAGE_FINISHED`, `STAGE_BLOCKED`, `STAGE_UNBLOCKED`, `PRODUCTION_FINISHED*` |
+| Stage photos | `STAGE_PHOTO_BEFORE`, `STAGE_PHOTO_AFTER*`, `STAGE_PHOTO_EXTRA`, `PHOTO_MISSING`, `PHOTO_UPLOAD_PENDING` |
 | Quality | `QC_PASSED*`, `QC_FAILED`, `REWORK_RAISED`, `UNIT_SCRAPPED` |
 | Materials | `MATERIAL_RESERVED`, `MATERIAL_SHORTAGE`, `MATERIAL_ISSUED`, `STOCK_BELOW_REORDER`, `PO_CREATED`, `PO_APPROVED`, `PO_RECEIVED`, `STOCK_VARIANCE` |
 | Logistics | `PACKED*`, `TRANSFER_REQUESTED`, `TRANSFER_DISPATCHED`, `TRANSFER_RECEIVED`, `DELIVERY_SCHEDULED*`, `OUT_FOR_DELIVERY*`, `DELIVERED*`, `DELIVERY_FAILED*`, `INSTALLED*` |
@@ -175,6 +185,9 @@ customer-visible by default.
 tracking_events (order_id, occurred_at desc)
 tracking_events (event_code, occurred_at desc)
 tracking_events (client_event_id) unique
+stage_photos (work_order_stage_id, kind)
+stage_photos (client_event_id) unique
+stage_photos (uploaded_at) where uploaded_at is null   -- the pending-upload queue
 work_order_stages (status, station_id)
 order_lines (status, promised_date)
 stock_items (ref_type, ref_id, location_id) unique

@@ -120,10 +120,12 @@ line can carry a routing override for a one-off custom piece.
 stateDiagram-v2
     [*] --> PENDING
     PENDING --> READY: predecessor done + material issued
-    READY --> IN_PROGRESS: worker scans + Start
+    READY --> PHOTO_BEFORE: worker scans + Start
+    PHOTO_BEFORE --> IN_PROGRESS: arrival photo captured
     IN_PROGRESS --> PAUSED: blocked (reason required)
     PAUSED --> IN_PROGRESS
-    IN_PROGRESS --> DONE: worker scans + Finish
+    IN_PROGRESS --> PHOTO_AFTER: worker taps Finish
+    PHOTO_AFTER --> DONE: completed-work photo captured
     DONE --> QC_PENDING: stage has a checklist
     QC_PENDING --> QC_PASS
     QC_PENDING --> QC_FAIL
@@ -132,6 +134,48 @@ stateDiagram-v2
     REWORK --> READY: returns to the failing stage
     QC_FAIL --> SCRAPPED: unrecoverable
 ```
+
+### Photo gates
+
+Each routing stage declares whether it wants a photo of the piece **as it
+arrives** and **as it leaves**, independently: `OFF`, `OPTIONAL` or `REQUIRED`.
+
+`REQUIRED` is a hard gate. The worker cannot reach `IN_PROGRESS` without the
+arrival photo, and cannot reach `DONE` without the completion photo. An optional
+photo shows the same prompt with a **Skip** button; the skip is recorded, and the
+photo-coverage report shows which stages are quietly skipping.
+
+Turn it on where the evidence is worth the seconds, not everywhere:
+
+| Stage | Before | After | Why |
+| --- | :-: | :-: | --- |
+| Cutting | off | optional | Little to see; the cut list is the record |
+| Assembly | required | required | The first point where a previous stage's damage becomes visible |
+| Sanding | optional | required | Surface condition is the whole output of this stage |
+| Finishing | required | required | The highest-value, highest-rework stage — before proves what it received |
+| Curing | off | off | Nothing changes visually; a photo here is pure friction |
+| Upholstery | required | required | Fabric defects are disputed most often |
+| Final QC | — | required | Feeds the customer preview and the delivery dispute file |
+| Packing | required | off | Proves the condition at the moment it was wrapped |
+
+**Why the before photo matters more than it looks.** It protects the worker. If
+a scratch reaches finishing from sanding, the finishing worker's arrival photo
+shows the scratch already there, and the rework is attributed to the station that
+caused it. Without it, the defect is found at QC and attributed to whoever
+touched the piece last. Workers stop resisting the extra tap once they have used
+it that way once.
+
+**Where the photos go, automatically:**
+
+- **QC** sees before and after side by side against the checklist.
+- **The customer** gets the *after* photo of any stage flagged
+  `is_customer_visible` — this is the milestone photo on the tracking page, so
+  the feature costs nothing extra to produce.
+- **Rework** carries the before photo of the failing stage and the after photo of
+  the one preceding it. That pair usually settles the attribution argument in
+  seconds.
+- **The delivery dispute file** is the packing photo plus the driver's proof of
+  delivery photos.
 
 **Blocked reasons** are a fixed list, because free text cannot be reported on:
 `NO_MATERIAL`, `MACHINE_DOWN`, `AWAITING_DRAWING`, `AWAITING_QC`,

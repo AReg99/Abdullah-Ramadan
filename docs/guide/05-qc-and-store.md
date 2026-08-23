@@ -17,6 +17,11 @@
    it must return to. A rework order is created and the responsible station is
    notified.
 
+**You now see the worker's before and after photos** for the stage, side by side,
+next to the checklist. Use them. If a defect appears in the *before* photo, the
+stage you are inspecting did not cause it — raise the rework against the station
+that did, and the attribution report stays honest.
+
 **Photograph every failure.** A defect described in words is an argument later;
 a photograph is a fact. The photos also build the quality report the owner reads,
 and they are what tells a station honestly what it is doing wrong.
@@ -39,6 +44,10 @@ the blocked report. Spread them through the day.
 4. **مطابق** ← القطعة بتروح للمرحلة اللي بعدها لوحدها.
 5. **غير مطابق** ← صوّر العيب، اختار كود العيب، واختار المرحلة اللي هترجعلها.
    أمر إعادة شغل بيتعمل والمحطة المسئولة بتتبلغ.
+
+**دلوقتي بتشوف صور العامل «قبل» و«بعد»** للمرحلة، جنب بعض، مع قائمة الفحص.
+استخدمها. لو العيب ظاهر في صورة «قبل»، يبقى المرحلة اللي بتفحصها مش هي السبب —
+سجّل إعادة الشغل على المحطة اللي عملته، وكده تقرير المسئولية يفضل صادق.
 
 **صوّر كل حالة رفض.** العيب الموصوف بالكلام بيبقى خناقة بعدين؛ العيب المتصوّر
 حقيقة. والصور دي هي اللي بتبني تقرير الجودة، وهي اللي بتوري المحطة بصدق بتغلط في إيه.
