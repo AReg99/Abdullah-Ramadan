@@ -7,6 +7,29 @@ import { record } from "../../lib/events.js";
 const REASONS = ["NO_MATERIAL","MACHINE_DOWN","AWAITING_DRAWING","AWAITING_QC","AWAITING_CUSTOMER",
   "MISSING_COMPONENT","POWER","LABOUR_SHORT","OTHER"] as const;
 
+/**
+ * Offline envelope. The worker app queues actions locally and replays them when
+ * the network returns, so every mutation carries the client's own id and the
+ * device clock. Replaying is a no-op; a double tap cannot double-count.
+ */
+const offline = z.object({
+  clientEventId: z.string().min(8).optional(),
+  occurredAt: z.string().datetime().optional(),
+}).optional();
+
+type Envelope = { clientEventId?: string; occurredAt?: string };
+
+/** Returns the stage unchanged if this exact action already landed. */
+async function alreadyApplied(clientEventId: string | undefined, stageId: string) {
+  if (!clientEventId) return null;
+  const seen = await db.trackingEvent.findUnique({ where: { clientEventId } });
+  if (!seen) return null;
+  return db.workOrderStage.findUnique({ where: { id: stageId } });
+}
+
+const deviceTime = (e: Envelope | undefined) =>
+  e?.occurredAt ? new Date(e.occurredAt) : new Date();
+
 /** A stage becomes READY only when every earlier stage is DONE. */
 async function refreshReadiness(workOrderId: string) {
   const stages = await db.workOrderStage.findMany({ where: { workOrderId }, orderBy: { seq: "asc" } });
@@ -73,6 +96,9 @@ export default async function workRoutes(app: FastifyInstance) {
   app.post("/work/stages/:id/start", { preHandler: guard() }, async (req, reply) => {
     const { id } = req.params as { id: string };
     const user = (req as any).user;
+    const env = offline.parse(req.body ?? {}) as Envelope | undefined;
+    const replayed = await alreadyApplied(env?.clientEventId, id);
+    if (replayed) return replayed;
     const s = await db.workOrderStage.findUnique({
       where: { id },
       include: { routingStage: true, workOrder: { include: { orderLine: true } }, photos: true },
@@ -87,7 +113,7 @@ export default async function workRoutes(app: FastifyInstance) {
 
     const updated = await db.workOrderStage.update({
       where: { id },
-      data: { status: "IN_PROGRESS", startedAt: new Date(), assignedToId: user.id },
+      data: { status: "IN_PROGRESS", startedAt: deviceTime(env), assignedToId: user.id },
     });
     await db.workOrder.updateMany({
       where: { id: s.workOrderId, actualStart: null },
@@ -98,27 +124,33 @@ export default async function workRoutes(app: FastifyInstance) {
       code: "STAGE_STARTED", entityType: "work_order_stage", entityId: id,
       orderId: s.workOrder.orderLine.orderId, actorId: user.id, stationId: s.routingStage.stationId,
       payload: { stage: s.routingStage.key },
+      occurredAt: deviceTime(env), clientEventId: env?.clientEventId ?? null,
     });
     return updated;
   });
 
   app.post("/work/stages/:id/pause", { preHandler: guard() }, async (req, reply) => {
     const { id } = req.params as { id: string };
-    const { reason, note } = z.object({
+    const body = z.object({
       reason: z.enum(REASONS), note: z.string().optional(),
+      clientEventId: z.string().min(8).optional(), occurredAt: z.string().datetime().optional(),
     }).parse(req.body);
+    const { reason, note } = body;
     const user = (req as any).user;
+    const replayed = await alreadyApplied(body.clientEventId, id);
+    if (replayed) return replayed;
     const s = await db.workOrderStage.findUnique({
       where: { id }, include: { routingStage: true, workOrder: { include: { orderLine: true } } },
     });
     if (!s) return reply.code(404).send({ error: "not_found" });
     if (s.status !== "IN_PROGRESS") return reply.code(409).send({ error: "not_running" });
 
-    const mins = s.startedAt ? Math.round((Date.now() - s.startedAt.getTime()) / 60000) : 0;
+    const at = deviceTime(body);
+    const mins = s.startedAt ? Math.max(0, Math.round((at.getTime() - s.startedAt.getTime()) / 60000)) : 0;
     const updated = await db.workOrderStage.update({
       where: { id },
       data: {
-        status: "PAUSED", pausedAt: new Date(), blockedReason: reason, blockedNote: note ?? null,
+        status: "PAUSED", pausedAt: at, blockedReason: reason, blockedNote: note ?? null,
         actualMinutes: { increment: mins }, startedAt: null,
       },
     });
@@ -126,6 +158,7 @@ export default async function workRoutes(app: FastifyInstance) {
       code: "STAGE_BLOCKED", entityType: "work_order_stage", entityId: id,
       orderId: s.workOrder.orderLine.orderId, actorId: user.id, stationId: s.routingStage.stationId,
       payload: { reason, note: note ?? null },
+      occurredAt: at, clientEventId: body.clientEventId ?? null,
     });
     return updated;
   });
@@ -133,17 +166,21 @@ export default async function workRoutes(app: FastifyInstance) {
   app.post("/work/stages/:id/resume", { preHandler: guard() }, async (req, reply) => {
     const { id } = req.params as { id: string };
     const user = (req as any).user;
+    const env = offline.parse(req.body ?? {}) as Envelope | undefined;
+    const replayed = await alreadyApplied(env?.clientEventId, id);
+    if (replayed) return replayed;
     const s = await db.workOrderStage.findUnique({
       where: { id }, include: { routingStage: true, workOrder: { include: { orderLine: true } } },
     });
     if (!s) return reply.code(404).send({ error: "not_found" });
     if (s.status !== "PAUSED") return reply.code(409).send({ error: "not_paused" });
 
-    const blocked = s.pausedAt ? Math.round((Date.now() - s.pausedAt.getTime()) / 60000) : 0;
+    const at = deviceTime(env);
+    const blocked = s.pausedAt ? Math.max(0, Math.round((at.getTime() - s.pausedAt.getTime()) / 60000)) : 0;
     const updated = await db.workOrderStage.update({
       where: { id },
       data: {
-        status: "IN_PROGRESS", startedAt: new Date(), pausedAt: null,
+        status: "IN_PROGRESS", startedAt: at, pausedAt: null,
         blockedMinutes: { increment: blocked }, blockedReason: null, blockedNote: null,
       },
     });
@@ -151,6 +188,7 @@ export default async function workRoutes(app: FastifyInstance) {
       code: "STAGE_UNBLOCKED", entityType: "work_order_stage", entityId: id,
       orderId: s.workOrder.orderLine.orderId, actorId: user.id, stationId: s.routingStage.stationId,
       payload: { blockedMinutes: blocked, reason: s.blockedReason },
+      occurredAt: at, clientEventId: env?.clientEventId ?? null,
     });
     return updated;
   });
@@ -158,6 +196,9 @@ export default async function workRoutes(app: FastifyInstance) {
   app.post("/work/stages/:id/finish", { preHandler: guard() }, async (req, reply) => {
     const { id } = req.params as { id: string };
     const user = (req as any).user;
+    const env = offline.parse(req.body ?? {}) as Envelope | undefined;
+    const replayed = await alreadyApplied(env?.clientEventId, id);
+    if (replayed) return replayed;
     const s = await db.workOrderStage.findUnique({
       where: { id },
       include: { routingStage: true, workOrder: { include: { orderLine: true } }, photos: true },
@@ -170,16 +211,18 @@ export default async function workRoutes(app: FastifyInstance) {
       return reply.code(428).send({ error: "photo_after_required" });
     }
 
-    const mins = s.startedAt ? Math.round((Date.now() - s.startedAt.getTime()) / 60000) : 0;
+    const at = deviceTime(env);
+    const mins = s.startedAt ? Math.max(0, Math.round((at.getTime() - s.startedAt.getTime()) / 60000)) : 0;
     const updated = await db.workOrderStage.update({
       where: { id },
-      data: { status: "DONE", finishedAt: new Date(), actualMinutes: { increment: mins } },
+      data: { status: "DONE", finishedAt: at, actualMinutes: { increment: mins } },
     });
     await record({
       code: "STAGE_FINISHED", entityType: "work_order_stage", entityId: id,
       orderId: s.workOrder.orderLine.orderId, actorId: user.id, stationId: s.routingStage.stationId,
       payload: { stage: s.routingStage.key, minutes: updated.actualMinutes, stdMinutes: s.routingStage.stdMinutes },
       isCustomerVisible: s.routingStage.isCustomerVisible,
+      occurredAt: at, clientEventId: env?.clientEventId ?? null,
     });
     await refreshReadiness(s.workOrderId);
 

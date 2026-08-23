@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { DICT, type Key, type Lang } from "./i18n";
-import { api, token, type Me } from "./api";
+import { api, token, cache, type Me } from "./api";
 
 type Ctx = {
   lang: Lang; setLang: (l: Lang) => void; t: (k: Key) => string;
@@ -32,7 +32,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     lang, setLang: setLangState,
     t: (k) => DICT[lang][k] ?? k,
     me, setMe, ready,
-    signOut: () => { token.clear(); setMe(null); },
+    signOut: () => { token.clear(); cache.clear(); setMe(null); },
     toast: (m) => { setMsg(m); setTimeout(() => setMsg(null), 2200); },
   }), [lang, me, ready]);
 

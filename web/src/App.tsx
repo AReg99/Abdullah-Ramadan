@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { Navigate, Route, Routes, NavLink, useLocation } from "react-router-dom";
 import { useApp } from "./app-context";
 import { Wordmark } from "./logo";
@@ -9,20 +10,33 @@ import Today from "./screens/Today";
 import Floor from "./screens/Floor";
 import Orders from "./screens/Orders";
 import OrderDetail from "./screens/OrderDetail";
+import Scan from "./screens/Scan";
+import Labels from "./screens/Labels";
+import { onSyncChange, queued } from "./outbox";
+import { startSyncLoop } from "./sync";
 
 const OFFICE = ["OWNER", "FACTORY_MANAGER", "SUPERVISOR", "ACCOUNTANT", "SALES_REP"];
 
 export default function App() {
   const { me, ready, lang, setLang, t, signOut } = useApp();
   const loc = useLocation();
+  const [pending, setPending] = useState(0);
+  const [online, setOnline] = useState(navigator.onLine);
+
+  useEffect(() => {
+    const off = onSyncChange((n, on) => { setPending(n); setOnline(on); });
+    startSyncLoop();
+    void queued();
+    return off;
+  }, []);
 
   if (!ready) return <div className="empty">{t("loading")}</div>;
   if (!me) return <Login />;
 
   const office = OFFICE.includes(me.role);
   const nav = office
-    ? [["/today", "◧", t("today")], ["/floor", "▦", t("floor")], ["/orders", "▤", t("orders")]]
-    : [["/work", "▤", t("work")], ["/myday", "◔", t("myday")]];
+    ? [["/today", "◧", t("today")], ["/floor", "▦", t("floor")], ["/orders", "▤", t("orders")], ["/labels", "⌗", t("labels")]]
+    : [["/work", "▤", t("work")], ["/scan", "⌗", t("scan")], ["/myday", "◔", t("myday")]];
 
   return (
     <div className={`shell${office ? " wide" : ""}`}>
@@ -35,11 +49,16 @@ export default function App() {
         <button className="chip" onClick={signOut}>{t("signout")}</button>
       </div>
 
+      {!online && <div className="syncbar off">{t("offline")}{pending > 0 && ` · ${pending}`}</div>}
+      {online && pending > 0 && <div className="syncbar pend">{pending} {t("pending")}</div>}
+
       <div className="body">
         <Routes>
           <Route path="/work" element={<Work />} />
           <Route path="/work/:id" element={<Job />} />
+          <Route path="/scan" element={<Scan />} />
           <Route path="/myday" element={<MyDay />} />
+          <Route path="/labels" element={<Labels />} />
           <Route path="/today" element={<Today />} />
           <Route path="/floor" element={<Floor />} />
           <Route path="/orders" element={<Orders />} />

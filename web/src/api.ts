@@ -27,32 +27,80 @@ async function req<T>(path: string, init: RequestInit = {}): Promise<T> {
   return res.status === 204 ? (undefined as T) : res.json();
 }
 
+/**
+ * Read-through cache for the data a worker needs in hand. The spec is explicit
+ * that reference data is pre-cached on login: a worker who cannot open a job
+ * card without signal cannot work, and "offline" would be a claim rather than a
+ * capability. Writes never come from here — the outbox owns those.
+ */
+const CACHE = "aura.cache.";
+export const cache = {
+  read: <T,>(key: string): T | null => {
+    try { const v = localStorage.getItem(CACHE + key); return v ? (JSON.parse(v) as T) : null; }
+    catch { return null; }
+  },
+  write: (key: string, value: unknown) => {
+    try { localStorage.setItem(CACHE + key, JSON.stringify(value)); } catch { /* quota */ }
+  },
+  clear: () => Object.keys(localStorage).filter((k) => k.startsWith(CACHE)).forEach((k) => localStorage.removeItem(k)),
+};
+
+async function cachedGet<T>(path: string, key: string): Promise<T> {
+  try {
+    const fresh = await req<T>(path);
+    cache.write(key, fresh);
+    return fresh;
+  } catch (e) {
+    const stale = cache.read<T>(key);
+    if (stale) return stale;
+    throw e;
+  }
+}
+
+/** Reflect a queued action locally so the screen matches what the worker just did. */
+export function patchCachedStage(id: string, patch: Record<string, unknown>) {
+  const one = cache.read<any>(`stage.${id}`);
+  if (one) cache.write(`stage.${id}`, { ...one, ...patch });
+  const list = cache.read<any[]>("today");
+  if (Array.isArray(list)) {
+    cache.write("today", list.map((s) => (s.id === id ? { ...s, ...patch } : s)));
+  }
+}
+
 export const api = {
   requestOtp: (phone: string) => req<{ sent: boolean; devCode?: string }>("/auth/otp/request", { method: "POST", body: JSON.stringify({ phone }) }),
   verifyOtp: (phone: string, code: string) => req<{ token: string; user: Me }>("/auth/otp/verify", { method: "POST", body: JSON.stringify({ phone, code }) }),
   login: (email: string, password: string) => req<{ token: string; user: Me }>("/auth/login", { method: "POST", body: JSON.stringify({ email, password }) }),
   me: () => req<Me>("/me"),
 
-  workToday: () => req<Stage[]>("/work/today"),
-  stage: (id: string) => req<Stage & { previousAfterPhoto: string | null }>(`/work/stages/${id}`),
+  workToday: () => cachedGet<Stage[]>("/work/today", "today"),
+  stage: (id: string) => cachedGet<Stage & { previousAfterPhoto: string | null }>(`/work/stages/${id}`, `stage.${id}`),
   byLabel: (serial: string) => req<{ stageId: string }>(`/work/label/${encodeURIComponent(serial)}`),
-  start: (id: string) => req<any>(`/work/stages/${id}/start`, { method: "POST" }),
-  pause: (id: string, reason: string, note?: string) => req<any>(`/work/stages/${id}/pause`, { method: "POST", body: JSON.stringify({ reason, note }) }),
-  resume: (id: string) => req<any>(`/work/stages/${id}/resume`, { method: "POST" }),
-  finish: (id: string) => req<any>(`/work/stages/${id}/finish`, { method: "POST" }),
+  start: (id: string, clientEventId?: string, occurredAt?: string) =>
+    req<any>(`/work/stages/${id}/start`, { method: "POST", body: JSON.stringify({ clientEventId, occurredAt }) }),
+  pause: (id: string, reason: string, note?: string, clientEventId?: string, occurredAt?: string) =>
+    req<any>(`/work/stages/${id}/pause`, { method: "POST", body: JSON.stringify({ reason, note, clientEventId, occurredAt }) }),
+  resume: (id: string, clientEventId?: string, occurredAt?: string) =>
+    req<any>(`/work/stages/${id}/resume`, { method: "POST", body: JSON.stringify({ clientEventId, occurredAt }) }),
+  finish: (id: string, clientEventId?: string, occurredAt?: string) =>
+    req<any>(`/work/stages/${id}/finish`, { method: "POST", body: JSON.stringify({ clientEventId, occurredAt }) }),
+
+  labels: () => req<LabelRow[]>("/labels"),
+  markPrinted: (id: string) => req<any>(`/labels/${id}/printed`, { method: "POST" }),
 
   today: () => req<Dashboard>("/dashboard/today"),
   floor: () => req<StationCard[]>("/dashboard/floor"),
   orders: () => req<OrderRow[]>("/orders"),
   order: (id: string) => req<OrderDetail>(`/orders/${id}`),
 
-  async uploadPhoto(stageId: string, kind: "BEFORE" | "AFTER", blob: Blob, w: number, h: number) {
+  async uploadPhoto(stageId: string, kind: "BEFORE" | "AFTER", blob: Blob, w: number, h: number,
+                    clientEventId?: string, capturedAt?: string) {
     const fd = new FormData();
     fd.append("stageId", stageId);
     fd.append("kind", kind);
     // Idempotency key: a retried upload is a no-op, a double tap cannot double-count.
-    fd.append("clientEventId", crypto.randomUUID());
-    fd.append("capturedAt", new Date().toISOString());
+    fd.append("clientEventId", clientEventId ?? crypto.randomUUID());
+    fd.append("capturedAt", capturedAt ?? new Date().toISOString());
     fd.append("width", String(w));
     fd.append("height", String(h));
     fd.append("file", blob, "photo.jpg");
@@ -60,6 +108,8 @@ export const api = {
   },
 };
 
+export type LabelRow = { id: string; serial: string; printedAt: string | null; workOrderCode: string;
+  orderCode: string; customer: string; productAr: string; productEn: string; qty: number; promisedDate: string | null };
 export type Me = { id: string; nameAr: string; nameEn: string; phone: string; locale: "ar" | "en"; role: string; stationId: string | null };
 export type Photo = { id: string; kind: string; path: string };
 export type Stage = {

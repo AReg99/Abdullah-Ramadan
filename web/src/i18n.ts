@@ -31,6 +31,12 @@ const ar = {
   PRODUCTION_FINISHED: "انتهى التصنيع", USER_SIGNED_IN: "تسجيل دخول",
   errStart: "مش قادر تبدأ", photoRequiredBefore: "لازم صورة قبل ما تبدأ",
   photoRequiredAfter: "لازم صورة بعد ما تخلّص",
+  aimLabel: "وجّه الكاميرا على ملصق الكود", scanUnsupported: "المتصفح ده مش بيدعم قراءة الكود بالكاميرا — اكتب الرقم المسلسل تحت",
+  typeSerial: "أو اكتب الرقم المسلسل", open: "افتح",
+  unknownLabel: "الملصق ده مش معروف", noOpenStage: "مفيش مرحلة مفتوحة على القطعة دي",
+  offline: "مفيش نت — الشغل بيتحفظ", pending: "مستني الرفع", synced: "اترفع كله",
+  labels: "الملصقات", print: "طباعة", printed: "اتطبع", notPrinted: "لسه", printAll: "اطبع الكل",
+  labelHint: "اطبع الملصقات على ورق صناعي، مش ورق عادي — لازم تستحمل التراب والدهان.",
 };
 
 const en: Record<keyof typeof ar, string> = {
@@ -64,6 +70,12 @@ const en: Record<keyof typeof ar, string> = {
   PRODUCTION_FINISHED: "Production finished", USER_SIGNED_IN: "Signed in",
   errStart: "Cannot start", photoRequiredBefore: "A before photo is required",
   photoRequiredAfter: "An after photo is required",
+  aimLabel: "Point the camera at the QR label", scanUnsupported: "This browser cannot read codes with the camera — type the serial below",
+  typeSerial: "Or type the serial", open: "Open",
+  unknownLabel: "Unknown label", noOpenStage: "No open stage on this piece",
+  offline: "Offline — work is being saved", pending: "waiting to upload", synced: "All synced",
+  labels: "Labels", print: "Print", printed: "Printed", notPrinted: "Not yet", printAll: "Print all",
+  labelHint: "Print on synthetic label stock, not paper — it has to survive dust and finish overspray.",
 };
 
 export const DICT = { ar, en };

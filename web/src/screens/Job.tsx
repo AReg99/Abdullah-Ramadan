@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useApp } from "../app-context";
-import { api, compress, ApiError, type Stage } from "../api";
+import { api, compress, patchCachedStage, ApiError, type Stage } from "../api";
+import { enqueue, newId } from "../sync";
 import { REASONS } from "../i18n";
 
 type Mode = "card" | "capture" | "pause";
@@ -65,13 +66,22 @@ export default function Job() {
             <div style={{ height: 12 }} />
             <button className="btn pri" disabled={busy} onClick={async () => {
               setBusy(true);
+              const at = new Date().toISOString();
               try {
-                await api.uploadPhoto(s.id, kind, shot.blob, shot.w, shot.h);
-                if (kind === "BEFORE") await api.start(s.id); else await api.finish(s.id);
+                // Queue the photo, then the action it gates. Order is preserved
+                // by the outbox, so the gate always sees its photo first.
+                await enqueue({ kind: "photo", stageId: s.id, photoKind: kind, blob: shot.blob,
+                                w: shot.w, h: shot.h, clientEventId: newId(), occurredAt: at });
+                await enqueue({ kind: kind === "BEFORE" ? "start" : "finish", stageId: s.id,
+                                clientEventId: newId(), occurredAt: at });
+                patchCachedStage(s.id, kind === "BEFORE"
+                  ? { status: "IN_PROGRESS", startedAt: at, photos: [...s.photos, { id: "local", kind: "BEFORE", path: "" }] }
+                  : { status: "DONE" });
                 setShot(null); setMode("card");
-                if (kind === "AFTER") { toast(t("STAGE_FINISHED")); nav("/work"); } else { await load(); }
-              } catch (e: any) {
-                toast(e instanceof ApiError ? e.code : "error");
+                if (kind === "AFTER") { toast(t("STAGE_FINISHED")); nav("/work"); }
+                else { setTimeout(load, 700); }
+              } catch {
+                toast("error");
               } finally { setBusy(false); }
             }}>{t("use")}</button>
             <div style={{ height: 9 }} />
@@ -96,8 +106,10 @@ export default function Job() {
         <p className="note" style={{ marginBottom: 14 }}>{t("pauseHint")}</p>
         {REASONS.map((r) => (
           <button key={r} className="reason" onClick={async () => {
-            await api.pause(s.id, r);
-            setMode("card"); await load(); toast(t("STAGE_BLOCKED"));
+            await enqueue({ kind: "pause", stageId: s.id, reason: r,
+                            clientEventId: newId(), occurredAt: new Date().toISOString() });
+            patchCachedStage(s.id, { status: "PAUSED", blockedReason: r, startedAt: null });
+            setMode("card"); setTimeout(load, 700); toast(t("STAGE_BLOCKED"));
           }}>{t(r)}</button>
         ))}
         <div style={{ height: 8 }} />
@@ -153,8 +165,12 @@ export default function Job() {
       {s.status === "READY" && (
         <button className="btn pri" onClick={async () => {
           if (s.stage.photoBefore === "REQUIRED" && !has("BEFORE")) { setKind("BEFORE"); setShot(null); setMode("capture"); return; }
-          try { await api.start(s.id); await load(); }
-          catch (e: any) {
+          try {
+            const at = new Date().toISOString();
+            await enqueue({ kind: "start", stageId: s.id, clientEventId: newId(), occurredAt: at });
+            patchCachedStage(s.id, { status: "IN_PROGRESS", startedAt: at });
+            setTimeout(load, 700);
+          } catch (e: any) {
             if (e instanceof ApiError && e.code === "photo_before_required") { setKind("BEFORE"); setMode("capture"); }
             else toast(t("errStart"));
           }
@@ -164,14 +180,21 @@ export default function Job() {
         <>
           <button className="btn pri" onClick={async () => {
             if (s.stage.photoAfter === "REQUIRED" && !has("AFTER")) { setKind("AFTER"); setShot(null); setMode("capture"); return; }
-            await api.finish(s.id); toast(t("STAGE_FINISHED")); nav("/work");
+            await enqueue({ kind: "finish", stageId: s.id, clientEventId: newId(), occurredAt: new Date().toISOString() });
+            patchCachedStage(s.id, { status: "DONE" });
+            toast(t("STAGE_FINISHED")); nav("/work");
           }}>{t("finish")}</button>
           <div style={{ height: 9 }} />
           <button className="btn sec" onClick={() => setMode("pause")}>{t("pause")}</button>
         </>
       )}
       {s.status === "PAUSED" && (
-        <button className="btn pri" onClick={async () => { await api.resume(s.id); await load(); }}>{t("resume")}</button>
+        <button className="btn pri" onClick={async () => {
+          const at = new Date().toISOString();
+          await enqueue({ kind: "resume", stageId: s.id, clientEventId: newId(), occurredAt: at });
+          patchCachedStage(s.id, { status: "IN_PROGRESS", startedAt: at, blockedReason: null });
+          setTimeout(load, 700);
+        }}>{t("resume")}</button>
       )}
     </>
   );

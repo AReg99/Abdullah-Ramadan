@@ -2,6 +2,34 @@
 
 Phase 1 — the tracking spine. Node 22, PostgreSQL 16.
 
+## Quickest way in
+
+```bash
+git clone https://github.com/AReg99/Abdullah-Ramadan.git
+cd Abdullah-Ramadan
+git checkout claude/furniture-factory-tracking-k4psgd
+docker compose up --build        # then open http://localhost:8080
+```
+
+Docker Compose brings up Postgres, the API and the web app, creating the schema
+and seeding it on first run. **The compose path has not been executed** — there
+is no Docker daemon in the environment it was written in, so it is validated
+YAML and standard Dockerfiles, not a tested run. The manual path below *has*
+been run end to end.
+
+## Install it on a phone
+
+The web app is a PWA. Open it on the phone's browser and use **Add to Home
+Screen** — it installs with the Aura droplet as its icon and opens fullscreen,
+with no browser chrome. That is the closest thing to "downloading the app";
+there is no app-store build, and for a factory-floor tool a PWA is usually the
+right answer anyway: no store review, and an update is a deploy.
+
+The phone must reach the machine running it, so use the host's LAN address
+(`http://192.168.x.x:8080`) rather than `localhost`. Note that the **camera and
+service worker need HTTPS** on anything that is not `localhost` — put it behind
+a TLS terminator, or use a tunnel, before testing capture on a real phone.
+
 ## Setup
 
 ```bash
@@ -32,6 +60,34 @@ cd ../web && npm install && npm run dev   # http://localhost:5173
 The OTP is fixed to `1234` in development and returned in the API response so
 the flow is testable without an SMS gateway. `DEV_OTP` must be removed before
 any real deployment.
+
+## Print labels, then scan them
+
+Sign in as the owner → **الملصقات / Labels** → **Print all**. Each label carries a
+QR of the unit serial. Print on synthetic stock, not paper — it has to survive
+dust and finish overspray.
+
+Then as a worker, **امسح / Scan** reads the QR with the camera where the browser
+supports `BarcodeDetector`, and always accepts a typed serial as a fallback,
+because a scanner that fails with no fallback stops the line.
+
+## Working with no signal
+
+Turn the phone's network off and keep working. Every action is written to an
+IndexedDB outbox with its own id and the device clock, and the banner shows how
+many are waiting. When the connection returns the queue drains in order.
+
+Two properties make that safe, and both are verified:
+
+- **Replay is a no-op.** The same action sent twice produces one event and one
+  state change, because the server is idempotent on `clientEventId`.
+- **The device clock wins.** An action taken at 09:12 that syncs at 11:40 is
+  recorded as having occurred at 09:12, so offline work does not distort the
+  productivity numbers.
+
+Reference data — the job list and job cards — is cached on first view so a job
+can be opened with no signal. Writes never come from that cache; the outbox owns
+them.
 
 ## The loop worth seeing
 
@@ -70,12 +126,12 @@ the sequence.
 
 Also not here, and needed before this runs anywhere real:
 
-- **Offline sync.** The client posts directly; the outbox and `client_event_id`
-  replay described in `docs/07-tech-architecture.md` are not built. The server
-  side is ready for it — `/photos` is already idempotent on `clientEventId`.
-- **QR scanning.** `GET /work/label/:serial` resolves a label to its open stage,
-  but the camera scanner is not wired to it. Labels are seeded, not printed.
 - **Photo retention**, thumbnailing, and object storage. Photos are written to
-  local disk.
+  local disk, and nothing expires them yet.
 - **Tests.** The flow has been driven end to end in a browser and via the API,
-  but there is no test suite.
+  and the QR codes were decoded to prove they scan — but there is no test suite,
+  so none of that is guarded against regression.
+- **HTTPS.** Required for the camera and the service worker on anything that is
+  not `localhost`. Not configured.
+- **The Docker path is untested** (see above).
+- **Push notifications**, the notification rule engine, and scheduled reports.
