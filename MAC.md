@@ -73,7 +73,23 @@ Safari will warn about the certificate because it is self-signed. Click
 | Worker — finishing | `+201000000011`, code `1234` |
 | Worker — upholstery | `+201000000012`, code `1234` |
 
-## 5. On your phone
+## 5. On your phone — the easy way
+
+```bash
+./scripts/share.sh
+```
+
+Your Mac stays the server, but a Cloudflare tunnel gives it a public HTTPS
+address with a real certificate. It prints a **QR code** — point your phone
+camera at it, Safari opens, then **share button → Add to Home Screen**.
+
+This works **anywhere, including mobile data**, and because the certificate is
+genuine there are no security warnings and the camera works properly.
+
+The address is temporary and changes each run, and it only works while the
+script is running. For something permanent, see [DEPLOY.md](DEPLOY.md).
+
+## 5b. On your phone — over Wi-Fi only
 
 Both devices on the same Wi-Fi. The setup script prints your Mac's address; if
 you need it again:
@@ -82,8 +98,7 @@ you need it again:
 ipconfig getifaddr en0
 ```
 
-Open **https://YOUR-MAC-IP:5173** in Safari. Accept the certificate warning the
-same way, then:
+Open **https://YOUR-MAC-IP:5173** in Safari. Accept the certificate warning, then:
 
 **Add to Home Screen** — share button → Add to Home Screen. It installs with the
 Aura droplet as its icon and opens fullscreen with no browser chrome. That is as

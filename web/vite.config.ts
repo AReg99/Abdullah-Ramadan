@@ -10,11 +10,20 @@ import basicSsl from "@vitejs/plugin-basic-ssl";
  */
 const https = process.env.HTTPS === "1";
 
+/**
+ * When the dev server sits behind a tunnel, requests arrive with the tunnel's
+ * hostname. Vite rejects unknown hosts by default, so tunnel mode opts out —
+ * and runs plain HTTP, because the tunnel terminates TLS with a real
+ * certificate, which is exactly what the phone needs.
+ */
+const tunnel = process.env.TUNNEL === "1";
+
 export default defineConfig({
-  plugins: [react(), ...(https ? [basicSsl()] : [])],
+  plugins: [react(), ...(https && !tunnel ? [basicSsl()] : [])],
   server: {
     host: "0.0.0.0",
     port: 5173,
+    ...(tunnel ? { allowedHosts: true as const } : {}),
     proxy: {
       "/api": { target: "http://localhost:4000", changeOrigin: true, rewrite: (p) => p.replace(/^\/api/, "") },
       "/uploads": { target: "http://localhost:4000", changeOrigin: true },

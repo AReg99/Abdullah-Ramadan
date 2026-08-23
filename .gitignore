@@ -5,3 +5,4 @@ api/uploads/
 *.log
 .env.prod
 api/prisma/dev.db*
+.tools/
