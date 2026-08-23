@@ -50,6 +50,17 @@ An order can contain both kinds of lines at once. Each line runs its own
 lifecycle and carries its own promise date; the order is delivered when its lines
 are ready, or in split shipments if the customer prefers.
 
+## Running the code
+
+Phase 1 — the tracking spine — is built and runs: Fastify + Prisma + PostgreSQL
+behind a React client, in Arabic and English. See **[RUNNING.md](RUNNING.md)**
+for setup, sign-in credentials, and what is deliberately not built yet.
+
+```
+api/   Fastify + Prisma + PostgreSQL — auth, work flow, photos, dashboard, orders
+web/   React + Vite — worker app and owner console, RTL-first
+```
+
 ## Documentation
 
 | Doc | What is in it |

@@ -1,0 +1,406 @@
+// Aura — Phase 1 (the tracking spine).
+// Mirrors docs/04-data-model.md. Later phases add materials, BOM, logistics,
+// finance and after-sales; the seams for those are noted in the docs, not stubbed here.
+
+generator client {
+  provider = "prisma-client-js"
+}
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ---------------------------------------------------------------- identity
+
+enum RoleKey {
+  OWNER
+  FACTORY_MANAGER
+  SUPERVISOR
+  WORKER
+  QC
+  STOREKEEPER
+  SHOWROOM_MANAGER
+  SALES_REP
+  DRIVER
+  ACCOUNTANT
+}
+enum Locale {
+  ar
+  en
+}
+
+model Role {
+  id          String   @id @default(uuid())
+  key         RoleKey  @unique
+  nameAr      String
+  nameEn      String
+  permissions Json     @default("[]")
+  users       User[]
+}
+
+model User {
+  id           String   @id @default(uuid())
+  nameAr       String
+  nameEn       String
+  phone        String   @unique
+  email        String?  @unique
+  passwordHash String?
+  locale       Locale   @default(ar)
+  isActive     Boolean  @default(true)
+  roleId       String
+  role         Role     @relation(fields: [roleId], references: [id])
+  stationId    String?
+  station      Station? @relation(fields: [stationId], references: [id])
+  createdAt    DateTime @default(now())
+
+  stages       WorkOrderStage[]
+  photos       StagePhoto[]
+  events       TrackingEvent[]
+  otps         OtpCode[]
+}
+
+model OtpCode {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  code      String
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime @default(now())
+  @@index([userId, createdAt])
+}
+
+// ---------------------------------------------------------------- places
+
+enum LocationType {
+  FACTORY
+  SHOWROOM
+  WAREHOUSE
+}
+
+model Location {
+  id       String       @id @default(uuid())
+  type     LocationType
+  nameAr   String
+  nameEn   String
+  address  String?
+  stations Station[]
+  orders   Order[]
+  events   TrackingEvent[]
+}
+
+model Station {
+  id                   String   @id @default(uuid())
+  code                 String   @unique
+  nameAr               String
+  nameEn               String
+  locationId           String
+  location             Location @relation(fields: [locationId], references: [id])
+  dailyCapacityMinutes Int      @default(480)
+  isActive             Boolean  @default(true)
+
+  users         User[]
+  routingStages RoutingStage[]
+  events        TrackingEvent[]
+}
+
+// ---------------------------------------------------------------- catalogue
+
+model ProductCategory {
+  id       String    @id @default(uuid())
+  nameAr   String
+  nameEn   String
+  products Product[]
+  routings Routing[]
+}
+
+enum ProductKind {
+  STANDARD
+  CUSTOMIZABLE
+}
+
+model Product {
+  id             String          @id @default(uuid())
+  sku            String          @unique
+  nameAr         String
+  nameEn         String
+  kind           ProductKind     @default(STANDARD)
+  basePrice      Decimal         @db.Decimal(14, 2)
+  baseLeadDays   Int             @default(14)
+  warrantyMonths Int             @default(24)
+  categoryId     String
+  category       ProductCategory @relation(fields: [categoryId], references: [id])
+  isActive       Boolean         @default(true)
+
+  orderLines OrderLine[]
+  workOrders WorkOrder[]
+}
+
+// ---------------------------------------------------------------- sales
+
+model Customer {
+  id       String  @id @default(uuid())
+  name     String
+  phone    String
+  whatsapp String?
+  email    String?
+  address  String?
+  locale   Locale  @default(ar)
+  orders   Order[]
+}
+
+enum OrderKind {
+  STANDARD
+  CUSTOM
+  MIXED
+}
+enum OrderChannel {
+  SHOWROOM
+  FACTORY
+  ONLINE
+}
+enum OrderStatus {
+  DRAFT
+  QUOTED
+  CONFIRMED
+  IN_PRODUCTION
+  READY
+  DELIVERED
+  CLOSED
+  CANCELLED
+}
+enum LineKind {
+  STANDARD
+  CUSTOM
+}
+enum LineStatus {
+  PENDING
+  QUEUED
+  IN_PRODUCTION
+  FINISHED
+  READY
+  DELIVERED
+  CANCELLED
+}
+
+model Order {
+  id            String       @id @default(uuid())
+  code          String       @unique
+  kind          OrderKind    @default(STANDARD)
+  channel       OrderChannel @default(SHOWROOM)
+  status        OrderStatus  @default(CONFIRMED)
+  customerId    String
+  customer      Customer     @relation(fields: [customerId], references: [id])
+  showroomId    String?
+  showroom      Location?    @relation(fields: [showroomId], references: [id])
+  promisedDate  DateTime?
+  total         Decimal      @db.Decimal(14, 2) @default(0)
+  paidTotal     Decimal      @db.Decimal(14, 2) @default(0)
+  currency      String       @default("EGP")
+  trackingToken String       @unique
+  createdAt     DateTime     @default(now())
+
+  lines  OrderLine[]
+  events TrackingEvent[]
+  @@index([status, promisedDate])
+}
+
+model OrderLine {
+  id           String     @id @default(uuid())
+  orderId      String
+  order        Order      @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productId    String
+  product      Product    @relation(fields: [productId], references: [id])
+  qty          Int        @default(1)
+  unitPrice    Decimal    @db.Decimal(14, 2)
+  lineKind     LineKind   @default(STANDARD)
+  status       LineStatus @default(PENDING)
+  promisedDate DateTime?
+  specNotes    String?
+
+  workOrders WorkOrder[]
+  @@index([status, promisedDate])
+}
+
+// ---------------------------------------------------------------- production
+
+model Routing {
+  id         String           @id @default(uuid())
+  nameAr     String
+  nameEn     String
+  categoryId String?
+  category   ProductCategory? @relation(fields: [categoryId], references: [id])
+  isDefault  Boolean          @default(false)
+  stages     RoutingStage[]
+  workOrders WorkOrder[]
+}
+
+/// Photo gates, per stage and per direction. See docs/03-order-lifecycle.md.
+enum PhotoRule {
+  OFF
+  OPTIONAL
+  REQUIRED
+}
+
+model RoutingStage {
+  id                String    @id @default(uuid())
+  routingId         String
+  routing           Routing   @relation(fields: [routingId], references: [id], onDelete: Cascade)
+  seq               Int
+  key               String
+  nameAr            String
+  nameEn            String
+  stationId         String
+  station           Station   @relation(fields: [stationId], references: [id])
+  stdMinutes        Int
+  isCustomerVisible Boolean   @default(false)
+  photoBefore       PhotoRule @default(OFF)
+  photoAfter        PhotoRule @default(OFF)
+  photoMinCount     Int       @default(1)
+
+  workOrderStages WorkOrderStage[]
+  @@unique([routingId, seq])
+}
+
+enum WorkOrderStatus {
+  PENDING
+  SCHEDULED
+  IN_PROGRESS
+  DONE
+  CANCELLED
+}
+
+model WorkOrder {
+  id          String          @id @default(uuid())
+  code        String          @unique
+  orderLineId String
+  orderLine   OrderLine       @relation(fields: [orderLineId], references: [id], onDelete: Cascade)
+  productId   String
+  product     Product         @relation(fields: [productId], references: [id])
+  qty         Int             @default(1)
+  routingId   String
+  routing     Routing         @relation(fields: [routingId], references: [id])
+  status      WorkOrderStatus @default(PENDING)
+  priority    Int             @default(0)
+  plannedStart DateTime?
+  plannedEnd   DateTime?
+  actualStart  DateTime?
+  actualEnd    DateTime?
+  createdAt    DateTime       @default(now())
+
+  stages WorkOrderStage[]
+  labels UnitLabel[]
+  photos StagePhoto[]
+}
+
+enum StageStatus {
+  PENDING
+  READY
+  IN_PROGRESS
+  PAUSED
+  DONE
+}
+/// Fixed list — free text cannot be reported on. docs/03-order-lifecycle.md.
+enum BlockedReason {
+  NO_MATERIAL
+  MACHINE_DOWN
+  AWAITING_DRAWING
+  AWAITING_QC
+  AWAITING_CUSTOMER
+  MISSING_COMPONENT
+  POWER
+  LABOUR_SHORT
+  OTHER
+}
+
+model WorkOrderStage {
+  id             String        @id @default(uuid())
+  workOrderId    String
+  workOrder      WorkOrder     @relation(fields: [workOrderId], references: [id], onDelete: Cascade)
+  routingStageId String
+  routingStage   RoutingStage  @relation(fields: [routingStageId], references: [id])
+  seq            Int
+  status         StageStatus   @default(PENDING)
+  assignedToId   String?
+  assignedTo     User?         @relation(fields: [assignedToId], references: [id])
+  startedAt      DateTime?
+  finishedAt     DateTime?
+  actualMinutes  Int           @default(0)
+  blockedReason  BlockedReason?
+  blockedNote    String?
+  blockedMinutes Int           @default(0)
+  pausedAt       DateTime?
+
+  photos StagePhoto[]
+  @@unique([workOrderId, seq])
+  @@index([status])
+}
+
+model UnitLabel {
+  id          String    @id @default(uuid())
+  workOrderId String
+  workOrder   WorkOrder @relation(fields: [workOrderId], references: [id], onDelete: Cascade)
+  serial      String    @unique
+  printedAt   DateTime?
+  scrapped    Boolean   @default(false)
+  photos      StagePhoto[]
+}
+
+enum PhotoKind {
+  BEFORE
+  AFTER
+  ISSUE
+  EXTRA
+}
+
+model StagePhoto {
+  id               String         @id @default(uuid())
+  workOrderStageId String
+  workOrderStage   WorkOrderStage @relation(fields: [workOrderStageId], references: [id], onDelete: Cascade)
+  workOrderId      String
+  workOrder        WorkOrder      @relation(fields: [workOrderId], references: [id], onDelete: Cascade)
+  unitLabelId      String?
+  unitLabel        UnitLabel?     @relation(fields: [unitLabelId], references: [id])
+  kind             PhotoKind
+  path             String
+  bytes            Int            @default(0)
+  width            Int            @default(0)
+  height           Int            @default(0)
+  capturedAt       DateTime
+  uploadedAt       DateTime       @default(now())
+  actorId          String
+  actor            User           @relation(fields: [actorId], references: [id])
+  clientEventId    String         @unique
+  isCustomerVisible Boolean       @default(false)
+  caption          String?
+  @@index([workOrderStageId, kind])
+}
+
+// ---------------------------------------------------------------- the event stream
+
+/// Append-only. Nothing is ever updated; a mistake is corrected by a new
+/// compensating event. occurredAt is the device clock; recordedAt is the server's,
+/// so an offline scan still counts at the minute it happened.
+model TrackingEvent {
+  id            String    @id @default(uuid())
+  code          String
+  orderId       String?
+  order         Order?    @relation(fields: [orderId], references: [id])
+  entityType    String
+  entityId      String
+  actorId       String?
+  actor         User?     @relation(fields: [actorId], references: [id])
+  locationId    String?
+  location      Location? @relation(fields: [locationId], references: [id])
+  stationId     String?
+  station       Station?  @relation(fields: [stationId], references: [id])
+  payload       Json      @default("{}")
+  occurredAt    DateTime
+  recordedAt    DateTime  @default(now())
+  isCustomerVisible Boolean @default(false)
+  clientEventId String?   @unique
+
+  @@index([orderId, occurredAt])
+  @@index([code, occurredAt])
+  @@index([occurredAt])
+}
