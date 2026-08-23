@@ -1,4 +1,5 @@
 import Fastify from "fastify";
+import { ZodError } from "zod";
 import cors from "@fastify/cors";
 import multipart from "@fastify/multipart";
 import fastifyStatic from "@fastify/static";
@@ -21,6 +22,25 @@ export async function build() {
   await app.register(fastifyStatic, {
     root: path.resolve(env.uploadDir),
     prefix: "/uploads/",
+  });
+
+  /**
+   * A malformed request is the client's fault, not the server's. Without this,
+   * every schema violation surfaced as a 500, which hides real faults in the
+   * noise and tells the caller nothing about what to correct.
+   */
+  app.setErrorHandler((err: unknown, _req, reply) => {
+    if (err instanceof ZodError) {
+      return reply.code(400).send({
+        error: "invalid_request",
+        issues: err.issues.map((i) => ({ field: i.path.join("."), message: i.message })),
+      });
+    }
+    if ((err as any).statusCode && (err as any).statusCode < 500) {
+      return reply.code((err as any).statusCode).send({ error: (err as Error).message });
+    }
+    app.log.error(err as Error);
+    return reply.code(500).send({ error: "internal_error" });
   });
 
   app.get("/health", async () => ({ ok: true }));

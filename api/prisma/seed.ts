@@ -1,4 +1,12 @@
-import { PrismaClient, RoleKey, PhotoRule } from "@prisma/client";
+import { PrismaClient } from "@prisma/client";
+
+// Written as string literals rather than imported enum types so this seed runs
+// against either schema: PostgreSQL keeps real enums, SQLite stores the same
+// values as strings. See prisma/make-sqlite-schema.mjs.
+type RoleKey =
+  | "OWNER" | "FACTORY_MANAGER" | "SUPERVISOR" | "WORKER" | "QC"
+  | "STOREKEEPER" | "SHOWROOM_MANAGER" | "SALES_REP" | "DRIVER" | "ACCOUNTANT";
+type PhotoRule = "OFF" | "OPTIONAL" | "REQUIRED";
 import bcrypt from "bcryptjs";
 import { randomUUID } from "node:crypto";
 
@@ -59,7 +67,7 @@ async function main() {
 
   const roles = Object.fromEntries(
     await Promise.all(ROLES.map(async ([key, ar, en]) =>
-      [key, await db.role.create({ data: { key, nameAr: ar, nameEn: en } })] as const))
+      [key, await db.role.create({ data: { key: key as any, nameAr: ar, nameEn: en, permissions: [] } })] as const))
   );
 
   const factory = await db.location.create({
@@ -106,7 +114,7 @@ async function main() {
     db.routingStage.create({
       data: { routingId: routing.id, seq: i + 1, key, nameAr: ar, nameEn: en,
               stationId: stations[code].id, stdMinutes: mins, isCustomerVisible: vis,
-              photoBefore: pb, photoAfter: pa },
+              photoBefore: pb as any, photoAfter: pa as any },
     })));
 
   const products = await Promise.all([
@@ -165,11 +173,13 @@ async function main() {
       })));
     await db.trackingEvent.create({
       data: { code: "ORDER_CONFIRMED", entityType: "order", entityId: order.id, orderId: order.id,
-              actorId: owner.id, occurredAt: new Date(Date.now() - (3 - i) * day), isCustomerVisible: true },
+              actorId: owner.id, occurredAt: new Date(Date.now() - (3 - i) * day),
+              isCustomerVisible: true, payload: {} },
     });
     await db.trackingEvent.create({
       data: { code: "WO_SCHEDULED", entityType: "work_order", entityId: wo.id, orderId: order.id,
-              actorId: owner.id, occurredAt: new Date(Date.now() - (3 - i) * day + 3600_000) },
+              actorId: owner.id, occurredAt: new Date(Date.now() - (3 - i) * day + 3600_000),
+              payload: {} },
     });
   }
 

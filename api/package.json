@@ -8,7 +8,10 @@
     "start": "node dist/server.js",
     "db:push": "prisma db push",
     "db:seed": "tsx prisma/seed.ts",
-    "db:studio": "prisma studio"
+    "db:studio": "prisma studio",
+    "sqlite:schema": "node prisma/make-sqlite-schema.mjs",
+    "sqlite:push": "node prisma/make-sqlite-schema.mjs && prisma db push --schema prisma/schema.sqlite.prisma",
+    "sqlite:seed": "prisma db seed --schema prisma/schema.sqlite.prisma"
   },
   "dependencies": {
     "@fastify/cors": "^10.0.1",

@@ -49,8 +49,12 @@ NODE_MAJOR=$(node -p "process.versions.node.split('.')[0]")
 [ "$NODE_MAJOR" -ge 20 ] || die "Node $NODE_MAJOR is too old. Aura needs Node 20 or newer."
 ok "Node $(node -v)"
 
+USE_SQLITE=0
 if command -v psql >/dev/null && pg_isready -q 2>/dev/null; then
   ok "PostgreSQL is running${POSTGRES_APP:+ (Postgres.app)}"
+elif [ "${AURA_DB:-}" = "sqlite" ]; then
+  USE_SQLITE=1
+  ok "Using SQLite (AURA_DB=sqlite)"
 elif command -v brew >/dev/null; then
   warn "PostgreSQL is not running — starting it with Homebrew"
   brew list postgresql@16 >/dev/null 2>&1 || brew install postgresql@16
@@ -59,29 +63,33 @@ elif command -v brew >/dev/null; then
   pg_isready -q 2>/dev/null || die "PostgreSQL still is not answering. Try: brew services restart postgresql@16"
   ok "PostgreSQL started"
 else
-  echo "${RED}✗ PostgreSQL is not running.${OFF}"
-  echo
-  echo "  ${BOLD}Easiest fix${OFF} — no terminal needed:"
-  echo "    1. Open ${BOLD}https://postgresapp.com${OFF}"
-  echo "    2. Download it, drag it to Applications, open it, click ${BOLD}Initialize${OFF}"
-  echo "    3. Leave it running and run this script again — it finds it automatically"
-  echo
-  echo "  ${DIM}If you have Homebrew: brew install postgresql@16 && brew services start postgresql@16${OFF}"
-  echo
-  exit 1
+  # No database server and no way to install one. Rather than dead-end, fall
+  # back to SQLite — a single file, no server, no install. PostgreSQL stays the
+  # production target; this is for trying it on a laptop.
+  USE_SQLITE=1
+  warn "No PostgreSQL found — using SQLite instead (a file, no server to install)"
+  echo "${DIM}    For the production database later: https://postgresapp.com, or${OFF}"
+  echo "${DIM}    brew install postgresql@16 — then re-run this script.${OFF}"
 fi
 
 # ---------- database ----------
-DB_USER="${AURA_DB_USER:-$(whoami)}"
-if psql -lqt 2>/dev/null | cut -d\| -f1 | grep -qw aura; then
-  ok "Database 'aura' exists"
+if [ "$USE_SQLITE" = "1" ]; then
+  # Absolute path: Prisma resolves a relative SQLite URL against the schema
+  # directory, which is a good way to end up pointing at the wrong file.
+  DB_URL="file:${ROOT}/api/prisma/dev.db"
 else
-  createdb aura && ok "Created database 'aura'"
+  DB_USER="${AURA_DB_USER:-$(whoami)}"
+  if psql -lqt 2>/dev/null | cut -d\| -f1 | grep -qw aura; then
+    ok "Database 'aura' exists"
+  else
+    createdb aura && ok "Created database 'aura'"
+  fi
+  DB_URL="postgresql://${DB_USER}@localhost:5432/aura?schema=public"
 fi
 
 if [ ! -f api/.env ]; then
   cat > api/.env <<ENV
-DATABASE_URL="postgresql://${DB_USER}@localhost:5432/aura?schema=public"
+DATABASE_URL="${DB_URL}"
 JWT_SECRET="dev-only-$(openssl rand -hex 16)"
 PORT=4000
 UPLOAD_DIR="./uploads"
@@ -100,8 +108,14 @@ echo "${BOLD}Installing…${OFF} ${DIM}(first run takes a minute)${OFF}"
 wait $API_PID $WEB_PID
 ok "Dependencies installed"
 
-(cd api && npx prisma db push --skip-generate >/dev/null && npx prisma generate >/dev/null)
-ok "Schema applied"
+if [ "$USE_SQLITE" = "1" ]; then
+  (cd api && node prisma/make-sqlite-schema.mjs >/dev/null \
+    && npx prisma db push --schema prisma/schema.sqlite.prisma --accept-data-loss >/dev/null 2>&1)
+  ok "Schema applied (SQLite)"
+else
+  (cd api && npx prisma db push --skip-generate >/dev/null && npx prisma generate >/dev/null)
+  ok "Schema applied (PostgreSQL)"
+fi
 (cd api && SEED_IF_EMPTY=1 npx tsx prisma/seed.ts >/dev/null)
 ok "Database seeded"
 
