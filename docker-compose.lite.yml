@@ -1,0 +1,60 @@
+# The small deployment: no database server, no separate container to run or back
+# up. The database is one SQLite file in a volume.
+#
+# For a single factory this is not a compromise. The load is a few thousand
+# events a day from a handful of phones — well inside what SQLite handles
+# without noticing. It halves the memory the stack needs, which means a €4
+# 1 GB server is enough, and it makes the backup one file instead of a dump.
+#
+# Move to docker-compose.prod.yml (PostgreSQL) when you outgrow it: several
+# factories, or many people writing at once.
+#
+#   1. Point a domain's A record at this server (DNS only, not proxied)
+#   2. cp .env.prod.example .env.prod  and fill it in
+#   3. docker compose -f docker-compose.lite.yml --env-file .env.prod up -d --build
+
+services:
+  api:
+    build: ./api
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: file:/data/db/aura.db
+      JWT_SECRET: ${JWT_SECRET:?set JWT_SECRET in .env.prod — openssl rand -hex 32}
+      PORT: "4000"
+      UPLOAD_DIR: /data/uploads
+      SEED_IF_EMPTY: "1"
+      # No demo data. The owner account comes from these.
+      SEED_DEMO: "0"
+      OWNER_EMAIL: ${OWNER_EMAIL:?set OWNER_EMAIL in .env.prod}
+      OWNER_PASSWORD: ${OWNER_PASSWORD:?set OWNER_PASSWORD in .env.prod}
+    volumes:
+      - aura-data:/data
+    command: >
+      sh -c "mkdir -p /data/db /data/uploads &&
+             node prisma/make-sqlite-schema.mjs &&
+             npx prisma db push --schema prisma/schema.sqlite.prisma --accept-data-loss &&
+             npx tsx prisma/seed.ts &&
+             npx tsx src/server.ts"
+
+  web:
+    build: ./web
+    restart: unless-stopped
+    depends_on: [api]
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports: ["80:80", "443:443"]
+    environment:
+      DOMAIN: ${DOMAIN:?set DOMAIN in .env.prod}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on: [web, api]
+
+volumes:
+  aura-data:
+  caddy-data:
+  caddy-config:

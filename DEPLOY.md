@@ -61,6 +61,38 @@ Provider does not matter. These five things do:
 
 Providers that meet all five, at roughly the same price:
 
+### If everything shows as unavailable
+
+Two possibilities, and they need different fixes:
+
+- **Stock.** Hetzner genuinely runs out. Try each German and Finnish location
+  individually before concluding anything — availability differs per data
+  centre, and the plan numbering changes (the entry plan is **CX23** now, not
+  CX22).
+- **Your account.** A brand new account can be limited to zero resources until
+  Hetzner verifies it, which looks exactly like everything being sold out. Check
+  your inbox for a verification request, or ask their support. If this is the
+  cause, changing provider will not help but will be quicker.
+
+### You may not need 2 GB
+
+The 2 GB minimum exists because PostgreSQL wants its own memory. Run
+**`docker-compose.lite.yml`** instead and there is no database server at all —
+the database is a single SQLite file.
+
+For one factory that is not a compromise. The load is a few thousand events a
+day from a handful of phones, well inside what SQLite handles without noticing,
+and the backup becomes one file instead of a dump. **A 1 GB server is enough**,
+which puts nearly every provider's cheapest plan back on the table.
+
+```bash
+docker compose -f docker-compose.lite.yml --env-file .env.prod up -d --build
+```
+
+Move to `docker-compose.prod.yml` when you outgrow it — several factories, or
+many people writing at once. The schema and the code are identical; only the
+database changes.
+
 **Which Hetzner plan.** CX is Intel-only and regularly sells out; if it is not
 offered, that is normal and not a problem. Any of these works:
 
@@ -77,13 +109,18 @@ the same deployment works either way.
 If a plan shows as unavailable, try a different German location before changing
 plan — stock varies by data centre.
 
-| Provider | ~Cost | Closest region to Egypt |
-| --- | --- | --- |
-| Hetzner | €4–5 | Germany / Finland — closest of these |
-| Contabo | €5–6 | Germany — cheapest per GB, but see the note below |
-| DigitalOcean | $6–12 | Frankfurt / Amsterdam |
-| Linode / Akamai | $5–12 | Frankfurt |
-| **InterServer** | **$6** | New Jersey / Texas / Los Angeles — all US |
+| Provider | ~Cost for 2 GB | Region nearest Egypt | Notes |
+| --- | --- | --- | --- |
+| Hetzner | €4–5 | Germany / Finland | Best value when in stock |
+| **Netcup** | **~€3.50–5** | Germany | German, long-established, usually has stock. Strong alternative |
+| Vultr | ~$10 | Frankfurt / Amsterdam / Paris | Nine EU cities, availability rarely a problem |
+| Contabo | €5–6 | Germany | Cheapest per GB — see the note below |
+| Linode / Akamai | ~$12 | Frankfurt | Dependable, dearer |
+| DigitalOcean | ~$18 | Frankfurt / Amsterdam | Easiest console, most expensive here |
+| InterServer | $6 | United States only | Price locked for life; ~150 ms from Egypt |
+
+On the lite deployment above, the 1 GB tier at any of these works, which is
+roughly half these prices.
 
 **On Contabo specifically:** it is a real German provider and this would run on
 it. Its selling point is far more RAM and disk per euro than anyone else — which
