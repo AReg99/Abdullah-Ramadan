@@ -22,10 +22,47 @@ a real certificate.
 
 ### What you need
 
-- A small server — 2 GB RAM is plenty. Hetzner, DigitalOcean, Linode: **$5–12
-  a month**. Any of them is fine.
 - A domain, or a subdomain of one you own — **~$12 a year**.
+- A server that meets the five requirements below.
 - Point the domain's A record at the server's IP.
+
+### What the server has to be
+
+Provider does not matter. These five things do:
+
+| Requirement | Why |
+| --- | --- |
+| **A VPS or cloud server, not shared hosting** | Shared and cPanel hosting cannot run Docker. This is the one that catches people out — the cheapest plan on most hosts is shared, and it will not work. If the plan does not give you root over SSH, it is the wrong plan. |
+| **2 GB RAM or more** | Postgres, the API and the web server together. 1 GB will run but will not survive a photo-heavy day. |
+| **20 GB+ disk** | The database is small; the photos grow. Roughly 2.5 MB per unit produced. |
+| **Ports 80 and 443 reachable** | Caddy needs both to obtain and renew the certificate. |
+| **Ubuntu or Debian** | What the setup assumes. Anything else works but you are on your own. |
+
+Providers that meet all five, at roughly the same price:
+
+| Provider | ~Cost | Closest region to Egypt |
+| --- | --- | --- |
+| Hetzner | €4–5 | Germany / Finland — closest of these |
+| Contabo | €5–6 | Germany |
+| DigitalOcean | $6–12 | Frankfurt / Amsterdam |
+| Linode / Akamai | $5–12 | Frankfurt |
+| **InterServer** | **$6** | New Jersey / Texas / Los Angeles — all US |
+
+**On InterServer specifically:** the VPS is a fine fit — $6/month gets 1 core,
+2 GB RAM, 30 GB SSD and 2 TB of transfer, and they lock the signup price for
+good, which is unusual and genuinely worth something. Two cautions:
+
+1. **Buy the VPS, not the shared hosting.** Their headline cheap plan is shared
+   hosting and cannot run this at all.
+2. **All their data centers are in the United States.** From Egypt that is
+   roughly 130–160 ms of latency, against 60–80 ms to Germany. For this app it
+   is a mild annoyance rather than a problem — the floor app queues everything
+   locally and never waits on the network, and photo uploads are already in the
+   background — but page loads will feel a step slower than they need to.
+
+If the price lock and familiarity matter more to you than 80 ms, InterServer is
+a perfectly reasonable choice. If you have no attachment to either, a German
+provider is physically closer to your factory.
 
 ### Then
 
