@@ -64,10 +64,18 @@ Providers that meet all five, at roughly the same price:
 | Provider | ~Cost | Closest region to Egypt |
 | --- | --- | --- |
 | Hetzner | €4–5 | Germany / Finland — closest of these |
-| Contabo | €5–6 | Germany |
+| Contabo | €5–6 | Germany — cheapest per GB, but see the note below |
 | DigitalOcean | $6–12 | Frankfurt / Amsterdam |
 | Linode / Akamai | $5–12 | Frankfurt |
 | **InterServer** | **$6** | New Jersey / Texas / Los Angeles — all US |
+
+**On Contabo specifically:** it is a real German provider and this would run on
+it. Its selling point is far more RAM and disk per euro than anyone else — which
+is exactly what this workload does not need. What it trades away is consistency:
+CPU is more heavily shared than at Hetzner, disk throughput is more variable, and
+support is slower to answer. For a database-backed app that a factory depends on
+during a shift, steady beats generous. Choose Contabo if you later want a lot of
+RAM cheaply; for this, the smaller Hetzner box is the better machine.
 
 **On InterServer specifically:** the VPS is a fine fit — $6/month gets 1 core,
 2 GB RAM, 30 GB SSD and 2 TB of transfer, and they lock the signup price for
