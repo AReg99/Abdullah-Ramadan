@@ -146,6 +146,43 @@ If the price lock and familiarity matter more to you than 80 ms, InterServer is
 a perfectly reasonable choice. If you have no attachment to either, a German
 provider is physically closer to your factory.
 
+### On Netcup specifically
+
+Netcup delivers a VPS differently from most providers, so the first ten minutes
+are unfamiliar:
+
+1. **Check the contract length at checkout.** Netcup's headline monthly price
+   usually assumes a 12-month term, and some plans carry a one-time setup fee.
+   Neither is a problem — just know what you are agreeing to before you click.
+2. **The server arrives empty.** Log into the **SCP** (Server Control Panel,
+   separate from the shop account — the credentials come in their own email),
+   find your VPS, and install **Ubuntu 24.04** from the image list. Nothing
+   works until you do this.
+3. **Get the root password** from SCP or the welcome email, then connect:
+   `ssh root@YOUR-SERVER-IP`
+4. **Add your SSH key and turn off password login.** A server with a password on
+   port 22 is found by scanners within hours:
+   ```bash
+   ssh-copy-id root@YOUR-SERVER-IP          # from your Mac
+   # then on the server:
+   sed -i 's/^#\?PasswordAuthentication.*/PasswordAuthentication no/' /etc/ssh/sshd_config
+   systemctl restart ssh
+   ```
+5. **Install Docker:**
+   ```bash
+   curl -fsSL https://get.docker.com | sh
+   ```
+
+Netcup has no cloud firewall in front of the machine, so what is exposed is
+whatever the server exposes: SSH, and the 80 and 443 that Caddy needs. The
+database and the API are not published to the host — only Caddy is — so there
+is nothing else to close. Note that `ufw` does **not** filter Docker-published
+ports, so do not rely on it for that.
+
+**VPS 500 G12 is comfortably enough** — 2 vCores and 4 GB means you can run the
+full PostgreSQL deployment rather than the lite one, and 128 GB of disk is years
+of photos.
+
 ### Then
 
 ```bash
