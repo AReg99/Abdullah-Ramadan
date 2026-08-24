@@ -10,7 +10,7 @@ Short, practical guides. **One page per role** — you only need to read yours.
 | [1. First week setup](01-setup-first-week.md) | Owner & system admin — do this once, before anyone else logs in | 45 min |
 | [2. Owner](02-owner.md) · المالك | The owner — dashboard, alerts, approvals, reports | 20 min |
 | [3. Factory manager & supervisor](03-factory-manager.md) · مدير المصنع والمشرف | Accepting orders, planning, clearing blockers | 25 min |
-| [4. Worker](04-worker.md) · العامل | Station workers — scan, start, finish | **5 min** |
+| [4. Group leader](04-group-leader.md) · رئيس العمال | Group leaders — confirm the crew, scan, start, finish | **6 min** |
 | [5. Quality & store](05-qc-and-store.md) · الجودة والمخزن | QC inspector, storekeeper | 12 min |
 | [6. Showroom](06-showroom.md) · المعرض | Sales reps and showroom manager | 25 min |
 | [7. Driver & installer](07-driver.md) · السائق والفني | Delivery and installation | 8 min |

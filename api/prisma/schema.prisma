@@ -16,7 +16,7 @@ enum RoleKey {
   OWNER
   FACTORY_MANAGER
   SUPERVISOR
-  WORKER
+  GROUP_LEADER
   QC
   STOREKEEPER
   SHOWROOM_MANAGER
@@ -38,25 +38,66 @@ model Role {
   users       User[]
 }
 
+/// People. Only some of them sign in.
+///
+/// The floor runs on groups: a group leader carries the phone and operates the
+/// app, and the workers in their group do not sign in at all. Workers still
+/// exist as records so output and rework stay attributable to the people who
+/// did the work — losing that would cost the productivity and quality reports.
 model User {
   id           String   @id @default(uuid())
   nameAr       String
   nameEn       String
-  phone        String   @unique
+  /// Unique only where present: roster workers have no phone and never sign in.
+  phone        String?  @unique
   email        String?  @unique
   passwordHash String?
+  /// False for roster workers — they are tracked, not authenticated.
+  canLogin     Boolean  @default(true)
   locale       Locale   @default(ar)
   isActive     Boolean  @default(true)
   roleId       String
   role         Role     @relation(fields: [roleId], references: [id])
   stationId    String?
   station      Station? @relation(fields: [stationId], references: [id])
+  /// The group this person belongs to, whether as leader or member.
+  groupId      String?
+  group        Group?   @relation("GroupMembers", fields: [groupId], references: [id])
   createdAt    DateTime @default(now())
 
+  leads        Group[]          @relation("GroupLeader")
   stages       WorkOrderStage[]
+  stageWork    StageWorker[]
   photos       StagePhoto[]
   events       TrackingEvent[]
   otps         OtpCode[]
+}
+
+/// A crew working one station under one leader.
+model Group {
+  id        String   @id @default(uuid())
+  nameAr    String
+  nameEn    String
+  stationId String
+  station   Station  @relation(fields: [stationId], references: [id])
+  leaderId  String?
+  leader    User?    @relation("GroupLeader", fields: [leaderId], references: [id])
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  members User[]           @relation("GroupMembers")
+  stages  WorkOrderStage[]
+}
+
+/// Which workers were actually on a stage. The leader records this when they
+/// start the job, so a stage has both an operator (the leader) and a crew.
+model StageWorker {
+  id               String         @id @default(uuid())
+  workOrderStageId String
+  workOrderStage   WorkOrderStage @relation(fields: [workOrderStageId], references: [id], onDelete: Cascade)
+  userId           String
+  user             User           @relation(fields: [userId], references: [id])
+  @@unique([workOrderStageId, userId])
 }
 
 model OtpCode {
@@ -100,6 +141,7 @@ model Station {
   isActive             Boolean  @default(true)
 
   users         User[]
+  groups        Group[]
   routingStages RoutingStage[]
   events        TrackingEvent[]
 }
@@ -321,8 +363,12 @@ model WorkOrderStage {
   routingStage   RoutingStage  @relation(fields: [routingStageId], references: [id])
   seq            Int
   status         StageStatus   @default(PENDING)
+  /// The leader who operated the app for this stage.
   assignedToId   String?
   assignedTo     User?         @relation(fields: [assignedToId], references: [id])
+  /// The crew it was assigned to.
+  groupId        String?
+  group          Group?        @relation(fields: [groupId], references: [id])
   startedAt      DateTime?
   finishedAt     DateTime?
   actualMinutes  Int           @default(0)
@@ -331,7 +377,8 @@ model WorkOrderStage {
   blockedMinutes Int           @default(0)
   pausedAt       DateTime?
 
-  photos StagePhoto[]
+  photos  StagePhoto[]
+  workers StageWorker[]
   @@unique([workOrderId, seq])
   @@index([status])
 }

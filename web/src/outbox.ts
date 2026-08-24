@@ -12,7 +12,8 @@ const DB_NAME = "aura-outbox";
 const STORE = "queue";
 
 export type Job =
-  | { kind: "start" | "resume" | "finish"; stageId: string; clientEventId: string; occurredAt: string }
+  | { kind: "start"; stageId: string; clientEventId: string; occurredAt: string; workerIds?: string[] }
+  | { kind: "resume" | "finish"; stageId: string; clientEventId: string; occurredAt: string }
   | { kind: "pause"; stageId: string; reason: string; note?: string; clientEventId: string; occurredAt: string }
   | { kind: "photo"; stageId: string; photoKind: "BEFORE" | "AFTER"; blob: Blob; w: number; h: number;
       clientEventId: string; occurredAt: string };
@@ -59,27 +60,45 @@ const notify = async () => {
 
 let running = false;
 
-/** Drains the queue in order. Order matters: a photo must land before its gate. */
+/**
+ * Drains the queue in order. Order matters: a photo must land before the gate
+ * that requires it.
+ *
+ * The queue is re-read after each pass, because jobs are almost always enqueued
+ * in pairs — a photo and the action it gates — and the second arrives while the
+ * first is still in flight. Without re-reading, that second job would sit until
+ * the next timer tick, leaving the floor's work up to fifteen seconds behind.
+ */
 export async function flush(send: (job: Row) => Promise<void>) {
   if (running || !navigator.onLine) { await notify(); return; }
   running = true;
   try {
-    const rows = (await outbox.all()).sort((a, b) => a.id - b.id);
-    for (const row of rows) {
-      try {
-        await send(row);
-        await outbox.remove(row.id);
-      } catch (e: any) {
-        // 4xx that is not auth means the server rejected it for good — drop it
-        // rather than blocking the queue behind a job that can never succeed.
-        const status = e?.status ?? 0;
-        if (status >= 400 && status < 500 && status !== 401 && status !== 408 && status !== 429) {
+    let blocked = false;
+    while (!blocked) {
+      const rows = (await outbox.all()).sort((a, b) => a.id - b.id);
+      if (!rows.length) break;
+      let progressed = false;
+      for (const row of rows) {
+        try {
+          await send(row);
           await outbox.remove(row.id);
-          continue;
+          progressed = true;
+        } catch (e: any) {
+          // A 4xx that is not auth or throttling means the server rejected it
+          // for good — drop it rather than blocking everything behind a job
+          // that can never succeed.
+          const status = e?.status ?? 0;
+          if (status >= 400 && status < 500 && status !== 401 && status !== 408 && status !== 429) {
+            await outbox.remove(row.id);
+            progressed = true;
+            continue;
+          }
+          await outbox.bump(row);
+          blocked = true; // preserve order; resume from here next time
+          break;
         }
-        await outbox.bump(row);
-        break; // preserve order; retry from here next time
       }
+      if (!progressed) break;
     }
   } finally {
     running = false;

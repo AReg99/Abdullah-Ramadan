@@ -3,7 +3,9 @@ export type Lang = "ar" | "en";
 const ar = {
   signin: "تسجيل الدخول", phone: "رقم الموبايل", sendCode: "إرسال الكود", code: "الكود",
   enter: "دخول", email: "البريد الإلكتروني", password: "كلمة المرور",
-  worker: "عامل", office: "موظف",
+  worker: "رئيس عمال", office: "موظف",
+  crew: "المجموعة", crewOnJob: "اللي شغالين على القطعة", present: "موجود", absent: "مش موجود",
+  crewHint: "اختار مين موجود دلوقتي — الإنتاج بيتحسب عليهم.", noCrew: "مفيش عمال مسجلين في مجموعتك",
   devHint: "الكود في التطوير: 1234",
   work: "شغل النهاردة", scan: "امسح", myday: "يومي", today: "اليوم", floor: "المصنع", orders: "الطلبات",
   jobcard: "بطاقة الشغل", order: "طلب", qty: "العدد", due: "موعد التسليم", std: "الزمن المعياري",
@@ -42,7 +44,9 @@ const ar = {
 const en: Record<keyof typeof ar, string> = {
   signin: "Sign in", phone: "Phone number", sendCode: "Send code", code: "Code",
   enter: "Enter", email: "Email", password: "Password",
-  worker: "Worker", office: "Office",
+  worker: "Group leader", office: "Office",
+  crew: "Crew", crewOnJob: "On this job", present: "Present", absent: "Absent",
+  crewHint: "Tap anyone who is not here — output is credited to those left on.", noCrew: "No workers in your crew yet",
   devHint: "Development code: 1234",
   work: "My work today", scan: "Scan", myday: "My day", today: "Today", floor: "Floor", orders: "Orders",
   jobcard: "Job card", order: "Order", qty: "Qty", due: "Due", std: "Standard time",

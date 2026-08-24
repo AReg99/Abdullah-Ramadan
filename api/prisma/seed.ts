@@ -4,7 +4,7 @@ import { PrismaClient } from "@prisma/client";
 // against either schema: PostgreSQL keeps real enums, SQLite stores the same
 // values as strings. See prisma/make-sqlite-schema.mjs.
 type RoleKey =
-  | "OWNER" | "FACTORY_MANAGER" | "SUPERVISOR" | "WORKER" | "QC"
+  | "OWNER" | "FACTORY_MANAGER" | "SUPERVISOR" | "GROUP_LEADER" | "QC"
   | "STOREKEEPER" | "SHOWROOM_MANAGER" | "SALES_REP" | "DRIVER" | "ACCOUNTANT";
 type PhotoRule = "OFF" | "OPTIONAL" | "REQUIRED";
 import bcrypt from "bcryptjs";
@@ -16,7 +16,7 @@ const ROLES: [RoleKey, string, string][] = [
   ["OWNER", "المالك", "Owner"],
   ["FACTORY_MANAGER", "مدير المصنع", "Factory manager"],
   ["SUPERVISOR", "مشرف", "Supervisor"],
-  ["WORKER", "عامل", "Worker"],
+  ["GROUP_LEADER", "رئيس عمال", "Group leader"],
   ["QC", "مفتش الجودة", "QC inspector"],
   ["STOREKEEPER", "أمين المخزن", "Storekeeper"],
   ["SHOWROOM_MANAGER", "مدير المعرض", "Showroom manager"],
@@ -48,6 +48,7 @@ async function main() {
   console.log("seeding…");
   // Order matters: children before parents.
   await db.trackingEvent.deleteMany();
+  await db.stageWorker.deleteMany();
   await db.stagePhoto.deleteMany();
   await db.unitLabel.deleteMany();
   await db.workOrderStage.deleteMany();
@@ -60,7 +61,10 @@ async function main() {
   await db.product.deleteMany();
   await db.productCategory.deleteMany();
   await db.otpCode.deleteMany();
+  await db.user.updateMany({ data: { groupId: null } });
+  await db.group.updateMany({ data: { leaderId: null } });
   await db.user.deleteMany();
+  await db.group.deleteMany();
   await db.station.deleteMany();
   await db.location.deleteMany();
   await db.role.deleteMany();
@@ -95,14 +99,41 @@ async function main() {
     data: { nameAr: "مدير المصنع", nameEn: "Factory Manager", phone: "+201000000002",
             email: "factory@aura.test", passwordHash: pwd, roleId: roles.FACTORY_MANAGER.id },
   });
-  const workers = await Promise.all([
-    db.user.create({ data: { nameAr: "محمد سيد", nameEn: "Mohamed Sayed", phone: "+201000000010",
-      roleId: roles.WORKER.id, stationId: stations.ASM.id } }),
-    db.user.create({ data: { nameAr: "كريم فؤاد", nameEn: "Kareem Fouad", phone: "+201000000011",
-      roleId: roles.WORKER.id, stationId: stations.FIN.id } }),
-    db.user.create({ data: { nameAr: "سيد جابر", nameEn: "Sayed Gaber", phone: "+201000000012",
-      roleId: roles.WORKER.id, stationId: stations.UPH.id } }),
-  ]);
+  // The floor runs on groups. Only the leader signs in and carries the phone;
+  // the crew are records so their output stays attributable without giving
+  // every worker a device and an internet connection.
+  const CREWS: [string, string, string, string, string, [string, string][]][] = [
+    ["ASM", "مجموعة التجميع", "Assembly crew", "محمد سيد", "+201000000010",
+      [["أحمد فتحي", "Ahmed Fathy"], ["مصطفى علي", "Mostafa Ali"], ["حسن إبراهيم", "Hassan Ibrahim"]]],
+    ["FIN", "مجموعة التشطيب", "Finishing crew", "كريم فؤاد", "+201000000011",
+      [["عمرو صابر", "Amr Saber"], ["يوسف نبيل", "Youssef Nabil"]]],
+    ["UPH", "مجموعة التنجيد", "Upholstery crew", "سيد جابر", "+201000000012",
+      [["طارق منصور", "Tarek Mansour"], ["إسلام رضا", "Islam Reda"], ["وليد سمير", "Walid Samir"]]],
+  ];
+
+  const leaders: any[] = [];
+  for (const [code, gAr, gEn, leaderAr, leaderPhone, members] of CREWS) {
+    const group = await db.group.create({
+      data: { nameAr: gAr, nameEn: gEn, stationId: stations[code].id },
+    });
+    const leader = await db.user.create({
+      data: {
+        nameAr: leaderAr, nameEn: leaderAr, phone: leaderPhone,
+        roleId: roles.GROUP_LEADER.id, stationId: stations[code].id,
+        groupId: group.id, canLogin: true,
+      },
+    });
+    await db.group.update({ where: { id: group.id }, data: { leaderId: leader.id } });
+    await Promise.all(members.map(([ar, en]) =>
+      db.user.create({
+        data: {
+          nameAr: ar, nameEn: en, phone: null, canLogin: false,
+          roleId: roles.GROUP_LEADER.id, stationId: stations[code].id, groupId: group.id,
+        },
+      })));
+    leaders.push(leader);
+  }
+  const workers = leaders;
 
   const cat = await db.productCategory.create({ data: { nameAr: "غرف نوم", nameEn: "Bedrooms" } });
   const catLiving = await db.productCategory.create({ data: { nameAr: "غرف معيشة", nameEn: "Living" } });
@@ -202,8 +233,9 @@ async function main() {
 seeded:
   owner        owner@aura.test / aura1234
   factory mgr  factory@aura.test / aura1234
-  workers      +201000000010 (assembly) · +201000000011 (finishing) · +201000000012 (upholstery)
-               OTP is 1234 in development
+  group leaders +201000000010 (assembly) · +201000000011 (finishing) · +201000000012 (upholstery)
+                OTP is 1234 in development
+                each leads a crew of 2–3 workers who do not sign in
   3 orders, 3 work orders, ${stages.length}-stage routing with photo gates
 `);
 }

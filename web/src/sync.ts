@@ -3,7 +3,7 @@ import { flush, outbox, queued, type Job } from "./outbox";
 
 const send = async (job: any) => {
   switch (job.kind) {
-    case "start":  return void (await api.start(job.stageId, job.clientEventId, job.occurredAt));
+    case "start":  return void (await api.start(job.stageId, job.clientEventId, job.occurredAt, job.workerIds));
     case "resume": return void (await api.resume(job.stageId, job.clientEventId, job.occurredAt));
     case "finish": return void (await api.finish(job.stageId, job.clientEventId, job.occurredAt));
     case "pause":  return void (await api.pause(job.stageId, job.reason, job.note, job.clientEventId, job.occurredAt));

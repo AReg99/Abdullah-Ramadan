@@ -6,7 +6,7 @@ Three questions get conflated here, so this separates them.
 | --- | --- |
 | Can it be on my phone like an app? | **Yes, today** — install the PWA. Icon on the home screen, fullscreen, no browser. |
 | Can it work when my Mac is off? | **Only once the server is hosted.** This is the real blocker. |
-| Can it be on the App Store? | **Yes, but only you can publish it**, and only after hosting. See below. |
+| Can it be on the App Store? | **Decided against** — this is an internal tool for Aura staff, so store distribution adds cost and review delays for no reach you need. |
 
 The ordering matters: an App Store app that talks to a server on your Mac is a
 dead icon the moment you close the laptop. **Host first.**
@@ -64,7 +64,27 @@ that is a small piece of work in `api/src/auth/routes.ts`.
 
 ---
 
-## 2. The App Store — what is actually involved
+## 2. Sharing it inside the factory
+
+Decided: **no App Store.** For a tool only Aura staff use, the store adds a
+yearly fee, review delays on every update, and rejection risk under Apple's
+guideline 4.2, in exchange for reach you do not want.
+
+Distribution is instead just a link. Once hosted:
+
+- Send the address to each group leader over WhatsApp.
+- They open it once and tap **Add to Home Screen**.
+- It installs with the Aura icon and opens fullscreen.
+- Updates reach every phone the moment you deploy — nobody updates anything.
+
+Only people you create accounts for can sign in, so a leaked link exposes a
+login screen and nothing else. Deactivate an account and that phone stops
+working immediately.
+
+<details>
+<summary>What the App Store would have involved, for the record</summary>
+
+
 
 **I cannot publish it for you.** Not a limitation of the code: publishing is
 bound to an Apple account, a legal identity, and a signing certificate that only
@@ -104,9 +124,7 @@ Xcode project on your Mac, sign it with your Apple ID, and install it on your
 phone directly — no App Store needed for your own device, though a free Apple ID
 certificate expires every 7 days and a paid one lasts a year.
 
-**My recommendation: host it first, run the pilot on the PWA, and only wrap it
-natively if the PWA turns out to be genuinely insufficient.** Most factory tools
-never need to.
+</details>
 
 ---
 

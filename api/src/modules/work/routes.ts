@@ -30,6 +30,22 @@ async function alreadyApplied(clientEventId: string | undefined, stageId: string
 const deviceTime = (e: Envelope | undefined) =>
   e?.occurredAt ? new Date(e.occurredAt) : new Date();
 
+const startBody = z.object({
+  clientEventId: z.string().min(8).optional(),
+  occurredAt: z.string().datetime().optional(),
+  /** Who was actually on the job. Defaults to the leader's whole crew. */
+  workerIds: z.array(z.string()).optional(),
+});
+
+/** A leader works their group's station; other roles fall back to their own. */
+async function stationFor(user: { stationId: string | null; groupId: string | null }) {
+  if (user.groupId) {
+    const g = await db.group.findUnique({ where: { id: user.groupId } });
+    if (g) return g.stationId;
+  }
+  return user.stationId;
+}
+
 /** A stage becomes READY only when every earlier stage is DONE. */
 async function refreshReadiness(workOrderId: string) {
   const stages = await db.workOrderStage.findMany({ where: { workOrderId }, orderBy: { seq: "asc" } });
@@ -43,18 +59,20 @@ async function refreshReadiness(workOrderId: string) {
 }
 
 export default async function workRoutes(app: FastifyInstance) {
-  /** The worker's list: stages ready or already in hand at their station. */
+  /** The group leader's list: stages ready or in hand at their group's station. */
   app.get("/work/today", { preHandler: guard() }, async (req) => {
     const user = (req as any).user;
+    const stationId = await stationFor(user);
     const stages = await db.workOrderStage.findMany({
       where: {
         status: { in: ["READY", "IN_PROGRESS", "PAUSED"] },
-        routingStage: user.stationId ? { stationId: user.stationId } : {},
+        routingStage: stationId ? { stationId } : {},
       },
       include: {
         routingStage: { include: { station: true } },
         workOrder: { include: { product: true, orderLine: { include: { order: true } }, labels: true } },
         photos: true,
+        workers: { include: { user: true } },
       },
       orderBy: [{ workOrder: { priority: "desc" } }, { seq: "asc" }],
     });
@@ -63,12 +81,14 @@ export default async function workRoutes(app: FastifyInstance) {
 
   app.get("/work/stages/:id", { preHandler: guard() }, async (req, reply) => {
     const { id } = req.params as { id: string };
+    const user = (req as any).user;
     const s = await db.workOrderStage.findUnique({
       where: { id },
       include: {
         routingStage: { include: { station: true } },
         workOrder: { include: { product: true, orderLine: { include: { order: true } }, labels: true } },
         photos: true,
+        workers: { include: { user: true } },
       },
     });
     if (!s) return reply.code(404).send({ error: "not_found" });
@@ -77,7 +97,16 @@ export default async function workRoutes(app: FastifyInstance) {
       orderBy: { seq: "desc" },
       include: { photos: true, routingStage: true },
     });
-    return { ...view(s), previousAfterPhoto: prev?.photos.find((p) => p.kind === "AFTER")?.path ?? null };
+    // The leader picks who is on the job from their own crew.
+    const crew = await db.user.findMany({
+      where: { groupId: user.groupId ?? "-", isActive: true, canLogin: false },
+      orderBy: { nameAr: "asc" },
+    });
+    return {
+      ...view(s),
+      previousAfterPhoto: prev?.photos.find((p) => p.kind === "AFTER")?.path ?? null,
+      crew: crew.map((c) => ({ id: c.id, nameAr: c.nameAr, nameEn: c.nameEn })),
+    };
   });
 
   /** Scanning a unit label is how a worker reaches a job. The label is the system. */
@@ -96,7 +125,8 @@ export default async function workRoutes(app: FastifyInstance) {
   app.post("/work/stages/:id/start", { preHandler: guard() }, async (req, reply) => {
     const { id } = req.params as { id: string };
     const user = (req as any).user;
-    const env = offline.parse(req.body ?? {}) as Envelope | undefined;
+    const body = startBody.parse(req.body ?? {});
+    const env = body as Envelope;
     const replayed = await alreadyApplied(env?.clientEventId, id);
     if (replayed) return replayed;
     const s = await db.workOrderStage.findUnique({
@@ -113,8 +143,28 @@ export default async function workRoutes(app: FastifyInstance) {
 
     const updated = await db.workOrderStage.update({
       where: { id },
-      data: { status: "IN_PROGRESS", startedAt: deviceTime(env), assignedToId: user.id },
+      data: {
+        status: "IN_PROGRESS", startedAt: deviceTime(env),
+        assignedToId: user.id, groupId: user.groupId ?? null,
+      },
     });
+
+    // Record the crew, so output and rework stay attributable to the people who
+    // did the work even though only the leader signs in.
+    const crewIds = body.workerIds?.length
+      ? body.workerIds
+      : (await db.user.findMany({
+          where: { groupId: user.groupId ?? "-", isActive: true, canLogin: false },
+          select: { id: true },
+        })).map((u) => u.id);
+    if (crewIds.length) {
+      // Replace rather than upsert: createMany's skipDuplicates is not
+      // supported on SQLite, and a stage only reaches this point from READY.
+      await db.stageWorker.deleteMany({ where: { workOrderStageId: id } });
+      await db.stageWorker.createMany({
+        data: [...new Set(crewIds)].map((userId) => ({ workOrderStageId: id, userId })),
+      });
+    }
     await db.workOrder.updateMany({
       where: { id: s.workOrderId, actualStart: null },
       data: { actualStart: new Date(), status: "IN_PROGRESS" },
@@ -123,7 +173,7 @@ export default async function workRoutes(app: FastifyInstance) {
     await record({
       code: "STAGE_STARTED", entityType: "work_order_stage", entityId: id,
       orderId: s.workOrder.orderLine.orderId, actorId: user.id, stationId: s.routingStage.stationId,
-      payload: { stage: s.routingStage.key },
+      payload: { stage: s.routingStage.key, crewSize: crewIds.length },
       occurredAt: deviceTime(env), clientEventId: env?.clientEventId ?? null,
     });
     return updated;
@@ -274,4 +324,7 @@ const view = (s: any) => ({
     specNotes: s.workOrder.orderLine.specNotes,
   },
   photos: (s.photos ?? []).map((p: any) => ({ id: p.id, kind: p.kind, path: p.path })),
+  workers: (s.workers ?? []).map((w: any) => ({
+    id: w.user.id, nameAr: w.user.nameAr, nameEn: w.user.nameEn,
+  })),
 });

@@ -1,7 +1,13 @@
-# 4. Worker's guide · دليل العامل
+# 4. Group leader's guide · دليل رئيس العمال
 
-**اقرا ده مرة واحدة. ٥ دقايق وخلاص.**
-*Read this once. Five minutes.*
+**اقرا ده مرة واحدة. ٦ دقايق وخلاص.**
+*Read this once. Six minutes.*
+
+> إنت اللي معاك الموبايل، والمجموعة بتاعتك بتشتغل معاك. مش محتاج كل عامل يكون
+> معاه تليفون أو نت — إنت بتسجل شغل المجموعة كلها.
+>
+> *You carry the phone and your crew works with you. No worker needs a phone or
+> an internet connection — you record the work for the whole group.*
 
 ---
 
@@ -12,7 +18,7 @@
 افتح التطبيق ← اكتب رقم موبايلك ← هيوصلك كود برسالة ← اكتبه. خلاص.
 مفيش كلمة سر تنساها.
 
-### شغلك كل يوم — ٦ خطوات
+### شغلك كل يوم — ٧ خطوات
 
 **١. شوف شغل النهاردة**
 أول شاشة بتفتح فيها **«شغل النهاردة»** — قايمة بالقطع المطلوبة منك، مرتبة بالأولوية.
@@ -27,20 +33,26 @@
 - الخامات المطلوبة ومكانها في المخزن
 - الزمن المعياري للمرحلة دي
 
-**٣. دوس «ابدأ» أول ما تمسك الشغل**
+**٣. اختار مين موجود من المجموعة**
+تحت في بطاقة الشغل هتلاقي أسماء عمال مجموعتك، وكلهم متحددين. دوس على أي حد
+**مش موجود** النهاردة عشان تشيله.
+
+الإنتاج بيتحسب على اللي سايبهم متحددين — عشان كده التحديد ده مهم.
+
+**٤. دوس «ابدأ» أول ما الشغل يبدأ**
 العدّاد بيشتغل. متدوسش «ابدأ» وتسيب القطعة — الوقت بيتحسب.
 
-**٤. صوّر القطعة قبل ما تشتغل فيها**
+**٥. صوّر القطعة قبل ما الشغل يبدأ**
 أول ما تدوس «ابدأ»، الكاميرا بتفتح لوحدها. صوّر القطعة بحالتها اللي وصلتك بيها،
 ودوس **استخدم**. خلاص، بتدخل على الشغل.
 
 هتلاقي **رسم باهت** على الشاشة بيوريك زاوية الصورة اللي اتصورت قبل كده لنفس
 المنتج — صوّر من نفس الزاوية عشان الصور تبقى قابلة للمقارنة.
 
-**٥. دوس «إنهاء» أول ما تخلّص، وصوّر تاني**
+**٦. دوس «إنهاء» أول ما المجموعة تخلّص، وصوّر تاني**
 الكاميرا بتفتح تاني. صوّر شغلك بعد ما خلص، ودوس **استخدم**.
 
-**٦. خلاص**
+**٧. خلاص**
 القطعة راحت للمرحلة اللي بعدها لوحدها، ومحدش محتاج يبلّغ حد.
 
 ### لما الشغل يقف
@@ -116,17 +128,20 @@
 Open the app → enter your phone number → a code arrives by SMS → type it in.
 No password.
 
-### Your day — six steps
-1. **My work today** — your job list, in priority order.
+### Your day — seven steps
+1. **My work today** — your crew's job list, in priority order.
 2. **Scan** the QR label on the piece → the job card opens, with the drawing,
    the exact specification, the materials and their bin, and the standard time.
-3. **Start** the moment you pick the work up. The timer runs.
-4. **Photograph the piece as it reached you.** The camera opens by itself when
+3. **Confirm who is present.** Your crew's names are listed on the job card, all
+   selected. Tap anyone who is **not** here today. Output is credited to whoever
+   is left selected, so this matters.
+4. **Start** the moment the work begins. The timer runs.
+5. **Photograph the piece as it reached you.** The camera opens by itself when
    you press Start. A faint ghost outline of the previous photo for this product
    shows you the angle to shoot from, so the before and after actually compare.
    Shoot, tap **Use**, and you are working.
-5. **Finish**, and photograph your completed work the same way.
-6. Done. The piece moves to the next stage by itself.
+6. **Finish** when the crew is done, and photograph the completed work.
+7. Done. The piece moves to the next stage by itself.
 
 ### The "before" photo protects you
 

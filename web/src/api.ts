@@ -74,10 +74,10 @@ export const api = {
   me: () => req<Me>("/me"),
 
   workToday: () => cachedGet<Stage[]>("/work/today", "today"),
-  stage: (id: string) => cachedGet<Stage & { previousAfterPhoto: string | null }>(`/work/stages/${id}`, `stage.${id}`),
+  stage: (id: string) => cachedGet<Stage & { previousAfterPhoto: string | null; crew: Person[] }>(`/work/stages/${id}`, `stage.${id}`),
   byLabel: (serial: string) => req<{ stageId: string }>(`/work/label/${encodeURIComponent(serial)}`),
-  start: (id: string, clientEventId?: string, occurredAt?: string) =>
-    req<any>(`/work/stages/${id}/start`, { method: "POST", body: JSON.stringify({ clientEventId, occurredAt }) }),
+  start: (id: string, clientEventId?: string, occurredAt?: string, workerIds?: string[]) =>
+    req<any>(`/work/stages/${id}/start`, { method: "POST", body: JSON.stringify({ clientEventId, occurredAt, workerIds }) }),
   pause: (id: string, reason: string, note?: string, clientEventId?: string, occurredAt?: string) =>
     req<any>(`/work/stages/${id}/pause`, { method: "POST", body: JSON.stringify({ reason, note, clientEventId, occurredAt }) }),
   resume: (id: string, clientEventId?: string, occurredAt?: string) =>
@@ -112,6 +112,7 @@ export type LabelRow = { id: string; serial: string; printedAt: string | null; w
   orderCode: string; customer: string; productAr: string; productEn: string; qty: number; promisedDate: string | null };
 export type Me = { id: string; nameAr: string; nameEn: string; phone: string; locale: "ar" | "en"; role: string; stationId: string | null };
 export type Photo = { id: string; kind: string; path: string };
+export type Person = { id: string; nameAr: string; nameEn: string };
 export type Stage = {
   id: string; seq: number; status: string; startedAt: string | null; actualMinutes: number;
   blockedReason: string | null;
@@ -119,6 +120,8 @@ export type Stage = {
   workOrder: { id: string; code: string; qty: number; serial: string | null; specNotes: string | null;
     product: { sku: string; nameAr: string; nameEn: string }; order: { code: string; promisedDate: string | null } };
   photos: Photo[];
+  /** Who the leader recorded as being on this stage. */
+  workers: Person[];
 };
 export type Dashboard = {
   ordersToday: { count: number; value: number };
