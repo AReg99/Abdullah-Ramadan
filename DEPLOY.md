@@ -22,9 +22,30 @@ a real certificate.
 
 ### What you need
 
-- A domain, or a subdomain of one you own — **~$12 a year**.
+- A domain, or a subdomain of one you own — **~$10–13 a year**. See below.
 - A server that meets the five requirements below.
 - Point the domain's A record at the server's IP.
+
+### Where to buy the domain
+
+Any registrar works. Three sensible choices:
+
+| Registrar | .com / year | Why |
+| --- | --- | --- |
+| **Cloudflare** | ~$10.44 | Sold at cost with no markup, and **the same price at renewal**. Free WHOIS privacy. Its DNS panel is the clearest place to set the record you need. |
+| **Porkbun** | ~$9.73 | Flat — registers and renews at the same price. Cheapest of the three today. |
+| **Hetzner** | €12.99 | Slightly dearer, but it is the same account and the same invoice as the server. Fewer logins to keep track of. |
+
+Watch for registrars advertising a cheap first year and a much higher renewal —
+a domain you keep for five years costs whatever it renews at, not what it
+registers at.
+
+**One setting that matters.** After you add the A record pointing at the server,
+make sure the record is **DNS only**, not proxied. On Cloudflare that is the
+grey cloud, not the orange one. With the proxy on, Caddy cannot complete the
+Let's Encrypt challenge and no certificate is ever issued — the site simply
+never comes up, with nothing obviously wrong in the logs. You can turn the proxy
+on later once the certificate exists, if you want it.
 
 ### What the server has to be
 
