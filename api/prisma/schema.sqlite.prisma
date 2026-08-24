@@ -7,6 +7,10 @@
 
 generator client {
   provider = "prisma-client-js"
+  // Built inside Alpine containers that may be x86 or Arm — Hetzner's cheapest
+  // plans are Ampere Arm. Declaring both targets means the same image builds on
+  // either, instead of failing at runtime with a missing query engine.
+  binaryTargets = ["native", "linux-musl-openssl-3.0.x", "linux-musl-arm64-openssl-3.0.x"]
 }
 datasource db {
   provider = "sqlite"

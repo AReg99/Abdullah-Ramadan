@@ -61,6 +61,22 @@ Provider does not matter. These five things do:
 
 Providers that meet all five, at roughly the same price:
 
+**Which Hetzner plan.** CX is Intel-only and regularly sells out; if it is not
+offered, that is normal and not a problem. Any of these works:
+
+| Plan | | ~€/month | Notes |
+| --- | --- | --- | --- |
+| **CAX11** | 2 Arm vCPU · **4 GB** · 40 GB | ~4.99 inc. IPv4 | Best value — twice the RAM for the same money. Arm, which this is built for. Germany and Finland only |
+| **CPX11** | 2 AMD vCPU · 2 GB · 40 GB | ~4.99 | x86, available in every location. Meets the minimum with nothing spare |
+| **CX22** | 2 Intel vCPU · 4 GB · 40 GB | ~4 | The original suggestion, when it is in stock |
+
+Take **CAX11** if Falkenstein, Nuremberg or Helsinki is offered. The images all
+build for Arm, and the Prisma client declares Arm and x86 targets explicitly, so
+the same deployment works either way.
+
+If a plan shows as unavailable, try a different German location before changing
+plan — stock varies by data centre.
+
 | Provider | ~Cost | Closest region to Egypt |
 | --- | --- | --- |
 | Hetzner | €4–5 | Germany / Finland — closest of these |
