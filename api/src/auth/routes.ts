@@ -40,10 +40,22 @@ export default async function authRoutes(app: FastifyInstance) {
     return { token: sign({ sub: user.id, role: user.role.key }), user: shape(user) };
   });
 
-  /** Office and showroom staff use email and password. */
+  /**
+   * Email or phone, plus a password. Group leaders use their phone number here:
+   * SMS delivery is Phase 4, and until it exists a password the owner sets is
+   * how a leader signs in without the code ever leaving the server.
+   */
   app.post("/auth/login", async (req, reply) => {
-    const { email, password } = z.object({ email: z.string(), password: z.string() }).parse(req.body);
-    const user = await db.user.findUnique({ where: { email }, include: { role: true } });
+    const { email, phone, password } = z.object({
+      email: z.string().optional(), phone: z.string().optional(), password: z.string(),
+    }).parse(req.body);
+    const identifier = (email ?? phone ?? "").trim();
+    if (!identifier) return reply.code(400).send({ error: "email_or_phone_required" });
+
+    const user = await db.user.findFirst({
+      where: { OR: [{ email: identifier }, { phone: identifier }], canLogin: true },
+      include: { role: true },
+    });
     if (!user?.passwordHash || !user.isActive) return reply.code(401).send({ error: "bad_credentials" });
     if (!bcrypt.compareSync(password, user.passwordHash)) return reply.code(401).send({ error: "bad_credentials" });
     await record({ code: "USER_SIGNED_IN", entityType: "user", entityId: user.id, actorId: user.id });

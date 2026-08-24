@@ -12,6 +12,7 @@ import photoRoutes from "./modules/photos/routes.js";
 import dashboardRoutes from "./modules/dashboard/routes.js";
 import orderRoutes from "./modules/orders/routes.js";
 import labelRoutes from "./modules/labels/routes.js";
+import adminRoutes from "./modules/admin/routes.js";
 
 export async function build() {
   const app = Fastify({ logger: { level: "warn" } });
@@ -53,6 +54,7 @@ export async function build() {
   await app.register(dashboardRoutes);
   await app.register(orderRoutes);
   await app.register(labelRoutes);
+  await app.register(adminRoutes);
 
   return app;
 }

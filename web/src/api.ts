@@ -86,6 +86,23 @@ export const api = {
     req<any>(`/work/stages/${id}/finish`, { method: "POST", body: JSON.stringify({ clientEventId, occurredAt }) }),
 
   labels: () => req<LabelRow[]>("/labels"),
+
+  // ---- setup & order entry ----
+  stations: () => req<Station[]>("/admin/stations"),
+  people: () => req<PersonRow[]>("/admin/people"),
+  addPerson: (b: NewPerson) => req<any>("/admin/people", { method: "POST", body: JSON.stringify(b) }),
+  updatePerson: (id: string, b: Record<string, unknown>) =>
+    req<any>(`/admin/people/${id}`, { method: "PATCH", body: JSON.stringify(b) }),
+  groups: () => req<GroupRow[]>("/admin/groups"),
+  addGroup: (b: { nameAr: string; stationId: string; leaderId?: string }) =>
+    req<any>("/admin/groups", { method: "POST", body: JSON.stringify(b) }),
+  categories: () => req<{ id: string; nameAr: string; nameEn: string }[]>("/admin/categories"),
+  addCategory: (b: { nameAr: string }) => req<any>("/admin/categories", { method: "POST", body: JSON.stringify(b) }),
+  products: () => req<ProductRow[]>("/admin/products"),
+  addProduct: (b: NewProduct) => req<any>("/admin/products", { method: "POST", body: JSON.stringify(b) }),
+  customers: () => req<{ id: string; name: string; phone: string }[]>("/admin/customers"),
+  createOrder: (b: NewOrder) => req<{ id: string; code: string; total: number }>("/admin/orders",
+    { method: "POST", body: JSON.stringify(b) }),
   markPrinted: (id: string) => req<any>(`/labels/${id}/printed`, { method: "POST" }),
 
   today: () => req<Dashboard>("/dashboard/today"),
@@ -108,6 +125,22 @@ export const api = {
   },
 };
 
+export type Station = { id: string; code: string; nameAr: string; nameEn: string };
+export type PersonRow = { id: string; nameAr: string; nameEn: string; phone: string | null;
+  email: string | null; role: string; canLogin: boolean; isActive: boolean; hasPassword: boolean;
+  groupId: string | null; groupName: string | null; stationId: string | null; stationName: string | null };
+export type NewPerson = { nameAr: string; nameEn?: string; role: string; phone?: string;
+  email?: string; password?: string; groupId?: string; stationId?: string; canLogin?: boolean };
+export type GroupRow = { id: string; nameAr: string; nameEn: string; isActive: boolean;
+  stationId: string; stationAr: string; stationEn: string;
+  leader: { id: string; nameAr: string; phone: string | null } | null;
+  memberCount: number; members: { id: string; nameAr: string }[] };
+export type ProductRow = { id: string; sku: string; nameAr: string; nameEn: string; kind: string;
+  basePrice: number; baseLeadDays: number; isActive: boolean; categoryId: string; categoryAr: string };
+export type NewProduct = { sku: string; nameAr: string; nameEn?: string; categoryId: string;
+  basePrice: number; baseLeadDays?: number; kind?: string };
+export type NewOrder = { customerId?: string; customerName?: string; customerPhone?: string;
+  promisedDate?: string; lines: { productId: string; qty: number; unitPrice?: number; specNotes?: string; lineKind?: string }[] };
 export type LabelRow = { id: string; serial: string; printedAt: string | null; workOrderCode: string;
   orderCode: string; customer: string; productAr: string; productEn: string; qty: number; promisedDate: string | null };
 export type Me = { id: string; nameAr: string; nameEn: string; phone: string; locale: "ar" | "en"; role: string; stationId: string | null };

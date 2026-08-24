@@ -12,6 +12,8 @@ import Orders from "./screens/Orders";
 import OrderDetail from "./screens/OrderDetail";
 import Scan from "./screens/Scan";
 import Labels from "./screens/Labels";
+import Setup from "./screens/Setup";
+import NewOrder from "./screens/NewOrder";
 import { onSyncChange, queued } from "./outbox";
 import { startSyncLoop } from "./sync";
 
@@ -35,7 +37,8 @@ export default function App() {
 
   const office = OFFICE.includes(me.role);
   const nav = office
-    ? [["/today", "◧", t("today")], ["/floor", "▦", t("floor")], ["/orders", "▤", t("orders")], ["/labels", "⌗", t("labels")]]
+    ? [["/today", "◧", t("today")], ["/floor", "▦", t("floor")], ["/orders", "▤", t("orders")],
+       ["/new-order", "✎", t("newOrder")], ["/labels", "⌗", t("labels")], ["/setup", "⚙", t("setup")]]
     : [["/work", "▤", t("work")], ["/scan", "⌗", t("scan")], ["/myday", "◔", t("myday")]];
 
   return (
@@ -59,6 +62,8 @@ export default function App() {
           <Route path="/scan" element={<Scan />} />
           <Route path="/myday" element={<MyDay />} />
           <Route path="/labels" element={<Labels />} />
+          <Route path="/new-order" element={<NewOrder />} />
+          <Route path="/setup" element={<Setup />} />
           <Route path="/today" element={<Today />} />
           <Route path="/floor" element={<Floor />} />
           <Route path="/orders" element={<Orders />} />

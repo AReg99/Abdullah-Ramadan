@@ -1,0 +1,292 @@
+import type { FastifyInstance } from "fastify";
+import bcrypt from "bcryptjs";
+import { randomUUID } from "node:crypto";
+import { z } from "zod";
+import { db } from "../../db.js";
+import { guard } from "../../auth/jwt.js";
+import { record } from "../../lib/events.js";
+
+/**
+ * Setup and order entry — the half that turns a tracking spine into something a
+ * factory can actually use. Without this, work can be followed but never
+ * entered, and the system only ever contains whatever the seed put there.
+ *
+ * Phase 3 replaces order entry here with the showroom configurator. Until then
+ * this is how a real order gets in.
+ */
+const OWNER = ["OWNER", "FACTORY_MANAGER"];
+
+export default async function adminRoutes(app: FastifyInstance) {
+  // ---------------------------------------------------------------- stations
+  app.get("/admin/stations", { preHandler: guard(OWNER) }, async () =>
+    db.station.findMany({ orderBy: { code: "asc" }, include: { groups: true } }));
+
+  app.post("/admin/stations", { preHandler: guard(OWNER) }, async (req) => {
+    const b = z.object({
+      code: z.string().min(1).max(8), nameAr: z.string().min(1), nameEn: z.string().min(1),
+      dailyCapacityMinutes: z.number().int().positive().default(480),
+    }).parse(req.body);
+    const factory = await db.location.findFirst({ where: { type: "FACTORY" } });
+    if (!factory) throw new Error("no factory location configured");
+    return db.station.create({ data: { ...b, locationId: factory.id } });
+  });
+
+  // ---------------------------------------------------------------- people
+  app.get("/admin/people", { preHandler: guard(OWNER) }, async () => {
+    const people = await db.user.findMany({
+      orderBy: [{ isActive: "desc" }, { nameAr: "asc" }],
+      include: { role: true, group: true, station: true },
+    });
+    return people.map((u) => ({
+      id: u.id, nameAr: u.nameAr, nameEn: u.nameEn, phone: u.phone, email: u.email,
+      role: u.role.key, canLogin: u.canLogin, isActive: u.isActive,
+      hasPassword: Boolean(u.passwordHash),
+      groupId: u.groupId, groupName: u.group?.nameAr ?? null,
+      stationId: u.stationId, stationName: u.station?.nameAr ?? null,
+    }));
+  });
+
+  app.post("/admin/people", { preHandler: guard(OWNER) }, async (req, reply) => {
+    const b = z.object({
+      nameAr: z.string().min(1), nameEn: z.string().min(1).optional(),
+      role: z.enum(["OWNER","FACTORY_MANAGER","SUPERVISOR","GROUP_LEADER","QC",
+                    "STOREKEEPER","SHOWROOM_MANAGER","SALES_REP","DRIVER","ACCOUNTANT"]),
+      phone: z.string().min(6).optional(),
+      email: z.string().email().optional(),
+      password: z.string().min(6).optional(),
+      groupId: z.string().optional(),
+      stationId: z.string().optional(),
+      /** Roster workers are tracked, not authenticated. */
+      canLogin: z.boolean().default(true),
+    }).parse(req.body);
+
+    if (b.canLogin && !b.phone && !b.email) {
+      return reply.code(400).send({ error: "login_needs_phone_or_email" });
+    }
+    const role = await db.role.findUnique({ where: { key: b.role } });
+    if (!role) return reply.code(400).send({ error: "unknown_role" });
+
+    return db.user.create({
+      data: {
+        nameAr: b.nameAr, nameEn: b.nameEn ?? b.nameAr,
+        phone: b.phone ?? null, email: b.email ?? null,
+        passwordHash: b.password ? bcrypt.hashSync(b.password, 10) : null,
+        canLogin: b.canLogin, roleId: role.id,
+        groupId: b.groupId ?? null, stationId: b.stationId ?? null,
+      },
+    });
+  });
+
+  app.patch("/admin/people/:id", { preHandler: guard(OWNER) }, async (req, reply) => {
+    const { id } = req.params as { id: string };
+    const b = z.object({
+      nameAr: z.string().min(1).optional(),
+      password: z.string().min(6).optional(),
+      groupId: z.string().nullable().optional(),
+      stationId: z.string().nullable().optional(),
+      isActive: z.boolean().optional(),
+    }).parse(req.body);
+    const exists = await db.user.findUnique({ where: { id } });
+    if (!exists) return reply.code(404).send({ error: "not_found" });
+    return db.user.update({
+      where: { id },
+      data: {
+        ...(b.nameAr ? { nameAr: b.nameAr } : {}),
+        ...(b.password ? { passwordHash: bcrypt.hashSync(b.password, 10) } : {}),
+        ...(b.groupId !== undefined ? { groupId: b.groupId } : {}),
+        ...(b.stationId !== undefined ? { stationId: b.stationId } : {}),
+        ...(b.isActive !== undefined ? { isActive: b.isActive } : {}),
+      },
+    });
+  });
+
+  // ---------------------------------------------------------------- groups
+  app.get("/admin/groups", { preHandler: guard(OWNER) }, async () => {
+    const groups = await db.group.findMany({
+      orderBy: { nameAr: "asc" },
+      include: { station: true, leader: true, members: { where: { canLogin: false, isActive: true } } },
+    });
+    return groups.map((g) => ({
+      id: g.id, nameAr: g.nameAr, nameEn: g.nameEn, isActive: g.isActive,
+      stationId: g.stationId, stationAr: g.station.nameAr, stationEn: g.station.nameEn,
+      leader: g.leader ? { id: g.leader.id, nameAr: g.leader.nameAr, phone: g.leader.phone } : null,
+      memberCount: g.members.length,
+      members: g.members.map((m) => ({ id: m.id, nameAr: m.nameAr })),
+    }));
+  });
+
+  app.post("/admin/groups", { preHandler: guard(OWNER) }, async (req) => {
+    const b = z.object({
+      nameAr: z.string().min(1), nameEn: z.string().min(1).optional(),
+      stationId: z.string(), leaderId: z.string().optional(),
+    }).parse(req.body);
+    const g = await db.group.create({
+      data: { nameAr: b.nameAr, nameEn: b.nameEn ?? b.nameAr, stationId: b.stationId,
+              leaderId: b.leaderId ?? null },
+    });
+    if (b.leaderId) await db.user.update({ where: { id: b.leaderId }, data: { groupId: g.id, stationId: b.stationId } });
+    return g;
+  });
+
+  app.patch("/admin/groups/:id", { preHandler: guard(OWNER) }, async (req, reply) => {
+    const { id } = req.params as { id: string };
+    const b = z.object({
+      nameAr: z.string().min(1).optional(), stationId: z.string().optional(),
+      leaderId: z.string().nullable().optional(), isActive: z.boolean().optional(),
+    }).parse(req.body);
+    const g = await db.group.findUnique({ where: { id } });
+    if (!g) return reply.code(404).send({ error: "not_found" });
+    const updated = await db.group.update({ where: { id }, data: b as any });
+    if (b.leaderId) {
+      await db.user.update({
+        where: { id: b.leaderId },
+        data: { groupId: id, stationId: b.stationId ?? g.stationId },
+      });
+    }
+    return updated;
+  });
+
+  // ---------------------------------------------------------------- catalogue
+  app.get("/admin/categories", { preHandler: guard(OWNER) }, async () =>
+    db.productCategory.findMany({ orderBy: { nameAr: "asc" } }));
+
+  app.post("/admin/categories", { preHandler: guard(OWNER) }, async (req) => {
+    const b = z.object({ nameAr: z.string().min(1), nameEn: z.string().min(1).optional() }).parse(req.body);
+    return db.productCategory.create({ data: { nameAr: b.nameAr, nameEn: b.nameEn ?? b.nameAr } });
+  });
+
+  app.get("/admin/products", { preHandler: guard(OWNER) }, async () => {
+    const rows = await db.product.findMany({ orderBy: { nameAr: "asc" }, include: { category: true } });
+    return rows.map((p) => ({
+      id: p.id, sku: p.sku, nameAr: p.nameAr, nameEn: p.nameEn, kind: p.kind,
+      basePrice: Number(p.basePrice), baseLeadDays: p.baseLeadDays, isActive: p.isActive,
+      categoryId: p.categoryId, categoryAr: p.category.nameAr,
+    }));
+  });
+
+  app.post("/admin/products", { preHandler: guard(OWNER) }, async (req) => {
+    const b = z.object({
+      sku: z.string().min(1), nameAr: z.string().min(1), nameEn: z.string().min(1).optional(),
+      categoryId: z.string(), basePrice: z.number().nonnegative(),
+      baseLeadDays: z.number().int().positive().default(14),
+      kind: z.enum(["STANDARD", "CUSTOMIZABLE"]).default("STANDARD"),
+    }).parse(req.body);
+    return db.product.create({
+      data: { ...b, nameEn: b.nameEn ?? b.nameAr, basePrice: String(b.basePrice) },
+    });
+  });
+
+  // ---------------------------------------------------------------- routings
+  app.get("/admin/routings", { preHandler: guard(OWNER) }, async () =>
+    db.routing.findMany({
+      orderBy: { nameAr: "asc" },
+      include: { stages: { orderBy: { seq: "asc" }, include: { station: true } } },
+    }));
+
+  // ---------------------------------------------------------------- orders
+  app.get("/admin/customers", { preHandler: guard(OWNER) }, async () =>
+    db.customer.findMany({ orderBy: { name: "asc" } }));
+
+  /**
+   * Creating an order is the moment the factory gets work. It writes the order,
+   * its lines, a work order per line, every stage from the routing, and a unit
+   * label per unit — so the piece is scannable the moment it exists.
+   */
+  app.post("/admin/orders", { preHandler: guard(OWNER) }, async (req, reply) => {
+    const b = z.object({
+      customerId: z.string().optional(),
+      customerName: z.string().min(1).optional(),
+      customerPhone: z.string().min(6).optional(),
+      promisedDate: z.string().optional(),
+      routingId: z.string().optional(),
+      lines: z.array(z.object({
+        productId: z.string(),
+        qty: z.number().int().positive().default(1),
+        unitPrice: z.number().nonnegative().optional(),
+        specNotes: z.string().optional(),
+        lineKind: z.enum(["STANDARD", "CUSTOM"]).default("STANDARD"),
+      })).min(1),
+    }).parse(req.body);
+
+    if (!b.customerId && !b.customerName) {
+      return reply.code(400).send({ error: "customer_required" });
+    }
+    const customer = b.customerId
+      ? await db.customer.findUnique({ where: { id: b.customerId } })
+      : await db.customer.create({
+          data: { name: b.customerName!, phone: b.customerPhone ?? "" },
+        });
+    if (!customer) return reply.code(404).send({ error: "customer_not_found" });
+
+    const routing = b.routingId
+      ? await db.routing.findUnique({ where: { id: b.routingId }, include: { stages: { orderBy: { seq: "asc" } } } })
+      : await db.routing.findFirst({ where: { isDefault: true }, include: { stages: { orderBy: { seq: "asc" } } } });
+    if (!routing || routing.stages.length === 0) {
+      return reply.code(400).send({ error: "no_routing_configured" });
+    }
+
+    const products = await db.product.findMany({ where: { id: { in: b.lines.map((l) => l.productId) } } });
+    if (products.length !== new Set(b.lines.map((l) => l.productId)).size) {
+      return reply.code(400).send({ error: "unknown_product" });
+    }
+    const priceOf = (id: string) => Number(products.find((p) => p.id === id)!.basePrice);
+
+    const seq = (await db.order.count()) + 1;
+    const year = new Date().getFullYear();
+    const promised = b.promisedDate ? new Date(b.promisedDate) : null;
+    const total = b.lines.reduce((sum, l) => sum + (l.unitPrice ?? priceOf(l.productId)) * l.qty, 0);
+    const anyCustom = b.lines.some((l) => l.lineKind === "CUSTOM");
+
+    const order = await db.order.create({
+      data: {
+        code: `AUR-${year}-${String(seq).padStart(4, "0")}`,
+        kind: anyCustom ? (b.lines.every((l) => l.lineKind === "CUSTOM") ? "CUSTOM" : "MIXED") : "STANDARD",
+        channel: "FACTORY", status: "CONFIRMED",
+        customerId: customer.id, promisedDate: promised,
+        total: String(total), trackingToken: randomUUID(),
+      },
+    });
+
+    let woSeq = (await db.workOrder.count()) + 1;
+    for (const l of b.lines) {
+      const line = await db.orderLine.create({
+        data: {
+          orderId: order.id, productId: l.productId, qty: l.qty,
+          unitPrice: String(l.unitPrice ?? priceOf(l.productId)),
+          lineKind: l.lineKind, status: "QUEUED",
+          promisedDate: promised, specNotes: l.specNotes ?? null,
+        },
+      });
+      const wo = await db.workOrder.create({
+        data: {
+          code: `WO-${String(1000 + woSeq++).padStart(4, "0")}`,
+          orderLineId: line.id, productId: l.productId, qty: l.qty,
+          routingId: routing.id, status: "SCHEDULED",
+        },
+      });
+      await db.workOrderStage.createMany({
+        data: routing.stages.map((st, i) => ({
+          workOrderId: wo.id, routingStageId: st.id, seq: st.seq,
+          // Only the first stage is workable; the rest open as each one finishes.
+          status: i === 0 ? ("READY" as const) : ("PENDING" as const),
+        })),
+      });
+      await db.unitLabel.createMany({
+        data: Array.from({ length: l.qty }, (_, i) => ({
+          workOrderId: wo.id, serial: `AURA-${wo.code}-${i + 1}`,
+        })),
+      });
+      await record({
+        code: "WO_SCHEDULED", entityType: "work_order", entityId: wo.id,
+        orderId: order.id, actorId: (req as any).user.id, payload: { code: wo.code },
+      });
+    }
+
+    await record({
+      code: "ORDER_CONFIRMED", entityType: "order", entityId: order.id, orderId: order.id,
+      actorId: (req as any).user.id, isCustomerVisible: true,
+      payload: { code: order.code, total },
+    });
+    return { id: order.id, code: order.code, total };
+  });
+}

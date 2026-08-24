@@ -139,3 +139,7 @@ input.mono{font-family:"IBM Plex Mono",monospace}
 .crewchip.out{border-color:var(--g3);background:var(--g1);color:var(--g6);
   text-decoration:line-through;opacity:.7}
 .crewchip.on{cursor:default}
+select{appearance:none;background-image:none}
+.nav{overflow-x:auto;scrollbar-width:none}
+.nav::-webkit-scrollbar{display:none}
+.nav a{min-width:74px}

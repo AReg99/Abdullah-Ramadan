@@ -42,6 +42,51 @@ cp .env.prod.example .env.prod
 docker compose -f docker-compose.prod.yml --env-file .env.prod up -d --build
 ```
 
+### Start empty, not with demo data
+
+A real factory should not begin holding three invented orders for three
+invented customers. Seed for production instead:
+
+```bash
+docker compose -f docker-compose.prod.yml --env-file .env.prod exec api \
+  env SEED_DEMO=0 OWNER_EMAIL=you@yourdomain OWNER_PASSWORD='a-long-password' \
+  npx tsx prisma/seed.ts
+```
+
+That installs only what the system cannot run without — the factory, the eight
+stations and the standard routing with its photo gates — plus your owner
+account. Everything else you enter yourself under **Setup**.
+
+### Your first hour in the app
+
+1. Sign in as the owner.
+2. **Setup → Products** — add your categories, then your products with real
+   prices.
+3. **Setup → Crews** — create a group per station, add its leader with a phone
+   number and a password, then add the workers in that crew. Workers never sign
+   in; they exist so their output is still credited to them.
+4. Send each leader the address and their phone number and password. They open
+   it once and tap **Add to Home Screen**.
+5. **New order** — enter a real order. Confirming it creates the work order,
+   every stage from the routing, and a QR label per unit.
+6. **Labels → Print all**, attach them to the pieces, and the floor can start
+   scanning.
+
+### Back it up from day one
+
+```bash
+./scripts/backup.sh /path/to/backups
+```
+
+Database and photos, with old copies pruned after 30 days. Put it on a cron:
+
+```
+0 2 * * *  cd /path/to/Abdullah-Ramadan && ./scripts/backup.sh
+```
+
+Then copy that folder somewhere off the machine. A backup on the same disk as
+the database is not a backup.
+
 Caddy obtains a certificate from Let's Encrypt automatically and renews it. The
 app, the API and the uploaded photos are all served from one origin, so there is
 no CORS to configure and the service worker's scope stays intact.
@@ -133,11 +178,13 @@ certificate expires every 7 days and a paid one lasts a year.
 Honest list of what is still missing:
 
 - **No test suite.** Everything has been verified by hand.
-- **SMS delivery** for worker sign-in codes.
+- **SMS delivery** for sign-in codes. Not blocking any more: group leaders sign
+  in with a phone number and a password you set in Setup. SMS would let them
+  reset it themselves.
 - **Photo storage** is a local disk volume, with no retention policy applied and
   no offsite backup.
-- **Database backups.** Nothing is scheduled. Add `pg_dump` on a cron before
-  anyone relies on this.
+- **Offsite backups.** `scripts/backup.sh` exists and is tested; putting it on a
+  cron and copying the results off the machine is yours to do.
 - **No monitoring or error reporting.** Sentry or similar.
 - **Phases 2–5** — materials, costing, the showroom configurator, delivery, the
   customer tracking page, the report pack.

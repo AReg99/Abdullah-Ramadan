@@ -39,6 +39,18 @@ const ar = {
   offline: "مفيش نت — الشغل بيتحفظ", pending: "مستني الرفع", synced: "اترفع كله",
   labels: "الملصقات", print: "طباعة", printed: "اتطبع", notPrinted: "لسه", printAll: "اطبع الكل",
   labelHint: "اطبع الملصقات على ورق صناعي، مش ورق عادي — لازم تستحمل التراب والدهان.",
+  setup: "الإعداد", newOrder: "طلب جديد", crewsTab: "المجموعات", productsTab: "المنتجات",
+  add: "إضافة", saved: "اتحفظ", fullName: "الاسم", pickStation: "اختار المحطة",
+  pickGroup: "اختار المجموعة", pickCategory: "اختار الفئة", pickProduct: "اختار المنتج",
+  addGroup: "مجموعة جديدة", groupName: "اسم المجموعة", leader: "رئيس العمال", noLeader: "مفيش رئيس عمال",
+  addLeader: "رئيس عمال جديد", leaderHint: "بيسجل دخول برقم الموبايل وكلمة السر دي.",
+  addWorker: "عامل جديد", workerHint: "العامل مش بيسجل دخول — بس شغله بيتحسب باسمه.",
+  everyone: "كل الناس", addCategory: "فئة جديدة", categoryName: "اسم الفئة",
+  addProduct: "منتج جديد", productName: "اسم المنتج", sku: "الكود", price: "السعر", leadDays: "مدة التنفيذ بالأيام",
+  customerName: "اسم العميل", promisedDate: "موعد التسليم", item: "بند", remove: "شيل",
+  addItem: "بند تاني", kindStandard: "جاهز", kindCustom: "تفصيل", specNotes: "المواصفات",
+  createOrder: "أكّد الطلب", orderCreated: "اتعمل الطلب",
+  createOrderHint: "التأكيد بيعمل أمر التشغيل، وكل مراحله، وملصق كود لكل قطعة.",
 };
 
 const en: Record<keyof typeof ar, string> = {
@@ -80,6 +92,18 @@ const en: Record<keyof typeof ar, string> = {
   offline: "Offline — work is being saved", pending: "waiting to upload", synced: "All synced",
   labels: "Labels", print: "Print", printed: "Printed", notPrinted: "Not yet", printAll: "Print all",
   labelHint: "Print on synthetic label stock, not paper — it has to survive dust and finish overspray.",
+  setup: "Setup", newOrder: "New order", crewsTab: "Crews", productsTab: "Products",
+  add: "Add", saved: "Saved", fullName: "Full name", pickStation: "Choose a station",
+  pickGroup: "Choose a group", pickCategory: "Choose a category", pickProduct: "Choose a product",
+  addGroup: "New group", groupName: "Group name", leader: "Leader", noLeader: "No leader yet",
+  addLeader: "New group leader", leaderHint: "Signs in with this phone number and password.",
+  addWorker: "New worker", workerHint: "Workers do not sign in — their work is still credited to them.",
+  everyone: "Everyone", addCategory: "New category", categoryName: "Category name",
+  addProduct: "New product", productName: "Product name", sku: "Code", price: "Price", leadDays: "Lead days",
+  customerName: "Customer name", promisedDate: "Promised date", item: "Item", remove: "Remove",
+  addItem: "Add item", kindStandard: "Standard", kindCustom: "Custom", specNotes: "Specification",
+  createOrder: "Confirm order", orderCreated: "Order created",
+  createOrderHint: "Confirming creates the work order, all its stages, and a QR label for every unit.",
 };
 
 export const DICT = { ar, en };

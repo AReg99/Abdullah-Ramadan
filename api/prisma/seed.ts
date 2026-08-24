@@ -12,6 +12,15 @@ import { randomUUID } from "node:crypto";
 
 const db = new PrismaClient();
 
+function requireOwnerPassword() {
+  const p = process.env.OWNER_PASSWORD;
+  if (!p || p.length < 8) {
+    console.error("\nSet OWNER_PASSWORD (8+ characters) when seeding for production.\n");
+    process.exit(1);
+  }
+  return p;
+}
+
 const ROLES: [RoleKey, string, string][] = [
   ["OWNER", "المالك", "Owner"],
   ["FACTORY_MANAGER", "مدير المصنع", "Factory manager"],
@@ -45,7 +54,12 @@ async function main() {
     console.log("database already seeded — skipping");
     return;
   }
-  console.log("seeding…");
+
+  // A real factory should not start life holding three invented orders for
+  // three invented customers. SEED_DEMO=0 installs only what the system cannot
+  // run without — roles, the factory, and an owner account.
+  const demo = process.env.SEED_DEMO !== "0";
+  console.log(demo ? "seeding with demo data…" : "seeding for production (no demo data)…");
   // Order matters: children before parents.
   await db.trackingEvent.deleteMany();
   await db.stageWorker.deleteMany();
@@ -91,14 +105,18 @@ async function main() {
   );
 
   const pwd = bcrypt.hashSync("aura1234", 10);
+  const ownerEmail = demo ? "owner@aura.test" : (process.env.OWNER_EMAIL ?? "owner@aura.local");
+  const ownerPassword = demo ? pwd : bcrypt.hashSync(requireOwnerPassword(), 10);
   const owner = await db.user.create({
     data: { nameAr: "عبدالله رمضان", nameEn: "Abdullah Ramadan", phone: "+201000000001",
-            email: "owner@aura.test", passwordHash: pwd, roleId: roles.OWNER.id, locale: "ar" },
+            email: ownerEmail, passwordHash: ownerPassword, roleId: roles.OWNER.id, locale: "ar" },
   });
-  await db.user.create({
-    data: { nameAr: "مدير المصنع", nameEn: "Factory Manager", phone: "+201000000002",
-            email: "factory@aura.test", passwordHash: pwd, roleId: roles.FACTORY_MANAGER.id },
-  });
+  if (demo) {
+    await db.user.create({
+      data: { nameAr: "مدير المصنع", nameEn: "Factory Manager", phone: "+201000000002",
+              email: "factory@aura.test", passwordHash: pwd, roleId: roles.FACTORY_MANAGER.id },
+    });
+  }
   // The floor runs on groups. Only the leader signs in and carries the phone;
   // the crew are records so their output stays attributable without giving
   // every worker a device and an internet connection.
@@ -112,7 +130,7 @@ async function main() {
   ];
 
   const leaders: any[] = [];
-  for (const [code, gAr, gEn, leaderAr, leaderPhone, members] of CREWS) {
+  for (const [code, gAr, gEn, leaderAr, leaderPhone, members] of (demo ? CREWS : [])) {
     const group = await db.group.create({
       data: { nameAr: gAr, nameEn: gEn, stationId: stations[code].id },
     });
@@ -147,6 +165,16 @@ async function main() {
               stationId: stations[code].id, stdMinutes: mins, isCustomerVisible: vis,
               photoBefore: pb as any, photoAfter: pa as any },
     })));
+
+  if (!demo) {
+    console.log(`
+ready for production — nothing invented, only what the system cannot run without:
+  the factory, ${ROUTE.length} stations, and the standard routing with its photo gates
+  sign in as ${ownerEmail} with the password you set
+  then add your people, products and orders under Setup
+`);
+    return;
+  }
 
   const products = await Promise.all([
     db.product.create({ data: { sku: "AUR-WRD-180", nameAr: "دولاب غرفة نوم", nameEn: "Bedroom wardrobe",
