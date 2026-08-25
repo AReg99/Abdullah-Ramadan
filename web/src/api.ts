@@ -114,6 +114,8 @@ export const api = {
   deliverLine: (id: string, note?: string) =>
     req<FlowLine>(`/flow/lines/${id}/deliver`, { method: "POST", body: JSON.stringify({ note }) }),
   grantableRoles: () => req<string[]>("/admin/grantable-roles"),
+  removePerson: (id: string) =>
+    req<{ removed: "deleted" | "retired" }>(`/admin/people/${id}`, { method: "DELETE" }),
   locations: () => req<LocationRow[]>("/admin/locations"),
   addLocation: (b: { nameAr: string; nameEn?: string; address?: string; type?: string }) =>
     req<LocationRow>("/admin/locations", { method: "POST", body: JSON.stringify(b) }),

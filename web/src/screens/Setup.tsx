@@ -73,7 +73,7 @@ export default function Setup() {
 }
 
 function Crews({ stations, groups, people, busy, run, nm }: any) {
-  const { t, lang } = useApp();
+  const { t, lang, me } = useApp();
   const [g, setG] = useState({ nameAr: "", stationId: "" });
   const [l, setL] = useState({ nameAr: "", phone: "", password: "", groupId: "" });
   const [w, setW] = useState({ nameAr: "", groupId: "" });
@@ -165,11 +165,34 @@ function Crews({ stations, groups, people, busy, run, nm }: any) {
                 {p.groupName && <span className="muted"> · {p.groupName}</span>}
               </span>
               {p.phone && <span className="mono muted">{p.phone}</span>}
+              {p.id !== me?.id && <RemoveButton person={p} busy={busy} run={run} />}
             </div>
           ))}
         </div>
       </div>
     </>
+  );
+}
+
+/**
+ * Removing someone is not undoable from here, and for anyone who has worked it
+ * does not erase them — it retires them. Both facts belong in front of the
+ * person tapping it, not in a manual.
+ */
+function RemoveButton({ person, busy, run }: any) {
+  const { t } = useApp();
+  return (
+    <button className="btn dang sm" style={{ width: "auto", padding: "0 12px", minHeight: 34 }}
+      disabled={busy}
+      onClick={() => {
+        if (!confirm(`${t("confirmRemove")}\n\n${person.nameAr}\n\n${t("removeHint")}`)) return;
+        return run(async () => {
+          const r = await api.removePerson(person.id);
+          return r;
+        }, t("removed"));
+      }}>
+      {t("removeAccount")}
+    </button>
   );
 }
 
@@ -297,6 +320,7 @@ function Staff({ people, locations, stations, roles, busy, run, nm }: any) {
                 {x.stationName && <span className="muted"> · {x.stationName}</span>}
               </span>
               <span className="mono muted">{x.email ?? x.phone}</span>
+              {x.id !== me?.id && <RemoveButton person={x} busy={busy} run={run} />}
             </div>
           ))}
           {staff.length === 0 && <p className="note">{lang === "ar" ? "لسه مفيش موظفين" : "No staff yet"}</p>}

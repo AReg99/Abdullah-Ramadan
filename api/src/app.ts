@@ -17,6 +17,18 @@ import adminRoutes from "./modules/admin/routes.js";
 
 export async function build() {
   const app = Fastify({ logger: { level: "warn" } });
+
+  // A request that says application/json and sends nothing means "no
+  // arguments" — a DELETE, or a POST whose whole payload is optional. Fastify
+  // rejects it outright, which reaches the screen as a baffling 400 on a button
+  // that correctly sent no body at all.
+  app.addContentTypeParser("application/json", { parseAs: "string" }, (_req, body, done) => {
+    const raw = typeof body === "string" ? body.trim() : "";
+    if (!raw) return done(null, {});
+    try { done(null, JSON.parse(raw)); }
+    catch (e) { (e as any).statusCode = 400; done(e as Error, undefined); }
+  });
+
   await app.register(cors, { origin: true });
   await app.register(multipart, { limits: { fileSize: 8 * 1024 * 1024 } });
 

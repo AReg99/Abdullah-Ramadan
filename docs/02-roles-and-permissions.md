@@ -51,6 +51,26 @@ station, sees no work at all — deliberately, so an unassigned account can neve
 be handed the whole factory's job list.
 
 
+### Removing someone
+
+Two different things wear the same word.
+
+An account created by mistake five minutes ago is **deleted** — nothing of it
+remains. An account that has done work cannot be: their name is on stages,
+photos and events, and the point of an append-only record is that finished work
+stays attributable to whoever did it. Those accounts are **retired** instead:
+they cannot sign in, they disappear from every list and crew picker, and their
+phone and email are released so a replacement can be given the same number.
+What they did stays on the record under their name.
+
+The app decides which of the two applies; the person removing them does not
+have to. Any crew they led is left with no leader rather than pointing at
+somebody gone.
+
+You may remove exactly the roles you may create — the same rule as editing —
+and never yourself, and never the last owner.
+
+
 ### Who sees the activity feed
 
 The whole-factory activity feed on **Today** — every action by every person, in

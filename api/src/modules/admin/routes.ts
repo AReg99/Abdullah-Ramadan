@@ -167,6 +167,62 @@ export default async function adminRoutes(app: FastifyInstance) {
     });
   });
 
+  /**
+   * Remove a person.
+   *
+   * Two different things wear the same word. Someone created by mistake five
+   * minutes ago should simply vanish. Someone who has worked cannot: their name
+   * is on stages, photos and events, and the point of an append-only record is
+   * that finished work stays attributable to whoever did it. Deleting the row
+   * would either fail on the foreign keys or quietly orphan months of history.
+   *
+   * So: no history, and they are gone. Any history, and they are retired —
+   * cannot sign in, gone from every list and picker, and their phone and email
+   * are released so a replacement can be given the same number. What they did
+   * stays on the record under their name.
+   */
+  app.delete("/admin/people/:id", { preHandler: guard(STAFF_ADMIN) }, async (req, reply) => {
+    const { id } = req.params as { id: string };
+    const actor = (req as any).user;
+
+    const person = await db.user.findUnique({ where: { id }, include: { role: true } });
+    if (!person) return reply.code(404).send({ error: "not_found" });
+    if (person.id === actor.id) return reply.code(400).send({ error: "cannot_remove_yourself" });
+    if (!canGrant(actor.role.key, person.role.key)) {
+      return reply.code(403).send({ error: "not_your_account_to_remove" });
+    }
+    // Removing the last owner would lock everybody out of setup for good.
+    if (person.role.key === "OWNER") {
+      const owners = await db.user.count({ where: { isActive: true, role: { key: "OWNER" } } });
+      if (owners <= 1) return reply.code(400).send({ error: "last_owner" });
+    }
+
+    const [stages, crewWork, photos, events, leads] = await Promise.all([
+      db.workOrderStage.count({ where: { assignedToId: id } }),
+      db.stageWorker.count({ where: { userId: id } }),
+      db.stagePhoto.count({ where: { actorId: id } }),
+      db.trackingEvent.count({ where: { actorId: id } }),
+      db.group.count({ where: { leaderId: id } }),
+    ]);
+    const history = stages + crewWork + photos + events;
+
+    // A crew must not be left pointing at someone who is gone.
+    if (leads) await db.group.updateMany({ where: { leaderId: id }, data: { leaderId: null } });
+    await db.otpCode.deleteMany({ where: { userId: id } });
+
+    if (history === 0) {
+      await db.user.delete({ where: { id } });
+      return { removed: "deleted" as const };
+    }
+
+    await db.user.update({
+      where: { id },
+      data: { isActive: false, canLogin: false, phone: null, email: null, passwordHash: null,
+              groupId: null, stationId: null, locationId: null },
+    });
+    return { removed: "retired" as const, keptFor: { stages, crewWork, photos, events } };
+  });
+
   // ---------------------------------------------------------------- groups
   app.get("/admin/groups", { preHandler: guard(STAFF_ADMIN) }, async () => {
     const groups = await db.group.findMany({

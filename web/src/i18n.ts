@@ -78,6 +78,12 @@ const ar = {
   saveAccount: "حفظ", accountHint: "الرقم ده هو اللي بتدخل بيه.",
   GROUP_LEADER: "رئيس عمال", OWNER: "المالك",
   phone_taken: "الرقم ده مستخدم قبل كده", email_taken: "البريد ده مستخدم قبل كده",
+  removeAccount: "حذف", removed: "اتحذف", retired: "اتشال من الخدمة — شغله محفوظ",
+  confirmRemove: "متأكد إنك عايز تشيل الحساب ده؟",
+  removeHint: "لو الشخص ده اشتغل قبل كده، شغله وصوره بيفضلوا في السجل باسمه — بس مش هيقدر يدخل تاني ومش هيظهر في أي قايمة.",
+  cannot_remove_yourself: "مش هتقدر تشيل حسابك انت",
+  not_your_account_to_remove: "الحساب ده مش من صلاحيتك",
+  last_owner: "لازم يفضل مالك واحد على الأقل",
 };
 
 const en: Record<keyof typeof ar, string> = {
@@ -158,6 +164,12 @@ const en: Record<keyof typeof ar, string> = {
   saveAccount: "Save", accountHint: "This is the number you sign in with.",
   GROUP_LEADER: "Group leader", OWNER: "Owner",
   phone_taken: "That number is already in use", email_taken: "That email is already in use",
+  removeAccount: "Remove", removed: "Removed", retired: "Retired — their work is kept",
+  confirmRemove: "Remove this account?",
+  removeHint: "If this person has worked, their work and photos stay on the record under their name — they simply cannot sign in and will not appear in any list.",
+  cannot_remove_yourself: "You cannot remove your own account",
+  not_your_account_to_remove: "That account is not yours to remove",
+  last_owner: "There must always be at least one owner",
 };
 
 export const DICT = { ar, en };
