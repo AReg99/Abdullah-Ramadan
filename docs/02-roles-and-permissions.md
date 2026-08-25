@@ -51,6 +51,17 @@ station, sees no work at all — deliberately, so an unassigned account can neve
 be handed the whole factory's job list.
 
 
+### Who sees the activity feed
+
+The whole-factory activity feed on **Today** — every action by every person, in
+one running list — is the **owner's alone**. That is oversight rather than
+operation: a manager needs the figures, the blocked list and the live floor to
+do the job, not a record of who did what all day.
+
+A single order's own timeline stays visible to everyone who may open that
+order, because it explains that piece rather than watching the people.
+
+
 ### Who sees the money
 
 Prices, order values and takings are visible to the **owner, accountant,

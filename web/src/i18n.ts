@@ -77,6 +77,7 @@ const ar = {
   myAccount: "حسابي", myPhone: "رقم موبايلي", newPassword: "كلمة سر جديدة",
   saveAccount: "حفظ", accountHint: "الرقم ده هو اللي بتدخل بيه.",
   GROUP_LEADER: "رئيس عمال", OWNER: "المالك",
+  phone_taken: "الرقم ده مستخدم قبل كده", email_taken: "البريد ده مستخدم قبل كده",
 };
 
 const en: Record<keyof typeof ar, string> = {
@@ -156,6 +157,7 @@ const en: Record<keyof typeof ar, string> = {
   myAccount: "My account", myPhone: "My phone number", newPassword: "New password",
   saveAccount: "Save", accountHint: "This is the number you sign in with.",
   GROUP_LEADER: "Group leader", OWNER: "Owner",
+  phone_taken: "That number is already in use", email_taken: "That email is already in use",
 };
 
 export const DICT = { ar, en };

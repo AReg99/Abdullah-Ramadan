@@ -1,7 +1,7 @@
 import type { FastifyInstance } from "fastify";
 import { db } from "../../db.js";
 import { guard } from "../../auth/jwt.js";
-import { PRODUCTION, seesMoney } from "../../auth/scopes.js";
+import { OVERSIGHT, PRODUCTION, seesMoney } from "../../auth/scopes.js";
 
 const startOfToday = () => { const d = new Date(); d.setHours(0, 0, 0, 0); return d; };
 
@@ -12,7 +12,9 @@ const startOfToday = () => { const d = new Date(); d.setHours(0, 0, 0, 0); retur
 export default async function dashboardRoutes(app: FastifyInstance) {
   app.get("/dashboard/today", { preHandler: guard(PRODUCTION) }, async (req) => {
     const since = startOfToday();
-    const money = seesMoney((req as any).user.role.key);
+    const role = (req as any).user.role.key;
+    const money = seesMoney(role);
+    const oversight = OVERSIGHT.includes(role);
 
     const [ordersToday, finishedToday, blocked, openLines, events] = await Promise.all([
       db.order.findMany({ where: { createdAt: { gte: since } }, select: { total: true } }),
@@ -25,12 +27,16 @@ export default async function dashboardRoutes(app: FastifyInstance) {
         where: { status: { in: ["QUEUED", "IN_PRODUCTION"] } },
         include: { order: true },
       }),
-      db.trackingEvent.findMany({
-        where: { occurredAt: { gte: since } },
-        orderBy: { occurredAt: "desc" },
-        take: 30,
-        include: { actor: true, station: true },
-      }),
+      // Not fetched at all for anyone who may not see it, rather than fetched
+      // and dropped on the way out.
+      oversight
+        ? db.trackingEvent.findMany({
+            where: { occurredAt: { gte: since } },
+            orderBy: { occurredAt: "desc" },
+            take: 30,
+            include: { actor: true, station: true },
+          })
+        : Promise.resolve([]),
     ]);
 
     const now = Date.now();
@@ -59,12 +65,14 @@ export default async function dashboardRoutes(app: FastifyInstance) {
         orderCode: b.workOrder.orderLine.order.code,
         minutes: b.pausedAt ? Math.round((now - b.pausedAt.getTime()) / 60000) : 0,
       })),
-      events: events.map((e) => ({
-        id: e.id, code: e.code, occurredAt: e.occurredAt,
-        actor: e.actor ? { nameAr: e.actor.nameAr, nameEn: e.actor.nameEn } : null,
-        station: e.station ? { nameAr: e.station.nameAr, nameEn: e.station.nameEn } : null,
-        payload: e.payload,
-      })),
+      ...(oversight ? {
+        events: events.map((e) => ({
+          id: e.id, code: e.code, occurredAt: e.occurredAt,
+          actor: e.actor ? { nameAr: e.actor.nameAr, nameEn: e.actor.nameEn } : null,
+          station: e.station ? { nameAr: e.station.nameAr, nameEn: e.station.nameEn } : null,
+          payload: e.payload,
+        })),
+      } : {}),
     };
   });
 

@@ -98,6 +98,16 @@ export default async function adminRoutes(app: FastifyInstance) {
     if (!canGrant(actor.role.key, b.role)) {
       return reply.code(403).send({ error: "role_not_grantable", allowed: grantableBy(actor.role.key) });
     }
+
+    // phone and email are unique. Without this the second person given a number
+    // someone already has gets a 500 from the database, and the form shows a
+    // dead end instead of "that number is already in use".
+    for (const [field, value] of [["phone", b.phone], ["email", b.email]] as const) {
+      if (!value) continue;
+      if (await db.user.findFirst({ where: { [field]: value } })) {
+        return reply.code(409).send({ error: `${field}_taken` });
+      }
+    }
     const role = await db.role.findUnique({ where: { key: b.role } });
     if (!role) return reply.code(400).send({ error: "unknown_role" });
 

@@ -47,6 +47,9 @@ export default function Today() {
         </div>
       )}
 
+      {/* Absent, not empty, for anyone but the owner — so a manager sees no
+          card at all rather than one that looks like a quiet day. */}
+      {d.events && (
       <div className="card" style={{ marginTop: 11 }}>
         <span className="k">{t("events")}</span>
         <div style={{ marginTop: 8 }}>
@@ -63,6 +66,7 @@ export default function Today() {
           ))}
         </div>
       </div>
+      )}
     </>
   );
 }

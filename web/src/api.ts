@@ -187,7 +187,8 @@ export type Dashboard = {
   ordersToday: { count: number; value?: number };
   unitsFinished: number; openLines: number; late: number; atRisk: number;
   blocked: { stageId: string; reason: string; note: string | null; station: string; stationAr: string; orderCode: string; minutes: number }[];
-  events: { id: string; code: string; occurredAt: string; actor: { nameAr: string; nameEn: string } | null; station: { nameAr: string; nameEn: string } | null; payload: any }[];
+  /** The whole-factory activity feed, present only for the owner. */
+  events?: { id: string; code: string; occurredAt: string; actor: { nameAr: string; nameEn: string } | null; station: { nameAr: string; nameEn: string } | null; payload: any }[];
 };
 export type StationCard = {
   id: string; code: string; nameAr: string; nameEn: string; waiting: number;

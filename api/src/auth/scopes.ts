@@ -46,6 +46,13 @@ export const CATALOGUE = [...new Set([...SETUP, ...SELL])];
 /** Running the factory: the floor, the queue, the handover. */
 export const PRODUCTION = ["OWNER", "FACTORY_MANAGER", "SUPERVISOR"];
 
+/**
+ * The whole-factory activity feed: every action by every person, in one list.
+ * That is oversight rather than operation — a manager needs the floor and the
+ * queue to do the job, not a running record of who did what all day.
+ */
+export const OVERSIGHT = ["OWNER"];
+
 /** May see prices, order values and takings. */
 export const MONEY = ["OWNER", "ACCOUNTANT", "SHOWROOM_MANAGER", "SALES_REP"];
 

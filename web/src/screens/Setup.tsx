@@ -47,7 +47,8 @@ export default function Setup() {
   const run = async (fn: () => Promise<unknown>, ok: string) => {
     setBusy(true);
     try { await fn(); await load(); toast(ok); }
-    catch (e: any) { toast(e?.code ?? "error"); }
+    // Show the message, not the machine's code for it.
+    catch (e: any) { toast(e?.code ? t(e.code) : "error"); }
     finally { setBusy(false); }
   };
   const nm = (a: string, e: string) => (lang === "ar" ? a : e);
