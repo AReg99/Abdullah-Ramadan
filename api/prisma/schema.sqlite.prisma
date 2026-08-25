@@ -61,12 +61,13 @@ model User {
   location     Location? @relation(fields: [locationId], references: [id])
   createdAt    DateTime  @default(now())
 
-  leads     Group[]          @relation("GroupLeader")
+  leads     Group[]           @relation("GroupLeader")
   stages    WorkOrderStage[]
   stageWork StageWorker[]
   photos    StagePhoto[]
   events    TrackingEvent[]
   otps      OtpCode[]
+  uploads   OrderAttachment[] @relation("AttachmentAuthor")
 }
 
 /// A crew working one station under one leader.
@@ -186,6 +187,7 @@ model Customer {
 
 
 
+
 model Order {
   id            String       @id @default(uuid())
   code          String       @unique
@@ -203,10 +205,34 @@ model Order {
   trackingToken String       @unique
   createdAt     DateTime     @default(now())
 
-  lines  OrderLine[]
-  events TrackingEvent[]
+  lines       OrderLine[]
+  events      TrackingEvent[]
+  attachments OrderAttachment[]
 
   @@index([status, promisedDate])
+}
+
+/**
+ * What the customer brought with the order: a photo of the piece they want
+ * copied, a room measurement, a signed quotation. The showroom has it in hand
+ * at the moment of sale and the factory needs it three weeks later, which is
+ * exactly the gap a paper folder loses it in.
+ */
+model OrderAttachment {
+  id         String         @id @default(uuid())
+  orderId    String
+  order      Order          @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  kind       String @default("IMAGE")
+  filename   String
+  path       String
+  mime       String
+  bytes      Int            @default(0)
+  note       String?
+  uploadedAt DateTime       @default(now())
+  actorId    String?
+  actor      User?          @relation("AttachmentAuthor", fields: [actorId], references: [id])
+
+  @@index([orderId])
 }
 
 model OrderLine {

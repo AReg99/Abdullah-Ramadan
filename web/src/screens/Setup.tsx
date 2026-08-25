@@ -64,7 +64,8 @@ export default function Setup() {
         )}
       </div>
 
-      {tab === "crews" && <Crews stations={stations} groups={groups} people={people} busy={busy} run={run} nm={nm} />}
+      {tab === "crews" && <Crews stations={stations} groups={groups} people={people}
+                                 roles={roles} busy={busy} run={run} nm={nm} />}
       {tab === "staff" && <Staff people={people} locations={locations} stations={stations}
                                  roles={roles} busy={busy} run={run} nm={nm} />}
       {tab === "products" && catalogue && <Products products={products} cats={cats} busy={busy} run={run} nm={nm} />}
@@ -72,8 +73,11 @@ export default function Setup() {
   );
 }
 
-function Crews({ stations, groups, people, busy, run, nm }: any) {
+function Crews({ stations, groups, people, roles, busy, run, nm }: any) {
   const { t, lang, me } = useApp();
+  // The server refuses a removal outside your grant, so offering the button
+  // there is a promise the app cannot keep. Show it only where it will work.
+  const canRemove = (p: PersonRow) => p.id !== me?.id && (roles ?? []).includes(p.role);
   const [g, setG] = useState({ nameAr: "", stationId: "" });
   const [l, setL] = useState({ nameAr: "", phone: "", password: "", groupId: "" });
   const [w, setW] = useState({ nameAr: "", groupId: "" });
@@ -165,7 +169,7 @@ function Crews({ stations, groups, people, busy, run, nm }: any) {
                 {p.groupName && <span className="muted"> · {p.groupName}</span>}
               </span>
               {p.phone && <span className="mono muted">{p.phone}</span>}
-              {p.id !== me?.id && <RemoveButton person={p} busy={busy} run={run} />}
+              {canRemove(p) && <RemoveButton person={p} busy={busy} run={run} />}
             </div>
           ))}
         </div>

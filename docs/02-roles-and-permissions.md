@@ -27,8 +27,8 @@ first tab.
 
 | Role | Signs in to | Sees |
 | --- | --- | --- |
-| Owner | Today | Everything: floor, dispatch, showroom, orders, setup |
-| Factory manager | Today | Floor, dispatch, orders, new order, labels, setup |
+| Owner | Today | Everything: floor, dispatch, showroom, orders, new order, setup |
+| Factory manager | Today | Floor, dispatch, orders, labels, and Setup's crews and staff — no prices |
 | Supervisor | Today | Floor, dispatch, orders, labels |
 | Group leader | Work | Only their own group's station |
 | QC inspector | Work | Only the QC station's queue — needs a station assigned in Setup |
@@ -50,6 +50,19 @@ Any role not listed above falls back to the shop-floor tabs and, without a
 station, sees no work at all — deliberately, so an unassigned account can never
 be handed the whole factory's job list.
 
+
+### Attachments
+
+What arrives with an order — a photo of the piece to copy, room measurements,
+the signed quotation — is attached to the **order**, so the factory still has it
+three weeks after the showroom took it. The showroom attaches them; the factory
+reads them.
+
+Only images and PDF are accepted; anything else is refused rather than stored.
+The name on disk is generated, never the uploaded one, so a hostile filename
+cannot climb out of the folder. Files are served from `/uploads/` by an
+unguessable path and are **not behind a login** — anyone given the link can open
+it, the same as the stage photos. Treat the link as the secret.
 
 ### Removing someone
 

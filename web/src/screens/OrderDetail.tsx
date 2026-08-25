@@ -61,6 +61,32 @@ export default function OrderDetail() {
         </div>
       ))}
 
+      {d.attachments?.length > 0 && (
+        <div className="card">
+          <span className="k">{t("attachments")}</span>
+          <div className="crew" style={{ marginTop: 9, gap: 9 }}>
+            {d.attachments.map((a) => (
+              // Opened in a new tab rather than downloaded: on a phone that is
+              // what actually shows a drawing or a PDF to the person holding it.
+              <a key={a.id} href={`/uploads/${a.path}`} target="_blank" rel="noreferrer"
+                 style={{ textDecoration: "none", color: "inherit" }}>
+                {a.kind === "IMAGE" ? (
+                  <img src={`/uploads/${a.path}`} alt={a.filename}
+                       style={{ width: 92, height: 92, objectFit: "cover",
+                                borderRadius: "var(--rs)", border: "1px solid var(--g3)" }} />
+                ) : (
+                  <span className="crewchip on" style={{ height: 92, width: 92, display: "flex",
+                        alignItems: "center", justifyContent: "center", textAlign: "center",
+                        padding: 6, fontSize: ".72rem" }}>
+                    PDF<br />{a.filename.slice(0, 18)}
+                  </span>
+                )}
+              </a>
+            ))}
+          </div>
+        </div>
+      )}
+
       <div className="card">
         <span className="k">{t("timeline")}</span>
         <div style={{ marginTop: 8 }}>

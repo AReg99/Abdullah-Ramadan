@@ -3,7 +3,10 @@ import { useNavigate } from "react-router-dom";
 import { useApp } from "../app-context";
 import { api, type ProductRow } from "../api";
 
-type Line = { productId: string; qty: string; specNotes: string; lineKind: "STANDARD" | "CUSTOM" };
+type Line = { productId: string; qty: string; unitPrice: string; specNotes: string;
+              lineKind: "STANDARD" | "CUSTOM" };
+
+const BLANK: Line = { productId: "", qty: "1", unitPrice: "", specNotes: "", lineKind: "STANDARD" };
 
 /**
  * Order entry. Confirming an order is the moment the factory gets work: it
@@ -17,17 +20,29 @@ export default function NewOrder() {
   const [customerName, setCustomerName] = useState("");
   const [customerPhone, setCustomerPhone] = useState("");
   const [promisedDate, setPromisedDate] = useState("");
-  const [lines, setLines] = useState<Line[]>([{ productId: "", qty: "1", specNotes: "", lineKind: "STANDARD" }]);
+  const [lines, setLines] = useState<Line[]>([{ ...BLANK }]);
+  const [files, setFiles] = useState<File[]>([]);
   const [busy, setBusy] = useState(false);
 
   useEffect(() => { api.products().then(setProducts).catch(() => toast("error")); }, []);
 
   const priceOf = (id: string) => products.find((p) => p.id === id)?.basePrice ?? 0;
-  const total = lines.reduce((s, l) => s + priceOf(l.productId) * (Number(l.qty) || 0), 0);
+  // The catalogue price is a starting point, not the deal. What was actually
+  // agreed goes in the box; leaving it blank keeps the list price.
+  const lineTotal = (l: Line) =>
+    (l.unitPrice.trim() === "" ? priceOf(l.productId) : Number(l.unitPrice) || 0) * (Number(l.qty) || 0);
+  const total = lines.reduce((s, l) => s + lineTotal(l), 0);
   const valid = customerName.trim() && lines.some((l) => l.productId && Number(l.qty) > 0);
 
   const setLine = (i: number, patch: Partial<Line>) =>
     setLines((ls) => ls.map((l, k) => (k === i ? { ...l, ...patch } : l)));
+
+  const addFiles = (picked: FileList | null) => {
+    if (!picked) return;
+    const tooBig = [...picked].filter((f) => f.size > 8 * 1024 * 1024);
+    if (tooBig.length) toast(t("fileTooBig"));
+    setFiles((cur) => [...cur, ...[...picked].filter((f) => f.size <= 8 * 1024 * 1024)]);
+  };
 
   return (
     <>
@@ -61,6 +76,10 @@ export default function NewOrder() {
           <div className="row" style={{ marginTop: 8 }}>
             <input className="mono" inputMode="numeric" placeholder={t("qty")} value={l.qty}
               onChange={(e) => setLine(i, { qty: e.target.value })} style={{ flex: 1 }} />
+            <input className="mono" inputMode="decimal"
+              placeholder={l.productId ? String(priceOf(l.productId)) : t("price")}
+              value={l.unitPrice} onChange={(e) => setLine(i, { unitPrice: e.target.value })}
+              style={{ flex: 1.2 }} />
             <select value={l.lineKind} onChange={(e) => setLine(i, { lineKind: e.target.value as Line["lineKind"] })} style={{ flex: 1.4 }}>
               <option value="STANDARD">{t("kindStandard")}</option>
               <option value="CUSTOM">{t("kindCustom")}</option>
@@ -72,9 +91,27 @@ export default function NewOrder() {
       ))}
 
       <button className="btn sec sm" style={{ marginTop: 4 }}
-        onClick={() => setLines((ls) => [...ls, { productId: "", qty: "1", specNotes: "", lineKind: "STANDARD" }])}>
+        onClick={() => setLines((ls) => [...ls, { ...BLANK }])}>
         {t("addItem")}
       </button>
+
+      <div className="card" style={{ marginTop: 12 }}>
+        <span className="k">{t("attachments")}</span>
+        <p className="note" style={{ marginTop: 4 }}>{t("attachHint")}</p>
+        <input type="file" multiple accept="image/*,application/pdf"
+               onChange={(e) => { addFiles(e.target.files); e.target.value = ""; }}
+               style={{ marginTop: 8 }} />
+        {files.map((f, i) => (
+          <div key={`${f.name}-${i}`} className="evt">
+            <span style={{ flex: 1 }}>{f.name}
+              <span className="muted mono"> · {Math.round(f.size / 1024)} KB</span>
+            </span>
+            <button className="chip" onClick={() => setFiles((cur) => cur.filter((_, k) => k !== i))}>
+              {t("remove")}
+            </button>
+          </div>
+        ))}
+      </div>
 
       <div className="card" style={{ marginTop: 12, background: "var(--muted)", borderColor: "var(--p)" }}>
         <div className="between">
@@ -93,10 +130,22 @@ export default function NewOrder() {
             promisedDate: promisedDate ? new Date(promisedDate).toISOString() : undefined,
             lines: lines.filter((l) => l.productId && Number(l.qty) > 0).map((l) => ({
               productId: l.productId, qty: Number(l.qty),
+              unitPrice: l.unitPrice.trim() === "" ? undefined : Number(l.unitPrice),
               specNotes: l.specNotes.trim() || undefined, lineKind: l.lineKind,
             })),
           });
-          toast(`${t("orderCreated")} ${r.code}`);
+
+          // The files can only be attached once the order exists. A failure
+          // here must not read as a failure to take the order — the order is
+          // already real, and telling the seller otherwise would have them
+          // enter it twice.
+          const failed: string[] = [];
+          for (const f of files) {
+            try { await api.addAttachment(r.id, f); } catch { failed.push(f.name); }
+          }
+          toast(failed.length
+            ? `${t("orderCreated")} ${r.code} — ${t("attachFailed")}: ${failed.join(", ")}`
+            : `${t("orderCreated")} ${r.code}`);
           nav(`/orders/${r.id}`);
         } catch (e: any) {
           toast(e?.code ?? "error");

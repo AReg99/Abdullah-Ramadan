@@ -104,6 +104,14 @@ export const api = {
   customers: () => req<{ id: string; name: string; phone: string }[]>("/admin/customers"),
   createOrder: (b: NewOrder) => req<{ id: string; code: string; total: number }>("/admin/orders",
     { method: "POST", body: JSON.stringify(b) }),
+  addAttachment: (orderId: string, file: File, note?: string) => {
+    const fd = new FormData();
+    fd.append("file", file, file.name);
+    if (note) fd.append("note", note);
+    return req<Attachment>(`/orders/${orderId}/attachments`, { method: "POST", body: fd });
+  },
+  removeAttachment: (orderId: string, attId: string) =>
+    req<{ removed: true }>(`/orders/${orderId}/attachments/${attId}`, { method: "DELETE" }),
   markPrinted: (id: string) => req<any>(`/labels/${id}/printed`, { method: "POST" }),
 
   // ---- factory → showroom → customer ----
@@ -141,6 +149,8 @@ export const api = {
 };
 
 export type Station = { id: string; code: string; nameAr: string; nameEn: string };
+export type Attachment = { id: string; kind: "IMAGE" | "DOCUMENT"; filename: string;
+  path: string; mime: string; bytes: number; note: string | null; uploadedAt: string };
 export type LocationRow = { id: string; type: "FACTORY" | "SHOWROOM" | "WAREHOUSE";
   nameAr: string; nameEn: string; address: string | null };
 export type FlowLine = {
@@ -203,6 +213,7 @@ export type OrderDetail = {
   total?: number; promisedDate: string | null;
   lines: { id: string; qty: number; status: string; productAr: string; productEn: string;
     workOrders: { code: string; status: string; stages: { seq: number; status: string; nameAr: string; nameEn: string; actualMinutes: number; stdMinutes: number; photos: { kind: string; path: string }[] }[] }[] }[];
+  attachments: Attachment[];
   events: { id: string; code: string; occurredAt: string; payload: any; actor: { nameAr: string; nameEn: string } | null; station: { nameAr: string; nameEn: string } | null }[];
 };
 

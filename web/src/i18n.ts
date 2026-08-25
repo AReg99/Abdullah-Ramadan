@@ -84,6 +84,13 @@ const ar = {
   cannot_remove_yourself: "مش هتقدر تشيل حسابك انت",
   not_your_account_to_remove: "الحساب ده مش من صلاحيتك",
   last_owner: "لازم يفضل مالك واحد على الأقل",
+  attachments: "المرفقات",
+  attachHint: "صور القطعة اللي العميل عايزها، المقاسات، عرض السعر — بتفضل مع الطلب لحد ما يوصل.",
+  fileTooBig: "الملف كبير أوي — الحد ٨ ميجا",
+  attachFailed: "مرفقات مترفعتش",
+  unsupported_type: "نوع الملف ده مش مسموح — صور أو PDF بس",
+  no_file: "مفيش ملف",
+  ORDER_ATTACHMENT_ADDED: "اتضاف مرفق",
 };
 
 const en: Record<keyof typeof ar, string> = {
@@ -170,6 +177,13 @@ const en: Record<keyof typeof ar, string> = {
   cannot_remove_yourself: "You cannot remove your own account",
   not_your_account_to_remove: "That account is not yours to remove",
   last_owner: "There must always be at least one owner",
+  attachments: "Attachments",
+  attachHint: "Photos of the piece the customer wants, measurements, the quotation — they stay with the order all the way to delivery.",
+  fileTooBig: "That file is too large — 8 MB maximum",
+  attachFailed: "could not attach",
+  unsupported_type: "That file type is not allowed — images or PDF only",
+  no_file: "No file chosen",
+  ORDER_ATTACHMENT_ADDED: "Attachment added",
 };
 
 export const DICT = { ar, en };
