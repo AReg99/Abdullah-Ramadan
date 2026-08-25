@@ -130,8 +130,19 @@ export default function Job() {
           <span className="k">{t("order")} <span className="mono">{s.workOrder.order.code}</span></span>
           <span className="pill pri">{name(s.stage.nameAr, s.stage.nameEn)}</span>
         </div>
-        <div style={{ fontWeight: 600, fontSize: "1.15rem", marginBottom: 12 }}>
-          {name(s.workOrder.product.nameAr, s.workOrder.product.nameEn)}
+        <div style={{ display: "flex", gap: 12, alignItems: "center", marginBottom: 12 }}>
+          {/* What it is meant to end up looking like — worth more to the bench
+              than any amount of specification text. */}
+          {s.workOrder.product.photo && (
+            <a href={`/uploads/${s.workOrder.product.photo}`} target="_blank" rel="noreferrer">
+              <img src={`/uploads/${s.workOrder.product.photo}`} alt=""
+                   style={{ width: 64, height: 64, objectFit: "cover",
+                            borderRadius: "var(--rs)", border: "1px solid var(--g3)" }} />
+            </a>
+          )}
+          <div style={{ fontWeight: 600, fontSize: "1.15rem", flex: 1 }}>
+            {name(s.workOrder.product.nameAr, s.workOrder.product.nameEn)}
+          </div>
         </div>
         <dl className="spec">
           <dt>{t("spec")}</dt><dd>{s.workOrder.specNotes ?? "—"}</dd>

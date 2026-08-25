@@ -61,13 +61,14 @@ model User {
   location     Location? @relation(fields: [locationId], references: [id])
   createdAt    DateTime  @default(now())
 
-  leads     Group[]           @relation("GroupLeader")
-  stages    WorkOrderStage[]
-  stageWork StageWorker[]
-  photos    StagePhoto[]
-  events    TrackingEvent[]
-  otps      OtpCode[]
-  uploads   OrderAttachment[] @relation("AttachmentAuthor")
+  leads         Group[]           @relation("GroupLeader")
+  stages        WorkOrderStage[]
+  stageWork     StageWorker[]
+  photos        StagePhoto[]
+  events        TrackingEvent[]
+  otps          OtpCode[]
+  uploads       OrderAttachment[] @relation("AttachmentAuthor")
+  productPhotos ProductPhoto[]    @relation("ProductPhotoAuthor")
 }
 
 /// A crew working one station under one leader.
@@ -167,6 +168,7 @@ model Product {
 
   orderLines OrderLine[]
   workOrders WorkOrder[]
+  photos     ProductPhoto[]
 }
 
 // ---------------------------------------------------------------- sales
@@ -210,6 +212,28 @@ model Order {
   attachments OrderAttachment[]
 
   @@index([status, promisedDate])
+}
+
+/**
+ * What the piece looks like. A catalogue with no pictures is a price list: the
+ * showroom cannot show it, and the leader building it cannot check what they
+ * are aiming at.
+ */
+model ProductPhoto {
+  id         String   @id @default(uuid())
+  productId  String
+  product    Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  filename   String
+  path       String
+  mime       String
+  bytes      Int      @default(0)
+  /// Lowest first. The first is the one shown wherever there is room for one.
+  sortOrder  Int      @default(0)
+  uploadedAt DateTime @default(now())
+  actorId    String?
+  actor      User?    @relation("ProductPhotoAuthor", fields: [actorId], references: [id])
+
+  @@index([productId, sortOrder])
 }
 
 /**

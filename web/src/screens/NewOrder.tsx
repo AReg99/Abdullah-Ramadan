@@ -27,6 +27,7 @@ export default function NewOrder() {
   useEffect(() => { api.products().then(setProducts).catch(() => toast("error")); }, []);
 
   const priceOf = (id: string) => products.find((p) => p.id === id)?.basePrice ?? 0;
+  const photosOf = (id: string) => products.find((p) => p.id === id)?.photos ?? [];
   // The catalogue price is a starting point, not the deal. What was actually
   // agreed goes in the box; leaving it blank keeps the list price.
   const lineTotal = (l: Line) =>
@@ -87,6 +88,18 @@ export default function NewOrder() {
           </div>
           <input placeholder={t("specNotes")} value={l.specNotes}
             onChange={(e) => setLine(i, { specNotes: e.target.value })} style={{ marginTop: 8 }} />
+          {/* Show the customer what they are buying, from the seller's own screen. */}
+          {photosOf(l.productId).length > 0 && (
+            <div className="crew" style={{ marginTop: 9, gap: 8 }}>
+              {photosOf(l.productId).map((ph) => (
+                <a key={ph.id} href={`/uploads/${ph.path}`} target="_blank" rel="noreferrer">
+                  <img src={`/uploads/${ph.path}`} alt=""
+                       style={{ width: 74, height: 74, objectFit: "cover",
+                                borderRadius: "var(--rs)", border: "1px solid var(--g3)" }} />
+                </a>
+              ))}
+            </div>
+          )}
         </div>
       ))}
 

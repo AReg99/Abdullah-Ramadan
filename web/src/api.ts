@@ -100,6 +100,13 @@ export const api = {
   categories: () => req<{ id: string; nameAr: string; nameEn: string }[]>("/admin/categories"),
   addCategory: (b: { nameAr: string }) => req<any>("/admin/categories", { method: "POST", body: JSON.stringify(b) }),
   products: () => req<ProductRow[]>("/admin/products"),
+  addProductPhoto: (productId: string, file: File) => {
+    const fd = new FormData();
+    fd.append("file", file, file.name);
+    return req<ProductPhoto>(`/admin/products/${productId}/photos`, { method: "POST", body: fd });
+  },
+  removeProductPhoto: (productId: string, photoId: string) =>
+    req<{ removed: true }>(`/admin/products/${productId}/photos/${photoId}`, { method: "DELETE" }),
   addProduct: (b: NewProduct) => req<any>("/admin/products", { method: "POST", body: JSON.stringify(b) }),
   customers: () => req<{ id: string; name: string; phone: string }[]>("/admin/customers"),
   createOrder: (b: NewOrder) => req<{ id: string; code: string; total: number }>("/admin/orders",
@@ -173,8 +180,10 @@ export type GroupRow = { id: string; nameAr: string; nameEn: string; isActive: b
   stationId: string; stationAr: string; stationEn: string;
   leader: { id: string; nameAr: string; phone: string | null } | null;
   memberCount: number; members: { id: string; nameAr: string }[] };
+export type ProductPhoto = { id: string; path: string; filename: string };
 export type ProductRow = { id: string; sku: string; nameAr: string; nameEn: string; kind: string;
-  basePrice: number; baseLeadDays: number; isActive: boolean; categoryId: string; categoryAr: string };
+  basePrice: number; baseLeadDays: number; isActive: boolean; categoryId: string; categoryAr: string;
+  photos: ProductPhoto[] };
 export type NewProduct = { sku: string; nameAr: string; nameEn?: string; categoryId: string;
   basePrice: number; baseLeadDays?: number; kind?: string };
 export type NewOrder = { customerId?: string; customerName?: string; customerPhone?: string;
@@ -189,7 +198,8 @@ export type Stage = {
   blockedReason: string | null;
   stage: { key: string; nameAr: string; nameEn: string; stdMinutes: number; photoBefore: string; photoAfter: string; station: { code: string; nameAr: string; nameEn: string } | null };
   workOrder: { id: string; code: string; qty: number; serial: string | null; specNotes: string | null;
-    product: { sku: string; nameAr: string; nameEn: string }; order: { code: string; promisedDate: string | null } };
+    product: { sku: string; nameAr: string; nameEn: string; photo: string | null };
+    order: { code: string; promisedDate: string | null } };
   photos: Photo[];
   /** Who the leader recorded as being on this stage. */
   workers: Person[];

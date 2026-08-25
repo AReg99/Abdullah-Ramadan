@@ -51,6 +51,16 @@ station, sees no work at all — deliberately, so an unassigned account can neve
 be handed the whole factory's job list.
 
 
+### Product photos
+
+Pictures belong to the **catalogue**, so the owner adds them and everyone else
+reads them. The first one is the picture that appears wherever there is room for
+only one: on the order form as the seller shows the customer, and on the group
+leader's job card as the reference for what the piece should end up looking
+like.
+
+Images only here — a PDF datasheet is an order attachment, not a product photo.
+
 ### Attachments
 
 What arrives with an order — a photo of the piece to copy, room measurements,

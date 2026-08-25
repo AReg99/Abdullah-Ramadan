@@ -80,7 +80,10 @@ export default async function workRoutes(app: FastifyInstance) {
       },
       include: {
         routingStage: { include: { station: true } },
-        workOrder: { include: { product: true, orderLine: { include: { order: true } }, labels: true } },
+        workOrder: { include: {
+          // The reference picture: what the finished piece should look like.
+          product: { include: { photos: { orderBy: { sortOrder: "asc" }, take: 1 } } },
+          orderLine: { include: { order: true } }, labels: true } },
         photos: true,
         workers: { include: { user: true } },
       },
@@ -96,7 +99,10 @@ export default async function workRoutes(app: FastifyInstance) {
       where: { id },
       include: {
         routingStage: { include: { station: true } },
-        workOrder: { include: { product: true, orderLine: { include: { order: true } }, labels: true } },
+        workOrder: { include: {
+          // The reference picture: what the finished piece should look like.
+          product: { include: { photos: { orderBy: { sortOrder: "asc" }, take: 1 } } },
+          orderLine: { include: { order: true } }, labels: true } },
         photos: true,
         workers: { include: { user: true } },
       },
@@ -328,7 +334,12 @@ const view = (s: any) => ({
     code: s.workOrder.code,
     qty: s.workOrder.qty,
     serial: s.workOrder.labels?.[0]?.serial ?? null,
-    product: { sku: s.workOrder.product.sku, nameAr: s.workOrder.product.nameAr, nameEn: s.workOrder.product.nameEn },
+    product: {
+      sku: s.workOrder.product.sku,
+      nameAr: s.workOrder.product.nameAr,
+      nameEn: s.workOrder.product.nameEn,
+      photo: s.workOrder.product.photos?.[0]?.path ?? null,
+    },
     order: {
       code: s.workOrder.orderLine.order.code,
       promisedDate: s.workOrder.orderLine.order.promisedDate,

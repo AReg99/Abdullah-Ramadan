@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useApp } from "../app-context";
-import { api, type GroupRow, type LocationRow, type PersonRow, type ProductRow, type Station } from "../api";
+import { api, type GroupRow, type LocationRow, type PersonRow, type ProductPhoto, type ProductRow, type Station } from "../api";
 
 type Tab = "crews" | "staff" | "products";
 
@@ -334,6 +334,56 @@ function Staff({ people, locations, stations, roles, busy, run, nm }: any) {
   );
 }
 
+/**
+ * A product's pictures. They attach after the product exists, which is why this
+ * lives on the row rather than in the add form: there is nothing to attach a
+ * photo to until the product has been saved.
+ */
+function ProductPhotos({ product, busy, run }: any) {
+  const { t, toast } = useApp();
+  const [uploading, setUploading] = useState(false);
+
+  const pick = async (files: FileList | null) => {
+    if (!files?.length) return;
+    setUploading(true);
+    const failed: string[] = [];
+    for (const f of [...files]) {
+      if (f.size > 8 * 1024 * 1024) { failed.push(f.name); continue; }
+      try { await api.addProductPhoto(product.id, f); } catch { failed.push(f.name); }
+    }
+    setUploading(false);
+    if (failed.length) toast(t("fileTooBig"));
+    // Reload through the parent so the new thumbnails appear.
+    await run(async () => {}, t("saved"));
+  };
+
+  return (
+    <>
+      {product.photos?.length > 0 && (
+        <div className="crew" style={{ marginTop: 9, gap: 8 }}>
+          {product.photos.map((ph: ProductPhoto) => (
+            <span key={ph.id} style={{ position: "relative" }}>
+              <img src={`/uploads/${ph.path}`} alt={ph.filename}
+                   style={{ width: 74, height: 74, objectFit: "cover",
+                            borderRadius: "var(--rs)", border: "1px solid var(--g3)" }} />
+              <button className="chip" style={{ position: "absolute", insetInlineEnd: 2, top: 2, padding: "1px 7px" }}
+                      disabled={busy}
+                      onClick={() => run(() => api.removeProductPhoto(product.id, ph.id), t("removed"))}>
+                ×
+              </button>
+            </span>
+          ))}
+        </div>
+      )}
+      <label className="btn sec sm" style={{ marginTop: 10, cursor: "pointer" }}>
+        {uploading ? t("loading") : t("addPhotos")}
+        <input type="file" multiple accept="image/*" hidden
+               onChange={(e) => { void pick(e.target.files); e.target.value = ""; }} />
+      </label>
+    </>
+  );
+}
+
 function Products({ products, cats, busy, run, nm }: any) {
   const { t } = useApp();
   const [c, setC] = useState("");
@@ -342,11 +392,14 @@ function Products({ products, cats, busy, run, nm }: any) {
   return (
     <>
       {products.map((x: ProductRow) => (
-        <div className="job" key={x.id}>
-          <span style={{ flex: 1 }}>
-            <span className="nm">{x.nameAr}</span>
-            <span className="sub"><span className="mono">{x.sku}</span> · {x.categoryAr} · <span className="mono">{x.basePrice.toLocaleString()}</span> EGP</span>
-          </span>
+        <div className="card" key={x.id}>
+          <div className="between">
+            <span style={{ flex: 1 }}>
+              <span className="nm">{x.nameAr}</span>
+              <span className="sub"><span className="mono">{x.sku}</span> · {x.categoryAr} · <span className="mono">{x.basePrice.toLocaleString()}</span> EGP</span>
+            </span>
+          </div>
+          <ProductPhotos product={x} busy={busy} run={run} />
         </div>
       ))}
 

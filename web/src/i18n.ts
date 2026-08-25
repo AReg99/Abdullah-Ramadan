@@ -91,6 +91,9 @@ const ar = {
   unsupported_type: "نوع الملف ده مش مسموح — صور أو PDF بس",
   no_file: "مفيش ملف",
   ORDER_ATTACHMENT_ADDED: "اتضاف مرفق",
+  addPhotos: "إضافة صور", productPhotos: "صور المنتج",
+  photoHint: "الصورة الأولى هي اللي بتظهر في الطلبات وعند رئيس العمال.",
+  images_only: "صور بس — مش ملفات",
 };
 
 const en: Record<keyof typeof ar, string> = {
@@ -184,6 +187,9 @@ const en: Record<keyof typeof ar, string> = {
   unsupported_type: "That file type is not allowed — images or PDF only",
   no_file: "No file chosen",
   ORDER_ATTACHMENT_ADDED: "Attachment added",
+  addPhotos: "Add photos", productPhotos: "Product photos",
+  photoHint: "The first photo is the one shown on orders and on the job card.",
+  images_only: "Images only — not documents",
 };
 
 export const DICT = { ar, en };

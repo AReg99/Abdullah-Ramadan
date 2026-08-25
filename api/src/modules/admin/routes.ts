@@ -6,6 +6,7 @@ import { db } from "../../db.js";
 import { guard } from "../../auth/jwt.js";
 import { CATALOGUE, SELL, SETUP, STAFF_ADMIN, canGrant, grantableBy } from "../../auth/scopes.js";
 import { record } from "../../lib/events.js";
+import { discard, isAllowed, readUpload, storeFile } from "../../lib/uploads.js";
 
 /**
  * Setup and order entry — the half that turns a tracking spine into something a
@@ -279,12 +280,60 @@ export default async function adminRoutes(app: FastifyInstance) {
   });
 
   app.get("/admin/products", { preHandler: guard(CATALOGUE) }, async () => {
-    const rows = await db.product.findMany({ orderBy: { nameAr: "asc" }, include: { category: true } });
+    const rows = await db.product.findMany({
+      orderBy: { nameAr: "asc" },
+      include: { category: true, photos: { orderBy: [{ sortOrder: "asc" }, { uploadedAt: "asc" }] } },
+    });
     return rows.map((p) => ({
       id: p.id, sku: p.sku, nameAr: p.nameAr, nameEn: p.nameEn, kind: p.kind,
       basePrice: Number(p.basePrice), baseLeadDays: p.baseLeadDays, isActive: p.isActive,
       categoryId: p.categoryId, categoryAr: p.category.nameAr,
+      photos: p.photos.map((ph) => ({ id: ph.id, path: ph.path, filename: ph.filename })),
     }));
+  });
+
+  /**
+   * Pictures of the piece. A catalogue without them is a price list: the
+   * showroom cannot show a customer what they are buying, and the leader on the
+   * bench cannot see what it is meant to end up looking like.
+   */
+  app.post("/admin/products/:id/photos", { preHandler: guard(SETUP) }, async (req, reply) => {
+    const { id } = req.params as { id: string };
+    const product = await db.product.findUnique({ where: { id } });
+    if (!product) return reply.code(404).send({ error: "product_not_found" });
+
+    const { buf, filename, mime } = await readUpload(req);
+    if (!buf?.byteLength) return reply.code(400).send({ error: "no_file" });
+    // A product photo is a photo. A PDF datasheet belongs on the order.
+    if (!isAllowed(mime) || !mime.startsWith("image/")) {
+      return reply.code(415).send({ error: "images_only", mime });
+    }
+
+    const { rel } = await storeFile(buf, mime, "products");
+    try {
+      const last = await db.productPhoto.findFirst({
+        where: { productId: id }, orderBy: { sortOrder: "desc" }, select: { sortOrder: true },
+      });
+      return await db.productPhoto.create({
+        data: {
+          productId: id, filename: filename.slice(0, 200), path: rel, mime,
+          bytes: buf.byteLength, sortOrder: (last?.sortOrder ?? -1) + 1,
+          actorId: (req as any).user.id,
+        },
+      });
+    } catch (e) {
+      await discard(rel);
+      throw e;
+    }
+  });
+
+  app.delete("/admin/products/:id/photos/:photoId", { preHandler: guard(SETUP) }, async (req, reply) => {
+    const { id, photoId } = req.params as { id: string; photoId: string };
+    const photo = await db.productPhoto.findUnique({ where: { id: photoId } });
+    if (!photo || photo.productId !== id) return reply.code(404).send({ error: "not_found" });
+    await db.productPhoto.delete({ where: { id: photoId } });
+    await discard(photo.path);
+    return { removed: true };
   });
 
   app.post("/admin/products", { preHandler: guard(SETUP) }, async (req) => {
