@@ -4,6 +4,7 @@ import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import { db } from "../../db.js";
 import { guard } from "../../auth/jwt.js";
+import { CATALOGUE, SELL, SETUP } from "../../auth/scopes.js";
 import { record } from "../../lib/events.js";
 
 /**
@@ -14,7 +15,9 @@ import { record } from "../../lib/events.js";
  * Phase 3 replaces order entry here with the showroom configurator. Until then
  * this is how a real order gets in.
  */
-const OWNER = ["OWNER", "FACTORY_MANAGER"];
+// Setup is the owner's alone. Grouping the factory manager in here let him read
+// the whole staff list and the price list, and create an OWNER account — which
+// is a way to grant himself everything else.
 
 /** With a single showroom there is nothing to choose, so choose it for them. */
 async function defaultShowroomId() {
@@ -24,10 +27,10 @@ async function defaultShowroomId() {
 
 export default async function adminRoutes(app: FastifyInstance) {
   // ---------------------------------------------------------------- stations
-  app.get("/admin/stations", { preHandler: guard(OWNER) }, async () =>
+  app.get("/admin/stations", { preHandler: guard(SETUP) }, async () =>
     db.station.findMany({ orderBy: { code: "asc" }, include: { groups: true } }));
 
-  app.post("/admin/stations", { preHandler: guard(OWNER) }, async (req) => {
+  app.post("/admin/stations", { preHandler: guard(SETUP) }, async (req) => {
     const b = z.object({
       code: z.string().min(1).max(8), nameAr: z.string().min(1), nameEn: z.string().min(1),
       dailyCapacityMinutes: z.number().int().positive().default(480),
@@ -38,10 +41,10 @@ export default async function adminRoutes(app: FastifyInstance) {
   });
 
   // ---------------------------------------------------------------- locations
-  app.get("/admin/locations", { preHandler: guard(OWNER) }, async () =>
+  app.get("/admin/locations", { preHandler: guard(CATALOGUE) }, async () =>
     db.location.findMany({ orderBy: { type: "asc" } }));
 
-  app.post("/admin/locations", { preHandler: guard(OWNER) }, async (req) => {
+  app.post("/admin/locations", { preHandler: guard(SETUP) }, async (req) => {
     const b = z.object({
       type: z.enum(["FACTORY", "SHOWROOM", "WAREHOUSE"]).default("SHOWROOM"),
       nameAr: z.string().min(1), nameEn: z.string().min(1).optional(),
@@ -53,7 +56,7 @@ export default async function adminRoutes(app: FastifyInstance) {
   });
 
   // ---------------------------------------------------------------- people
-  app.get("/admin/people", { preHandler: guard(OWNER) }, async () => {
+  app.get("/admin/people", { preHandler: guard(SETUP) }, async () => {
     const people = await db.user.findMany({
       orderBy: [{ isActive: "desc" }, { nameAr: "asc" }],
       include: { role: true, group: true, station: true, location: true },
@@ -68,7 +71,7 @@ export default async function adminRoutes(app: FastifyInstance) {
     }));
   });
 
-  app.post("/admin/people", { preHandler: guard(OWNER) }, async (req, reply) => {
+  app.post("/admin/people", { preHandler: guard(SETUP) }, async (req, reply) => {
     const b = z.object({
       nameAr: z.string().min(1), nameEn: z.string().min(1).optional(),
       role: z.enum(["OWNER","FACTORY_MANAGER","SUPERVISOR","GROUP_LEADER","QC",
@@ -102,7 +105,7 @@ export default async function adminRoutes(app: FastifyInstance) {
     });
   });
 
-  app.patch("/admin/people/:id", { preHandler: guard(OWNER) }, async (req, reply) => {
+  app.patch("/admin/people/:id", { preHandler: guard(SETUP) }, async (req, reply) => {
     const { id } = req.params as { id: string };
     const b = z.object({
       nameAr: z.string().min(1).optional(),
@@ -141,7 +144,7 @@ export default async function adminRoutes(app: FastifyInstance) {
   });
 
   // ---------------------------------------------------------------- groups
-  app.get("/admin/groups", { preHandler: guard(OWNER) }, async () => {
+  app.get("/admin/groups", { preHandler: guard(SETUP) }, async () => {
     const groups = await db.group.findMany({
       orderBy: { nameAr: "asc" },
       include: { station: true, leader: true, members: { where: { canLogin: false, isActive: true } } },
@@ -155,7 +158,7 @@ export default async function adminRoutes(app: FastifyInstance) {
     }));
   });
 
-  app.post("/admin/groups", { preHandler: guard(OWNER) }, async (req) => {
+  app.post("/admin/groups", { preHandler: guard(SETUP) }, async (req) => {
     const b = z.object({
       nameAr: z.string().min(1), nameEn: z.string().min(1).optional(),
       stationId: z.string(), leaderId: z.string().optional(),
@@ -168,7 +171,7 @@ export default async function adminRoutes(app: FastifyInstance) {
     return g;
   });
 
-  app.patch("/admin/groups/:id", { preHandler: guard(OWNER) }, async (req, reply) => {
+  app.patch("/admin/groups/:id", { preHandler: guard(SETUP) }, async (req, reply) => {
     const { id } = req.params as { id: string };
     const b = z.object({
       nameAr: z.string().min(1).optional(), stationId: z.string().optional(),
@@ -187,15 +190,15 @@ export default async function adminRoutes(app: FastifyInstance) {
   });
 
   // ---------------------------------------------------------------- catalogue
-  app.get("/admin/categories", { preHandler: guard(OWNER) }, async () =>
+  app.get("/admin/categories", { preHandler: guard(CATALOGUE) }, async () =>
     db.productCategory.findMany({ orderBy: { nameAr: "asc" } }));
 
-  app.post("/admin/categories", { preHandler: guard(OWNER) }, async (req) => {
+  app.post("/admin/categories", { preHandler: guard(SETUP) }, async (req) => {
     const b = z.object({ nameAr: z.string().min(1), nameEn: z.string().min(1).optional() }).parse(req.body);
     return db.productCategory.create({ data: { nameAr: b.nameAr, nameEn: b.nameEn ?? b.nameAr } });
   });
 
-  app.get("/admin/products", { preHandler: guard(OWNER) }, async () => {
+  app.get("/admin/products", { preHandler: guard(CATALOGUE) }, async () => {
     const rows = await db.product.findMany({ orderBy: { nameAr: "asc" }, include: { category: true } });
     return rows.map((p) => ({
       id: p.id, sku: p.sku, nameAr: p.nameAr, nameEn: p.nameEn, kind: p.kind,
@@ -204,7 +207,7 @@ export default async function adminRoutes(app: FastifyInstance) {
     }));
   });
 
-  app.post("/admin/products", { preHandler: guard(OWNER) }, async (req) => {
+  app.post("/admin/products", { preHandler: guard(SETUP) }, async (req) => {
     const b = z.object({
       sku: z.string().min(1), nameAr: z.string().min(1), nameEn: z.string().min(1).optional(),
       categoryId: z.string(), basePrice: z.number().nonnegative(),
@@ -217,14 +220,14 @@ export default async function adminRoutes(app: FastifyInstance) {
   });
 
   // ---------------------------------------------------------------- routings
-  app.get("/admin/routings", { preHandler: guard(OWNER) }, async () =>
+  app.get("/admin/routings", { preHandler: guard(CATALOGUE) }, async () =>
     db.routing.findMany({
       orderBy: { nameAr: "asc" },
       include: { stages: { orderBy: { seq: "asc" }, include: { station: true } } },
     }));
 
   // ---------------------------------------------------------------- orders
-  app.get("/admin/customers", { preHandler: guard(OWNER) }, async () =>
+  app.get("/admin/customers", { preHandler: guard(SELL) }, async () =>
     db.customer.findMany({ orderBy: { name: "asc" } }));
 
   /**
@@ -232,7 +235,7 @@ export default async function adminRoutes(app: FastifyInstance) {
    * its lines, a work order per line, every stage from the routing, and a unit
    * label per unit — so the piece is scannable the moment it exists.
    */
-  app.post("/admin/orders", { preHandler: guard(OWNER) }, async (req, reply) => {
+  app.post("/admin/orders", { preHandler: guard(SELL) }, async (req, reply) => {
     const b = z.object({
       customerId: z.string().optional(),
       customerName: z.string().min(1).optional(),

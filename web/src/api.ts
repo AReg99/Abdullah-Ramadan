@@ -182,7 +182,8 @@ export type Stage = {
   workers: Person[];
 };
 export type Dashboard = {
-  ordersToday: { count: number; value: number };
+  /** value is present only for roles that may see money. */
+  ordersToday: { count: number; value?: number };
   unitsFinished: number; openLines: number; late: number; atRisk: number;
   blocked: { stageId: string; reason: string; note: string | null; station: string; stationAr: string; orderCode: string; minutes: number }[];
   events: { id: string; code: string; occurredAt: string; actor: { nameAr: string; nameEn: string } | null; station: { nameAr: string; nameEn: string } | null; payload: any }[];
@@ -192,10 +193,10 @@ export type StationCard = {
   active: { stageId: string; orderCode: string; productAr: string; productEn: string; worker: { nameAr: string; nameEn: string } | null; minutes: number; stdMinutes: number }[];
   blocked: { stageId: string; orderCode: string; reason: string; minutes: number }[];
 };
-export type OrderRow = { id: string; code: string; status: string; kind: string; customer: string; total: number; promisedDate: string | null; lines: { id: string; status: string; qty: number; productAr: string; productEn: string }[] };
+export type OrderRow = { id: string; code: string; status: string; kind: string; customer: string; total?: number; promisedDate: string | null; lines: { id: string; status: string; qty: number; productAr: string; productEn: string }[] };
 export type OrderDetail = {
   id: string; code: string; status: string; customer: { name: string; phone: string };
-  total: number; promisedDate: string | null;
+  total?: number; promisedDate: string | null;
   lines: { id: string; qty: number; status: string; productAr: string; productEn: string;
     workOrders: { code: string; status: string; stages: { seq: number; status: string; nameAr: string; nameEn: string; actualMinutes: number; stdMinutes: number; photos: { kind: string; path: string }[] }[] }[] }[];
   events: { id: string; code: string; occurredAt: string; payload: any; actor: { nameAr: string; nameEn: string } | null; station: { nameAr: string; nameEn: string } | null }[];

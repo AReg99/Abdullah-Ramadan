@@ -1,13 +1,13 @@
 import type { FastifyInstance } from "fastify";
 import { db } from "../../db.js";
 import { guard } from "../../auth/jwt.js";
-
-/** Everyone who may look at an order, as opposed to work on one. */
-const OFFICE = ["OWNER", "FACTORY_MANAGER", "SUPERVISOR", "SHOWROOM_MANAGER", "SALES_REP", "ACCOUNTANT"];
+import { READ_ORDERS, seesMoney } from "../../auth/scopes.js";
 
 export default async function orderRoutes(app: FastifyInstance) {
-  app.get("/orders", { preHandler: guard(OFFICE) }, async (req) => {
+  app.get("/orders", { preHandler: guard(READ_ORDERS) }, async (req) => {
     const user = (req as any).user;
+    // The factory runs the order; it does not need to know what it sold for.
+    const money = seesMoney(user.role.key);
     // Showroom staff see their own showroom's orders. Everyone else, and anyone
     // not tied to a showroom, sees all of them.
     const scoped = ["SHOWROOM_MANAGER", "SALES_REP"].includes(user.role.key) && user.locationId;
@@ -18,7 +18,8 @@ export default async function orderRoutes(app: FastifyInstance) {
     });
     return orders.map((o) => ({
       id: o.id, code: o.code, status: o.status, kind: o.kind,
-      customer: o.customer.name, total: Number(o.total), promisedDate: o.promisedDate,
+      customer: o.customer.name, promisedDate: o.promisedDate,
+      ...(money ? { total: Number(o.total) } : {}),
       lines: o.lines.map((l) => ({
         id: l.id, status: l.status, qty: l.qty,
         productAr: l.product.nameAr, productEn: l.product.nameEn,
@@ -39,7 +40,7 @@ export default async function orderRoutes(app: FastifyInstance) {
     });
     if (!order) return reply.code(404).send({ error: "not_found" });
 
-    const customerOnly = !OFFICE.includes(user.role.key);
+    const customerOnly = !READ_ORDERS.includes(user.role.key);
     const events = await db.trackingEvent.findMany({
       where: { orderId: id, ...(customerOnly ? { isCustomerVisible: true } : {}) },
       orderBy: { occurredAt: "desc" },
@@ -49,7 +50,8 @@ export default async function orderRoutes(app: FastifyInstance) {
     return {
       id: order.id, code: order.code, status: order.status,
       customer: { name: order.customer.name, phone: order.customer.phone },
-      total: Number(order.total), promisedDate: order.promisedDate,
+      promisedDate: order.promisedDate,
+      ...(seesMoney(user.role.key) ? { total: Number(order.total) } : {}),
       lines: order.lines.map((l) => ({
         id: l.id, qty: l.qty, status: l.status,
         productAr: l.product.nameAr, productEn: l.product.nameEn,

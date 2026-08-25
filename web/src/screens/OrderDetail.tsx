@@ -21,7 +21,9 @@ export default function OrderDetail() {
         </div>
         <dl className="spec" style={{ marginTop: 11 }}>
           <dt>{t("customer")}</dt><dd>{d.customer.name}</dd>
-          <dt>{t("total")}</dt><dd className="mono">{d.total.toLocaleString()} EGP</dd>
+          {d.total !== undefined && (
+            <><dt>{t("total")}</dt><dd className="mono">{d.total.toLocaleString()} EGP</dd></>
+          )}
           {d.promisedDate && <><dt>{t("due")}</dt><dd>{when(d.promisedDate)}</dd></>}
         </dl>
       </div>

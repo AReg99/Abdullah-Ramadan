@@ -35,10 +35,11 @@ const NAVS: Record<string, Tab[]> = {
     ["/showroom", "⌂", "showroom"], ["/orders", "▤", "orders"], ["/new-order", "✎", "newOrder"],
     ["/labels", "⌗", "labels"], ["/setup", "⚙", "setup"],
   ],
+  // Runs the factory. Not the business: setup and order entry are the owner's,
+  // and the showroom's, and money never appears on these screens.
   FACTORY_MANAGER: [
     ["/today", "◧", "today"], ["/floor", "▦", "floor"], ["/dispatch", "⇥", "dispatch"],
-    ["/orders", "▤", "orders"], ["/new-order", "✎", "newOrder"], ["/labels", "⌗", "labels"],
-    ["/setup", "⚙", "setup"],
+    ["/orders", "▤", "orders"], ["/labels", "⌗", "labels"],
   ],
   SUPERVISOR: [
     ["/today", "◧", "today"], ["/floor", "▦", "floor"], ["/dispatch", "⇥", "dispatch"],

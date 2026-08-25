@@ -19,7 +19,7 @@ export default function Orders() {
               <span className="nm"><span className="mono">{o.code}</span> · {o.customer}</span>
               <span className="sub">
                 {o.lines.map((l) => (lang === "ar" ? l.productAr : l.productEn)).join(" · ")}
-                <span className="mono"> · {o.total.toLocaleString()} EGP</span>
+                {o.total !== undefined && <span className="mono"> · {o.total.toLocaleString()} EGP</span>}
               </span>
             </span>
             {late ? <span className="pill bad">{t("late")}</span> : <span className="pill ok">{o.status}</span>}

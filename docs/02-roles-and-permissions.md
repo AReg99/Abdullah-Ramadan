@@ -50,6 +50,27 @@ Any role not listed above falls back to the shop-floor tabs and, without a
 station, sees no work at all — deliberately, so an unassigned account can never
 be handed the whole factory's job list.
 
+
+### Who sees the money
+
+Prices, order values and takings are visible to the **owner, accountant,
+showroom manager and sales rep** — the people who sell or account for them.
+
+The **factory manager and supervisor see none of it**: no order value on the
+orders list or the order page, no takings figure on their dashboard, and no
+access to the price list or the customer list. They run the factory, and what a
+piece sold for is not part of running it.
+
+### Who can change the business
+
+**Setup is the owner's alone** — staff, crews, stations, catalogue, branches.
+Nobody else can read the staff list or create an account. This matters more than
+it looks: an account-creating role can mint itself an owner account, so every
+other restriction rests on this one.
+
+**Order entry belongs to the showroom** — the owner, showroom manager and sales
+rep. The factory does not take orders; it makes what has been sold.
+
 ## Permission matrix
 
 `R` = read, `W` = create/edit, `A` = approve, `—` = no access.

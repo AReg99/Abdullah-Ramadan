@@ -18,7 +18,8 @@ export default function Today() {
     <>
       <div className="tiles g3">
         <div className="tile"><span className="k">{t("ordersToday")}</span><div className="big">{d.ordersToday.count}</div>
-          <div className="k muted mono">{d.ordersToday.value.toLocaleString()} EGP</div></div>
+          {d.ordersToday.value !== undefined &&
+            <div className="k muted mono">{d.ordersToday.value.toLocaleString()} EGP</div>}</div>
         <div className="tile"><span className="k">{t("unitsFinished")}</span><div className="big">{d.unitsFinished}</div></div>
         <div className="tile"><span className="k">{t("openLines")}</span><div className="big">{d.openLines}</div></div>
         <div className="tile"><span className="k">{t("late")}</span>
