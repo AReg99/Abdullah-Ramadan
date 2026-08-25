@@ -3,6 +3,7 @@ import { z } from "zod";
 import { db } from "../../db.js";
 import { guard } from "../../auth/jwt.js";
 import { record } from "../../lib/events.js";
+import { syncOrderStatus } from "../../lib/order-status.js";
 
 const REASONS = ["NO_MATERIAL","MACHINE_DOWN","AWAITING_DRAWING","AWAITING_QC","AWAITING_CUSTOMER",
   "MISSING_COMPONENT","POWER","LABOUR_SHORT","OTHER"] as const;
@@ -170,6 +171,7 @@ export default async function workRoutes(app: FastifyInstance) {
       data: { actualStart: new Date(), status: "IN_PROGRESS" },
     });
     await db.orderLine.update({ where: { id: s.workOrder.orderLineId }, data: { status: "IN_PRODUCTION" } });
+    await syncOrderStatus(s.workOrder.orderLine.orderId);
     await record({
       code: "STAGE_STARTED", entityType: "work_order_stage", entityId: id,
       orderId: s.workOrder.orderLine.orderId, actorId: user.id, stationId: s.routingStage.stationId,
@@ -288,6 +290,7 @@ export default async function workRoutes(app: FastifyInstance) {
         code: "PRODUCTION_FINISHED", entityType: "work_order", entityId: s.workOrderId,
         orderId: s.workOrder.orderLine.orderId, actorId: user.id, isCustomerVisible: true,
       });
+      await syncOrderStatus(s.workOrder.orderLine.orderId);
     }
     return updated;
   });

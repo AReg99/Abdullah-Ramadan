@@ -6,3 +6,4 @@ api/uploads/
 .env.prod
 api/prisma/dev.db*
 .tools/
+*.tsbuildinfo

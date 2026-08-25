@@ -4,6 +4,16 @@ You are the only person who commits the factory to a date. Everything downstream
 — the customer's promise, the owner's report, the showroom's credibility —
 depends on the decisions on this page.
 
+
+> **What is in the app today.** **Today** and **Floor** show you the live
+> factory, and the **Dispatch** tab is where production hands over: every piece
+> that has passed its last station appears there, and **Send to showroom** moves
+> it out of the factory and onto the showroom's board. Until a line is
+> dispatched it still counts as sitting in your building.
+>
+> The planning board and capacity commitments described below are the design for
+> a later phase.
+
 ---
 
 ## ENGLISH

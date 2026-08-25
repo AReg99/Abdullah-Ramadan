@@ -14,10 +14,43 @@ import Scan from "./screens/Scan";
 import Labels from "./screens/Labels";
 import Setup from "./screens/Setup";
 import NewOrder from "./screens/NewOrder";
+import Dispatch from "./screens/Dispatch";
+import Showroom from "./screens/Showroom";
 import { onSyncChange, queued } from "./outbox";
 import { startSyncLoop } from "./sync";
 
-const OFFICE = ["OWNER", "FACTORY_MANAGER", "SUPERVISOR", "ACCOUNTANT", "SALES_REP"];
+type Tab = [string, string, string];
+
+/**
+ * What each role gets, rather than one "office" bucket for everyone. The bucket
+ * was wrong in both directions: a showroom manager fell through it into the
+ * group leader's shop-floor nav and could not do their job at all, and an
+ * accountant was handed the setup screens.
+ *
+ * Roles not listed here work on the floor and get the leader's three tabs.
+ */
+const NAVS: Record<string, Tab[]> = {
+  OWNER: [
+    ["/today", "◧", "today"], ["/floor", "▦", "floor"], ["/dispatch", "⇥", "dispatch"],
+    ["/showroom", "⌂", "showroom"], ["/orders", "▤", "orders"], ["/new-order", "✎", "newOrder"],
+    ["/labels", "⌗", "labels"], ["/setup", "⚙", "setup"],
+  ],
+  FACTORY_MANAGER: [
+    ["/today", "◧", "today"], ["/floor", "▦", "floor"], ["/dispatch", "⇥", "dispatch"],
+    ["/orders", "▤", "orders"], ["/new-order", "✎", "newOrder"], ["/labels", "⌗", "labels"],
+    ["/setup", "⚙", "setup"],
+  ],
+  SUPERVISOR: [
+    ["/today", "◧", "today"], ["/floor", "▦", "floor"], ["/dispatch", "⇥", "dispatch"],
+    ["/orders", "▤", "orders"], ["/labels", "⌗", "labels"],
+  ],
+  STOREKEEPER: [["/dispatch", "⇥", "dispatch"], ["/labels", "⌗", "labels"], ["/orders", "▤", "orders"]],
+  SHOWROOM_MANAGER: [["/showroom", "⌂", "showroom"], ["/orders", "▤", "orders"], ["/new-order", "✎", "newOrder"]],
+  SALES_REP: [["/showroom", "⌂", "showroom"], ["/orders", "▤", "orders"], ["/new-order", "✎", "newOrder"]],
+  ACCOUNTANT: [["/today", "◧", "today"], ["/orders", "▤", "orders"]],
+};
+
+const FLOOR: Tab[] = [["/work", "▤", "work"], ["/scan", "⌗", "scan"], ["/myday", "◔", "myday"]];
 
 export default function App() {
   const { me, ready, lang, setLang, t, signOut } = useApp();
@@ -35,11 +68,9 @@ export default function App() {
   if (!ready) return <div className="empty">{t("loading")}</div>;
   if (!me) return <Login />;
 
-  const office = OFFICE.includes(me.role);
-  const nav = office
-    ? [["/today", "◧", t("today")], ["/floor", "▦", t("floor")], ["/orders", "▤", t("orders")],
-       ["/new-order", "✎", t("newOrder")], ["/labels", "⌗", t("labels")], ["/setup", "⚙", t("setup")]]
-    : [["/work", "▤", t("work")], ["/scan", "⌗", t("scan")], ["/myday", "◔", t("myday")]];
+  const tabs = NAVS[me.role] ?? FLOOR;
+  const office = tabs !== FLOOR;
+  const home = tabs[0][0];
 
   return (
     <div className={`shell${office ? " wide" : ""}`}>
@@ -68,14 +99,18 @@ export default function App() {
           <Route path="/floor" element={<Floor />} />
           <Route path="/orders" element={<Orders />} />
           <Route path="/orders/:id" element={<OrderDetail />} />
-          <Route path="*" element={<Navigate to={office ? "/today" : "/work"} replace />} />
+          <Route path="/dispatch" element={<Dispatch />} />
+          <Route path="/showroom" element={<Showroom />} />
+          {/* Landing on the first tab of your own nav, so nobody opens the app
+              on a screen their role cannot load. */}
+          <Route path="*" element={<Navigate to={home} replace />} />
         </Routes>
       </div>
 
       <div className="nav">
-        {nav.map(([to, ic, label]) => (
+        {tabs.map(([to, ic, key]) => (
           <NavLink key={to} to={to} className={loc.pathname.startsWith(to) ? "on" : ""}>
-            <span className="ic">{ic}</span>{label}
+            <span className="ic">{ic}</span>{t(key as any)}
           </NavLink>
         ))}
       </div>

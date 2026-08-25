@@ -105,6 +105,17 @@ export const api = {
     { method: "POST", body: JSON.stringify(b) }),
   markPrinted: (id: string) => req<any>(`/labels/${id}/printed`, { method: "POST" }),
 
+  // ---- factory → showroom → customer ----
+  dispatchList: () => req<FlowLine[]>("/flow/dispatch"),
+  showroomList: () => req<FlowLine[]>("/flow/showroom"),
+  dispatchLine: (id: string) => req<FlowLine>(`/flow/lines/${id}/dispatch`, { method: "POST", body: JSON.stringify({}) }),
+  receiveLine: (id: string) => req<FlowLine>(`/flow/lines/${id}/receive`, { method: "POST", body: JSON.stringify({}) }),
+  deliverLine: (id: string, note?: string) =>
+    req<FlowLine>(`/flow/lines/${id}/deliver`, { method: "POST", body: JSON.stringify({ note }) }),
+  locations: () => req<LocationRow[]>("/admin/locations"),
+  addLocation: (b: { nameAr: string; nameEn?: string; address?: string; type?: string }) =>
+    req<LocationRow>("/admin/locations", { method: "POST", body: JSON.stringify(b) }),
+
   today: () => req<Dashboard>("/dashboard/today"),
   floor: () => req<StationCard[]>("/dashboard/floor"),
   orders: () => req<OrderRow[]>("/orders"),
@@ -126,11 +137,24 @@ export const api = {
 };
 
 export type Station = { id: string; code: string; nameAr: string; nameEn: string };
+export type LocationRow = { id: string; type: "FACTORY" | "SHOWROOM" | "WAREHOUSE";
+  nameAr: string; nameEn: string; address: string | null };
+export type FlowLine = {
+  id: string; qty: number; status: string; specNotes: string | null;
+  productAr: string; productEn: string; sku: string;
+  dispatchedAt: string | null; receivedAt: string | null; deliveredAt: string | null;
+  promisedDate: string | null;
+  order: { id: string; code: string; customer: string; phone: string;
+           showroomAr: string | null; showroomEn: string | null };
+  serials: string[];
+};
 export type PersonRow = { id: string; nameAr: string; nameEn: string; phone: string | null;
   email: string | null; role: string; canLogin: boolean; isActive: boolean; hasPassword: boolean;
-  groupId: string | null; groupName: string | null; stationId: string | null; stationName: string | null };
+  groupId: string | null; groupName: string | null; stationId: string | null; stationName: string | null;
+  locationId: string | null; locationName: string | null };
 export type NewPerson = { nameAr: string; nameEn?: string; role: string; phone?: string;
-  email?: string; password?: string; groupId?: string; stationId?: string; canLogin?: boolean };
+  email?: string; password?: string; groupId?: string; stationId?: string; locationId?: string;
+  canLogin?: boolean };
 export type GroupRow = { id: string; nameAr: string; nameEn: string; isActive: boolean;
   stationId: string; stationAr: string; stationEn: string;
   leader: { id: string; nameAr: string; phone: string | null } | null;

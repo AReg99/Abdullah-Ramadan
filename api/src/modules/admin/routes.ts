@@ -16,6 +16,12 @@ import { record } from "../../lib/events.js";
  */
 const OWNER = ["OWNER", "FACTORY_MANAGER"];
 
+/** With a single showroom there is nothing to choose, so choose it for them. */
+async function defaultShowroomId() {
+  const rooms = await db.location.findMany({ where: { type: "SHOWROOM" }, select: { id: true } });
+  return rooms.length === 1 ? rooms[0].id : null;
+}
+
 export default async function adminRoutes(app: FastifyInstance) {
   // ---------------------------------------------------------------- stations
   app.get("/admin/stations", { preHandler: guard(OWNER) }, async () =>
@@ -31,11 +37,26 @@ export default async function adminRoutes(app: FastifyInstance) {
     return db.station.create({ data: { ...b, locationId: factory.id } });
   });
 
+  // ---------------------------------------------------------------- locations
+  app.get("/admin/locations", { preHandler: guard(OWNER) }, async () =>
+    db.location.findMany({ orderBy: { type: "asc" } }));
+
+  app.post("/admin/locations", { preHandler: guard(OWNER) }, async (req) => {
+    const b = z.object({
+      type: z.enum(["FACTORY", "SHOWROOM", "WAREHOUSE"]).default("SHOWROOM"),
+      nameAr: z.string().min(1), nameEn: z.string().min(1).optional(),
+      address: z.string().optional(),
+    }).parse(req.body);
+    return db.location.create({
+      data: { ...b, nameEn: b.nameEn ?? b.nameAr, address: b.address ?? null },
+    });
+  });
+
   // ---------------------------------------------------------------- people
   app.get("/admin/people", { preHandler: guard(OWNER) }, async () => {
     const people = await db.user.findMany({
       orderBy: [{ isActive: "desc" }, { nameAr: "asc" }],
-      include: { role: true, group: true, station: true },
+      include: { role: true, group: true, station: true, location: true },
     });
     return people.map((u) => ({
       id: u.id, nameAr: u.nameAr, nameEn: u.nameEn, phone: u.phone, email: u.email,
@@ -43,6 +64,7 @@ export default async function adminRoutes(app: FastifyInstance) {
       hasPassword: Boolean(u.passwordHash),
       groupId: u.groupId, groupName: u.group?.nameAr ?? null,
       stationId: u.stationId, stationName: u.station?.nameAr ?? null,
+      locationId: u.locationId, locationName: u.location?.nameAr ?? null,
     }));
   });
 
@@ -56,6 +78,8 @@ export default async function adminRoutes(app: FastifyInstance) {
       password: z.string().min(6).optional(),
       groupId: z.string().optional(),
       stationId: z.string().optional(),
+      /** Which showroom this person works in. Null means every showroom. */
+      locationId: z.string().optional(),
       /** Roster workers are tracked, not authenticated. */
       canLogin: z.boolean().default(true),
     }).parse(req.body);
@@ -73,6 +97,7 @@ export default async function adminRoutes(app: FastifyInstance) {
         passwordHash: b.password ? bcrypt.hashSync(b.password, 10) : null,
         canLogin: b.canLogin, roleId: role.id,
         groupId: b.groupId ?? null, stationId: b.stationId ?? null,
+        locationId: b.locationId ?? null,
       },
     });
   });
@@ -84,6 +109,7 @@ export default async function adminRoutes(app: FastifyInstance) {
       password: z.string().min(6).optional(),
       groupId: z.string().nullable().optional(),
       stationId: z.string().nullable().optional(),
+      locationId: z.string().nullable().optional(),
       isActive: z.boolean().optional(),
     }).parse(req.body);
     const exists = await db.user.findUnique({ where: { id } });
@@ -95,6 +121,7 @@ export default async function adminRoutes(app: FastifyInstance) {
         ...(b.password ? { passwordHash: bcrypt.hashSync(b.password, 10) } : {}),
         ...(b.groupId !== undefined ? { groupId: b.groupId } : {}),
         ...(b.stationId !== undefined ? { stationId: b.stationId } : {}),
+        ...(b.locationId !== undefined ? { locationId: b.locationId } : {}),
         ...(b.isActive !== undefined ? { isActive: b.isActive } : {}),
       },
     });
@@ -199,6 +226,7 @@ export default async function adminRoutes(app: FastifyInstance) {
       customerPhone: z.string().min(6).optional(),
       promisedDate: z.string().optional(),
       routingId: z.string().optional(),
+      showroomId: z.string().optional(),
       lines: z.array(z.object({
         productId: z.string(),
         qty: z.number().int().positive().default(1),
@@ -243,6 +271,10 @@ export default async function adminRoutes(app: FastifyInstance) {
         kind: anyCustom ? (b.lines.every((l) => l.lineKind === "CUSTOM") ? "CUSTOM" : "MIXED") : "STANDARD",
         channel: "FACTORY", status: "CONFIRMED",
         customerId: customer.id, promisedDate: promised,
+        // Where the customer collects. With one showroom configured, defaulting
+        // to it means nobody has to pick, and the showroom board is never empty
+        // because an order was filed against no branch.
+        showroomId: b.showroomId ?? (await defaultShowroomId()),
         total: String(total), trackingToken: randomUUID(),
       },
     });

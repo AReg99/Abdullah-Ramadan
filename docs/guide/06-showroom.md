@@ -4,6 +4,17 @@ You are the only person who talks to the customer before they commit. Two things
 matter more than anything else on this page: **give a date the factory has
 agreed to**, and **take the measurements correctly**.
 
+
+> **What is in the app today.** The **Showroom** tab is live: pieces on their way
+> from the factory, pieces standing on your floor waiting for their customer, and
+> what went home this week. You tap **Arrived at showroom** when the van is
+> unloaded and **Deliver to customer** when the customer takes it — both go
+> straight onto the owner's screen and onto the customer's tracking page.
+>
+> The catalogue, configurator and quotation flow described below are the design
+> for the next phase and are not built yet. Until they are, orders are entered
+> under **New order**.
+
 ---
 
 ## ENGLISH

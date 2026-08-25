@@ -3,12 +3,13 @@
 // finance and after-sales; the seams for those are noted in the docs, not stubbed here.
 
 generator client {
-  provider = "prisma-client-js"
+  provider      = "prisma-client-js"
   // Built inside Alpine containers that may be x86 or Arm — Hetzner's cheapest
   // plans are Ampere Arm. Declaring both targets means the same image builds on
   // either, instead of failing at runtime with a missing query engine.
   binaryTargets = ["native", "linux-musl-openssl-3.0.x", "linux-musl-arm64-openssl-3.0.x"]
 }
+
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
@@ -28,17 +29,18 @@ enum RoleKey {
   DRIVER
   ACCOUNTANT
 }
+
 enum Locale {
   ar
   en
 }
 
 model Role {
-  id          String   @id @default(uuid())
-  key         RoleKey  @unique
+  id          String  @id @default(uuid())
+  key         RoleKey @unique
   nameAr      String
   nameEn      String
-  permissions Json     @default("[]")
+  permissions Json    @default("[]")
   users       User[]
 }
 
@@ -49,32 +51,35 @@ model Role {
 /// exist as records so output and rework stay attributable to the people who
 /// did the work — losing that would cost the productivity and quality reports.
 model User {
-  id           String   @id @default(uuid())
+  id           String    @id @default(uuid())
   nameAr       String
   nameEn       String
   /// Unique only where present: roster workers have no phone and never sign in.
-  phone        String?  @unique
-  email        String?  @unique
+  phone        String?   @unique
+  email        String?   @unique
   passwordHash String?
   /// False for roster workers — they are tracked, not authenticated.
-  canLogin     Boolean  @default(true)
-  locale       Locale   @default(ar)
-  isActive     Boolean  @default(true)
+  canLogin     Boolean   @default(true)
+  locale       Locale    @default(ar)
+  isActive     Boolean   @default(true)
   roleId       String
-  role         Role     @relation(fields: [roleId], references: [id])
+  role         Role      @relation(fields: [roleId], references: [id])
   stationId    String?
-  station      Station? @relation(fields: [stationId], references: [id])
+  station      Station?  @relation(fields: [stationId], references: [id])
   /// The group this person belongs to, whether as leader or member.
   groupId      String?
-  group        Group?   @relation("GroupMembers", fields: [groupId], references: [id])
-  createdAt    DateTime @default(now())
+  group        Group?    @relation("GroupMembers", fields: [groupId], references: [id])
+  /// Showroom staff belong to a location; a null means "every showroom".
+  locationId   String?
+  location     Location? @relation(fields: [locationId], references: [id])
+  createdAt    DateTime  @default(now())
 
-  leads        Group[]          @relation("GroupLeader")
-  stages       WorkOrderStage[]
-  stageWork    StageWorker[]
-  photos       StagePhoto[]
-  events       TrackingEvent[]
-  otps         OtpCode[]
+  leads     Group[]          @relation("GroupLeader")
+  stages    WorkOrderStage[]
+  stageWork StageWorker[]
+  photos    StagePhoto[]
+  events    TrackingEvent[]
+  otps      OtpCode[]
 }
 
 /// A crew working one station under one leader.
@@ -101,17 +106,19 @@ model StageWorker {
   workOrderStage   WorkOrderStage @relation(fields: [workOrderStageId], references: [id], onDelete: Cascade)
   userId           String
   user             User           @relation(fields: [userId], references: [id])
+
   @@unique([workOrderStageId, userId])
 }
 
 model OtpCode {
-  id        String   @id @default(uuid())
+  id        String    @id @default(uuid())
   userId    String
-  user      User     @relation(fields: [userId], references: [id])
+  user      User      @relation(fields: [userId], references: [id])
   code      String
   expiresAt DateTime
   usedAt    DateTime?
-  createdAt DateTime @default(now())
+  createdAt DateTime  @default(now())
+
   @@index([userId, createdAt])
 }
 
@@ -124,7 +131,7 @@ enum LocationType {
 }
 
 model Location {
-  id       String       @id @default(uuid())
+  id       String          @id @default(uuid())
   type     LocationType
   nameAr   String
   nameEn   String
@@ -132,6 +139,7 @@ model Location {
   stations Station[]
   orders   Order[]
   events   TrackingEvent[]
+  staff    User[]
 }
 
 model Station {
@@ -200,11 +208,13 @@ enum OrderKind {
   CUSTOM
   MIXED
 }
+
 enum OrderChannel {
   SHOWROOM
   FACTORY
   ONLINE
 }
+
 enum OrderStatus {
   DRAFT
   QUOTED
@@ -215,15 +225,21 @@ enum OrderStatus {
   CLOSED
   CANCELLED
 }
+
 enum LineKind {
   STANDARD
   CUSTOM
 }
+
 enum LineStatus {
   PENDING
   QUEUED
   IN_PRODUCTION
+  /// Made, still in the factory, waiting to be sent.
   FINISHED
+  /// Left the factory, not yet signed for at the showroom.
+  IN_TRANSIT
+  /// At the showroom, waiting for the customer.
   READY
   DELIVERED
   CANCELLED
@@ -240,14 +256,15 @@ model Order {
   showroomId    String?
   showroom      Location?    @relation(fields: [showroomId], references: [id])
   promisedDate  DateTime?
-  total         Decimal      @db.Decimal(14, 2) @default(0)
-  paidTotal     Decimal      @db.Decimal(14, 2) @default(0)
+  total         Decimal      @default(0) @db.Decimal(14, 2)
+  paidTotal     Decimal      @default(0) @db.Decimal(14, 2)
   currency      String       @default("EGP")
   trackingToken String       @unique
   createdAt     DateTime     @default(now())
 
   lines  OrderLine[]
   events TrackingEvent[]
+
   @@index([status, promisedDate])
 }
 
@@ -263,8 +280,13 @@ model OrderLine {
   status       LineStatus @default(PENDING)
   promisedDate DateTime?
   specNotes    String?
+  /// Handover milestones, projected from the event stream for cheap reads.
+  dispatchedAt DateTime?
+  receivedAt   DateTime?
+  deliveredAt  DateTime?
 
   workOrders WorkOrder[]
+
   @@index([status, promisedDate])
 }
 
@@ -305,6 +327,7 @@ model RoutingStage {
   photoMinCount     Int       @default(1)
 
   workOrderStages WorkOrderStage[]
+
   @@unique([routingId, seq])
 }
 
@@ -317,22 +340,22 @@ enum WorkOrderStatus {
 }
 
 model WorkOrder {
-  id          String          @id @default(uuid())
-  code        String          @unique
-  orderLineId String
-  orderLine   OrderLine       @relation(fields: [orderLineId], references: [id], onDelete: Cascade)
-  productId   String
-  product     Product         @relation(fields: [productId], references: [id])
-  qty         Int             @default(1)
-  routingId   String
-  routing     Routing         @relation(fields: [routingId], references: [id])
-  status      WorkOrderStatus @default(PENDING)
-  priority    Int             @default(0)
+  id           String          @id @default(uuid())
+  code         String          @unique
+  orderLineId  String
+  orderLine    OrderLine       @relation(fields: [orderLineId], references: [id], onDelete: Cascade)
+  productId    String
+  product      Product         @relation(fields: [productId], references: [id])
+  qty          Int             @default(1)
+  routingId    String
+  routing      Routing         @relation(fields: [routingId], references: [id])
+  status       WorkOrderStatus @default(PENDING)
+  priority     Int             @default(0)
   plannedStart DateTime?
   plannedEnd   DateTime?
   actualStart  DateTime?
   actualEnd    DateTime?
-  createdAt    DateTime       @default(now())
+  createdAt    DateTime        @default(now())
 
   stages WorkOrderStage[]
   labels UnitLabel[]
@@ -346,6 +369,7 @@ enum StageStatus {
   PAUSED
   DONE
 }
+
 /// Fixed list — free text cannot be reported on. docs/03-order-lifecycle.md.
 enum BlockedReason {
   NO_MATERIAL
@@ -360,40 +384,41 @@ enum BlockedReason {
 }
 
 model WorkOrderStage {
-  id             String        @id @default(uuid())
+  id             String         @id @default(uuid())
   workOrderId    String
-  workOrder      WorkOrder     @relation(fields: [workOrderId], references: [id], onDelete: Cascade)
+  workOrder      WorkOrder      @relation(fields: [workOrderId], references: [id], onDelete: Cascade)
   routingStageId String
-  routingStage   RoutingStage  @relation(fields: [routingStageId], references: [id])
+  routingStage   RoutingStage   @relation(fields: [routingStageId], references: [id])
   seq            Int
-  status         StageStatus   @default(PENDING)
+  status         StageStatus    @default(PENDING)
   /// The leader who operated the app for this stage.
   assignedToId   String?
-  assignedTo     User?         @relation(fields: [assignedToId], references: [id])
+  assignedTo     User?          @relation(fields: [assignedToId], references: [id])
   /// The crew it was assigned to.
   groupId        String?
-  group          Group?        @relation(fields: [groupId], references: [id])
+  group          Group?         @relation(fields: [groupId], references: [id])
   startedAt      DateTime?
   finishedAt     DateTime?
-  actualMinutes  Int           @default(0)
+  actualMinutes  Int            @default(0)
   blockedReason  BlockedReason?
   blockedNote    String?
-  blockedMinutes Int           @default(0)
+  blockedMinutes Int            @default(0)
   pausedAt       DateTime?
 
   photos  StagePhoto[]
   workers StageWorker[]
+
   @@unique([workOrderId, seq])
   @@index([status])
 }
 
 model UnitLabel {
-  id          String    @id @default(uuid())
+  id          String       @id @default(uuid())
   workOrderId String
-  workOrder   WorkOrder @relation(fields: [workOrderId], references: [id], onDelete: Cascade)
-  serial      String    @unique
+  workOrder   WorkOrder    @relation(fields: [workOrderId], references: [id], onDelete: Cascade)
+  serial      String       @unique
   printedAt   DateTime?
-  scrapped    Boolean   @default(false)
+  scrapped    Boolean      @default(false)
   photos      StagePhoto[]
 }
 
@@ -405,25 +430,26 @@ enum PhotoKind {
 }
 
 model StagePhoto {
-  id               String         @id @default(uuid())
-  workOrderStageId String
-  workOrderStage   WorkOrderStage @relation(fields: [workOrderStageId], references: [id], onDelete: Cascade)
-  workOrderId      String
-  workOrder        WorkOrder      @relation(fields: [workOrderId], references: [id], onDelete: Cascade)
-  unitLabelId      String?
-  unitLabel        UnitLabel?     @relation(fields: [unitLabelId], references: [id])
-  kind             PhotoKind
-  path             String
-  bytes            Int            @default(0)
-  width            Int            @default(0)
-  height           Int            @default(0)
-  capturedAt       DateTime
-  uploadedAt       DateTime       @default(now())
-  actorId          String
-  actor            User           @relation(fields: [actorId], references: [id])
-  clientEventId    String         @unique
-  isCustomerVisible Boolean       @default(false)
-  caption          String?
+  id                String         @id @default(uuid())
+  workOrderStageId  String
+  workOrderStage    WorkOrderStage @relation(fields: [workOrderStageId], references: [id], onDelete: Cascade)
+  workOrderId       String
+  workOrder         WorkOrder      @relation(fields: [workOrderId], references: [id], onDelete: Cascade)
+  unitLabelId       String?
+  unitLabel         UnitLabel?     @relation(fields: [unitLabelId], references: [id])
+  kind              PhotoKind
+  path              String
+  bytes             Int            @default(0)
+  width             Int            @default(0)
+  height            Int            @default(0)
+  capturedAt        DateTime
+  uploadedAt        DateTime       @default(now())
+  actorId           String
+  actor             User           @relation(fields: [actorId], references: [id])
+  clientEventId     String         @unique
+  isCustomerVisible Boolean        @default(false)
+  caption           String?
+
   @@index([workOrderStageId, kind])
 }
 
@@ -433,23 +459,23 @@ model StagePhoto {
 /// compensating event. occurredAt is the device clock; recordedAt is the server's,
 /// so an offline scan still counts at the minute it happened.
 model TrackingEvent {
-  id            String    @id @default(uuid())
-  code          String
-  orderId       String?
-  order         Order?    @relation(fields: [orderId], references: [id])
-  entityType    String
-  entityId      String
-  actorId       String?
-  actor         User?     @relation(fields: [actorId], references: [id])
-  locationId    String?
-  location      Location? @relation(fields: [locationId], references: [id])
-  stationId     String?
-  station       Station?  @relation(fields: [stationId], references: [id])
-  payload       Json      @default("{}")
-  occurredAt    DateTime
-  recordedAt    DateTime  @default(now())
-  isCustomerVisible Boolean @default(false)
-  clientEventId String?   @unique
+  id                String    @id @default(uuid())
+  code              String
+  orderId           String?
+  order             Order?    @relation(fields: [orderId], references: [id])
+  entityType        String
+  entityId          String
+  actorId           String?
+  actor             User?     @relation(fields: [actorId], references: [id])
+  locationId        String?
+  location          Location? @relation(fields: [locationId], references: [id])
+  stationId         String?
+  station           Station?  @relation(fields: [stationId], references: [id])
+  payload           Json      @default("{}")
+  occurredAt        DateTime
+  recordedAt        DateTime  @default(now())
+  isCustomerVisible Boolean   @default(false)
+  clientEventId     String?   @unique
 
   @@index([orderId, occurredAt])
   @@index([code, occurredAt])

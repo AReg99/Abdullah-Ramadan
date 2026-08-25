@@ -10,6 +10,7 @@ import authRoutes from "./auth/routes.js";
 import workRoutes from "./modules/work/routes.js";
 import photoRoutes from "./modules/photos/routes.js";
 import dashboardRoutes from "./modules/dashboard/routes.js";
+import flowRoutes from "./modules/flow/routes.js";
 import orderRoutes from "./modules/orders/routes.js";
 import labelRoutes from "./modules/labels/routes.js";
 import adminRoutes from "./modules/admin/routes.js";
@@ -53,6 +54,7 @@ export async function build() {
   await app.register(photoRoutes);
   await app.register(dashboardRoutes);
   await app.register(orderRoutes);
+  await app.register(flowRoutes);
   await app.register(labelRoutes);
   await app.register(adminRoutes);
 

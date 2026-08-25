@@ -2,22 +2,29 @@ import type { FastifyInstance } from "fastify";
 import { db } from "../../db.js";
 import { guard } from "../../auth/jwt.js";
 
+/** Everyone who may look at an order, as opposed to work on one. */
+const OFFICE = ["OWNER", "FACTORY_MANAGER", "SUPERVISOR", "SHOWROOM_MANAGER", "SALES_REP", "ACCOUNTANT"];
+
 export default async function orderRoutes(app: FastifyInstance) {
-  app.get("/orders", { preHandler: guard(["OWNER", "FACTORY_MANAGER", "SUPERVISOR", "SALES_REP", "ACCOUNTANT"]) },
-    async () => {
-      const orders = await db.order.findMany({
-        orderBy: { createdAt: "desc" },
-        include: { customer: true, lines: { include: { product: true } } },
-      });
-      return orders.map((o) => ({
-        id: o.id, code: o.code, status: o.status, kind: o.kind,
-        customer: o.customer.name, total: Number(o.total), promisedDate: o.promisedDate,
-        lines: o.lines.map((l) => ({
-          id: l.id, status: l.status, qty: l.qty,
-          productAr: l.product.nameAr, productEn: l.product.nameEn,
-        })),
-      }));
+  app.get("/orders", { preHandler: guard(OFFICE) }, async (req) => {
+    const user = (req as any).user;
+    // Showroom staff see their own showroom's orders. Everyone else, and anyone
+    // not tied to a showroom, sees all of them.
+    const scoped = ["SHOWROOM_MANAGER", "SALES_REP"].includes(user.role.key) && user.locationId;
+    const orders = await db.order.findMany({
+      where: scoped ? { showroomId: user.locationId } : {},
+      orderBy: { createdAt: "desc" },
+      include: { customer: true, lines: { include: { product: true } } },
     });
+    return orders.map((o) => ({
+      id: o.id, code: o.code, status: o.status, kind: o.kind,
+      customer: o.customer.name, total: Number(o.total), promisedDate: o.promisedDate,
+      lines: o.lines.map((l) => ({
+        id: l.id, status: l.status, qty: l.qty,
+        productAr: l.product.nameAr, productEn: l.product.nameEn,
+      })),
+    }));
+  });
 
   /** The order timeline is a projection of the event stream, filtered by role. */
   app.get("/orders/:id", { preHandler: guard() }, async (req, reply) => {
@@ -32,7 +39,7 @@ export default async function orderRoutes(app: FastifyInstance) {
     });
     if (!order) return reply.code(404).send({ error: "not_found" });
 
-    const customerOnly = !["OWNER", "FACTORY_MANAGER", "SUPERVISOR", "SALES_REP", "ACCOUNTANT"].includes(user.role.key);
+    const customerOnly = !OFFICE.includes(user.role.key);
     const events = await db.trackingEvent.findMany({
       where: { orderId: id, ...(customerOnly ? { isCustomerVisible: true } : {}) },
       orderBy: { occurredAt: "desc" },
