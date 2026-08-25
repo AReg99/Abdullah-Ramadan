@@ -23,8 +23,10 @@ echo "${BOLD}Aura — server setup${OFF}"
 echo
 
 # ---------- what we need to know ----------
-read -rp "Your domain (e.g. aura.yourcompany.com): " DOMAIN
-[ -n "$DOMAIN" ] || die "A domain is required — Caddy needs it to get an HTTPS certificate."
+echo "${DIM}Aura needs an HTTPS address. If you have a domain, enter it now."
+echo "If you do not, press Enter and one is derived from this server's IP —"
+echo "free, instant, and it gets a real certificate just the same.${OFF}"
+read -rp "Your domain (or Enter for a free one): " DOMAIN
 read -rp "Your email for signing in as owner: " OWNER_EMAIL
 [ -n "$OWNER_EMAIL" ] || die "An email is required."
 while :; do
@@ -34,23 +36,46 @@ while :; do
 done
 echo
 
-# ---------- DNS has to point here before anything else ----------
-# Getting this wrong is the most common way this deploy fails, and the symptom
-# is Caddy silently never obtaining a certificate.
+# ---------- the address has to reach this machine ----------
+# Caddy proves control of the hostname over port 80 to get its certificate, so
+# the hostname must already resolve here. Getting this wrong is the usual way
+# the deploy fails, and the symptom is Caddy silently never obtaining a
+# certificate: the stack looks healthy and the site never loads.
 MYIP="$(curl -fsS4 https://api.ipify.org || curl -fsS4 https://ifconfig.me || echo "")"
-# Only IPv4, so this compares like with like: `getent hosts` would happily hand
-# back an AAAA record and look like a mismatch against the IPv4 above.
-DNSIPS="$(getent ahostsv4 "$DOMAIN" 2>/dev/null | awk '{print $1}' | sort -u)"
-if [ -z "$DNSIPS" ]; then
-  die "$DOMAIN does not resolve yet. Add an A record pointing at ${MYIP:-this server}, wait a few minutes, and run this again."
+
+# Only IPv4, so this compares like with like: `getent hosts` will hand back an
+# AAAA record and read as a mismatch against the IPv4 the server reports.
+resolves_to_us() {
+  getent ahostsv4 "$1" 2>/dev/null | awk '{print $1}' | sort -u | grep -qx "$MYIP"
+}
+
+if [ -z "$DOMAIN" ]; then
+  # sslip.io and nip.io are wildcard resolvers: any address-shaped name under
+  # them answers with that address. Nothing to register, nothing to configure,
+  # and both are on the Public Suffix List so the certificate rate limit is per
+  # server rather than shared with everyone else using the service.
+  [ -n "$MYIP" ] || die "Could not detect this server's public IP, so a free hostname cannot be built. Pass a domain instead."
+  DASHED="${MYIP//./-}"
+  for SUFFIX in sslip.io nip.io; do
+    if resolves_to_us "$DASHED.$SUFFIX"; then DOMAIN="$DASHED.$SUFFIX"; break; fi
+  done
+  [ -n "$DOMAIN" ] || die "Neither sslip.io nor nip.io answered. Check this server can make DNS queries, or pass a domain."
+  ok "Using the free address ${BOLD}$DOMAIN${OFF}"
+  echo "  ${DIM}Works exactly like a bought domain — real certificate, installs on phones."
+  echo "  To move to your own domain later: point it here, then run this again${OFF}"
 elif [ -z "$MYIP" ]; then
   warn "Could not work out this server's public IP — skipping the DNS check."
-elif echo "$DNSIPS" | grep -qx "$MYIP"; then
+elif resolves_to_us "$DOMAIN"; then
   ok "$DOMAIN points at this server"
 else
-  warn "$DOMAIN resolves to $(echo "$DNSIPS" | tr '\n' ' ')but this server is $MYIP."
-  echo "  ${DIM}If you are using Cloudflare, the record is probably proxied (orange cloud)."
-  echo "  Set it to DNS only (grey cloud), or Caddy cannot get a certificate.${OFF}"
+  RESOLVED="$(getent ahostsv4 "$DOMAIN" 2>/dev/null | awk '{print $1}' | sort -u | tr '\n' ' ')"
+  if [ -z "$RESOLVED" ]; then
+    warn "$DOMAIN does not resolve yet. Add an A record pointing at $MYIP and give it a few minutes."
+  else
+    warn "$DOMAIN resolves to ${RESOLVED}but this server is $MYIP."
+    echo "  ${DIM}If you are using Cloudflare, the record is probably proxied (orange cloud)."
+    echo "  Set it to DNS only (grey cloud), or Caddy cannot get a certificate.${OFF}"
+  fi
   read -rp "Continue anyway? [y/N] " GO
   [ "$GO" = "y" ] || exit 1
 fi
@@ -76,7 +101,17 @@ cd "$DIR"
 
 # ---------- secrets ----------
 if [ -f .env.prod ]; then
-  warn ".env.prod already exists — keeping it, so your existing secrets are not rotated"
+  # Re-run: keep the generated secrets exactly as they are, since rotating
+  # JWT_SECRET signs everyone out and rotating POSTGRES_PASSWORD locks the API
+  # out of its own database. Only the domain moves, which is the whole point of
+  # running this again after buying one.
+  OLD_DOMAIN="$(grep -E '^DOMAIN=' .env.prod | cut -d= -f2-)"
+  if [ "$OLD_DOMAIN" != "$DOMAIN" ]; then
+    sed -i "s|^DOMAIN=.*|DOMAIN=$DOMAIN|" .env.prod
+    ok "Moving from $OLD_DOMAIN to $DOMAIN — your data and sign-ins are untouched"
+  else
+    ok "Existing settings kept"
+  fi
 else
   cat > .env.prod <<ENV
 DOMAIN=$DOMAIN

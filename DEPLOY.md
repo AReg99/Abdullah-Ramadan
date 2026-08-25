@@ -22,9 +22,21 @@ a real certificate.
 
 ### What you need
 
-- A domain, or a subdomain of one you own — **~$10–13 a year**. See below.
 - A server that meets the five requirements below.
-- Point the domain's A record at the server's IP.
+- Optionally a domain — **~$10–13 a year**. See below.
+
+**You do not need the domain to start.** If you skip it, the setup script
+derives a free address from the server's IP, like `152-89-12-34.sslip.io`.
+`sslip.io` is a wildcard resolver: any address-shaped name under it answers with
+that address, so it already points at your server with nothing to register and
+nothing to configure. Let's Encrypt issues an ordinary certificate for it, so
+the phone gets a real padlock, the camera works, and Add to Home Screen works —
+everything a bought domain gives you.
+
+What you give up is only the name. `152-89-12-34.sslip.io` is awkward to read
+out to a crew leader and it is tied to that IP, so it changes if you ever move
+servers. Buy the domain when you are ready; re-running the setup script moves
+the app onto it without touching your data or signing anyone out.
 
 ### Where to buy the domain
 
@@ -192,19 +204,23 @@ curl -fsSL https://raw.githubusercontent.com/AReg99/Abdullah-Ramadan/claude/furn
 bash setup.sh
 ```
 
-It asks for three things — your domain, the email you want to sign in with, and
-a password for that account — and then does the rest: checks the domain really
+It asks for three things — your domain (**press Enter if you have not bought
+one** and it uses the free `sslip.io` address), the email you want to sign in
+with, and a password for that account — and then does the rest: checks the domain really
 points at this server, installs Docker if it is missing, fetches the code to
 `/opt/aura`, generates `JWT_SECRET` and `POSTGRES_PASSWORD` with `openssl rand`,
 writes them to a `.env.prod` only root can read, and brings the stack up. First
 build takes a few minutes; it waits for the certificate and prints the address
 when the API answers.
 
-Run it again any time to update — it keeps the existing `.env.prod`, so your
-secrets are not rotated and your data is untouched.
+Run it again any time to update, or to move onto a real domain once you have
+one: enter the new domain and it swaps the address over. It keeps the existing
+`.env.prod` either way, so the secrets are not rotated — which matters, because
+a new `JWT_SECRET` signs everyone out and a new `POSTGRES_PASSWORD` locks the
+API out of its own database. Your data is untouched.
 
-**If it stops at the DNS check**, the A record is either not added yet, still
-propagating, or proxied. That check is deliberate: without it the stack comes up
+**If it stops at the DNS check** — only possible when you entered your own
+domain — the A record is either not added yet, still propagating, or proxied. That check is deliberate: without it the stack comes up
 looking healthy while Caddy quietly never obtains a certificate, and the site
 simply never loads.
 
