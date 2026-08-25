@@ -63,10 +63,19 @@ piece sold for is not part of running it.
 
 ### Who can change the business
 
-**Setup is the owner's alone** — staff, crews, stations, catalogue, branches.
-Nobody else can read the staff list or create an account. This matters more than
-it looks: an account-creating role can mint itself an owner account, so every
-other restriction rests on this one.
+**The catalogue, prices and branches are the owner's alone.**
+
+**The staff list and the crews are shared with the factory manager**, who staffs
+his own factory: he may add a supervisor, group leader, QC inspector,
+storekeeper or driver, and reset their passwords.
+
+He may not create an owner, another factory manager, a showroom role or an
+accountant — and he may not edit one either. Both halves matter, because they
+are the same escalation by different doors: minting an owner account, or
+resetting the existing owner's password and signing in as them. The rule is one
+sentence — **you may edit exactly the roles you may create, plus yourself** —
+and the staff form asks the server which roles those are rather than deciding
+for itself.
 
 **Order entry belongs to the showroom** — the owner, showroom manager and sales
 rep. The factory does not take orders; it makes what has been sold.

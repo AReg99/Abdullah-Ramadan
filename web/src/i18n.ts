@@ -76,6 +76,7 @@ const ar = {
   forgotHint: "نسيت كلمة السر؟ المالك بيغيّرها من الإعدادات.",
   myAccount: "حسابي", myPhone: "رقم موبايلي", newPassword: "كلمة سر جديدة",
   saveAccount: "حفظ", accountHint: "الرقم ده هو اللي بتدخل بيه.",
+  GROUP_LEADER: "رئيس عمال", OWNER: "المالك",
 };
 
 const en: Record<keyof typeof ar, string> = {
@@ -154,6 +155,7 @@ const en: Record<keyof typeof ar, string> = {
   forgotHint: "Forgotten your password? The owner can change it in Setup.",
   myAccount: "My account", myPhone: "My phone number", newPassword: "New password",
   saveAccount: "Save", accountHint: "This is the number you sign in with.",
+  GROUP_LEADER: "Group leader", OWNER: "Owner",
 };
 
 export const DICT = { ar, en };

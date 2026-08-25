@@ -113,6 +113,7 @@ export const api = {
   receiveLine: (id: string) => req<FlowLine>(`/flow/lines/${id}/receive`, { method: "POST", body: JSON.stringify({}) }),
   deliverLine: (id: string, note?: string) =>
     req<FlowLine>(`/flow/lines/${id}/deliver`, { method: "POST", body: JSON.stringify({ note }) }),
+  grantableRoles: () => req<string[]>("/admin/grantable-roles"),
   locations: () => req<LocationRow[]>("/admin/locations"),
   addLocation: (b: { nameAr: string; nameEn?: string; address?: string; type?: string }) =>
     req<LocationRow>("/admin/locations", { method: "POST", body: JSON.stringify(b) }),

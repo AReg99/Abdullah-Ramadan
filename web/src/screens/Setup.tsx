@@ -5,16 +5,15 @@ import { api, type GroupRow, type LocationRow, type PersonRow, type ProductRow, 
 type Tab = "crews" | "staff" | "products";
 
 /**
- * The people who sign in but do not stand at a station. Without this the app
- * could staff the factory floor and nothing else — the showroom board had no
- * way to get a manager, so it was a screen nobody could reach.
+ * Where the business puts its own people and catalogue in.
+ *
+ * The factory manager gets the crews and the staff list; the catalogue and its
+ * prices stay with the owner. Which roles his staff form offers is not decided
+ * here — the server says what he may hand out, and the form asks.
  */
-const STAFF_ROLES = ["FACTORY_MANAGER", "SUPERVISOR", "SHOWROOM_MANAGER", "SALES_REP",
-                     "STOREKEEPER", "QC", "DRIVER", "ACCOUNTANT"] as const;
-
-/** Where the factory puts its own people and catalogue in. Owner and factory manager only. */
 export default function Setup() {
-  const { t, lang, toast } = useApp();
+  const { t, lang, toast, me } = useApp();
+  const catalogue = me?.role === "OWNER";
   const [tab, setTab] = useState<Tab>("crews");
   const [stations, setStations] = useState<Station[]>([]);
   const [groups, setGroups] = useState<GroupRow[]>([]);
@@ -24,11 +23,24 @@ export default function Setup() {
   const [locations, setLocations] = useState<LocationRow[]>([]);
   const [busy, setBusy] = useState(false);
 
+  const [roles, setRoles] = useState<string[]>([]);
+
+  // Each of these is fetched on its own terms. Not everyone on this screen may
+  // read all of it, and one refusal should leave the rest of the page working
+  // rather than blanking it.
+  const soft = <T,>(p: Promise<T>, fallback: T) => p.catch(() => fallback);
   const load = async () => {
-    const [st, gr, pe, pr, ca, lo] = await Promise.all([
-      api.stations(), api.groups(), api.people(), api.products(), api.categories(), api.locations(),
+    const [st, gr, pe, pr, ca, lo, ro] = await Promise.all([
+      soft(api.stations(), [] as Station[]),
+      soft(api.groups(), [] as GroupRow[]),
+      soft(api.people(), [] as PersonRow[]),
+      soft(api.products(), [] as ProductRow[]),
+      soft(api.categories(), [] as { id: string; nameAr: string; nameEn: string }[]),
+      soft(api.locations(), [] as LocationRow[]),
+      soft(api.grantableRoles(), [] as string[]),
     ]);
-    setStations(st); setGroups(gr); setPeople(pe); setProducts(pr); setCats(ca); setLocations(lo);
+    setStations(st); setGroups(gr); setPeople(pe);
+    setProducts(pr); setCats(ca); setLocations(lo); setRoles(ro);
   };
   useEffect(() => { load().catch(() => toast("error")); }, []);
 
@@ -45,12 +57,16 @@ export default function Setup() {
       <div className="row" style={{ marginBottom: 16 }}>
         <button className={`btn sm ${tab === "crews" ? "pri" : "sec"}`} onClick={() => setTab("crews")}>{t("crewsTab")}</button>
         <button className={`btn sm ${tab === "staff" ? "pri" : "sec"}`} onClick={() => setTab("staff")}>{t("staffTab")}</button>
-        <button className={`btn sm ${tab === "products" ? "pri" : "sec"}`} onClick={() => setTab("products")}>{t("productsTab")}</button>
+        {catalogue && (
+          <button className={`btn sm ${tab === "products" ? "pri" : "sec"}`}
+                  onClick={() => setTab("products")}>{t("productsTab")}</button>
+        )}
       </div>
 
       {tab === "crews" && <Crews stations={stations} groups={groups} people={people} busy={busy} run={run} nm={nm} />}
-      {tab === "staff" && <Staff people={people} locations={locations} stations={stations} busy={busy} run={run} nm={nm} />}
-      {tab === "products" && <Products products={products} cats={cats} busy={busy} run={run} nm={nm} />}
+      {tab === "staff" && <Staff people={people} locations={locations} stations={stations}
+                                 roles={roles} busy={busy} run={run} nm={nm} />}
+      {tab === "products" && catalogue && <Products products={products} cats={cats} busy={busy} run={run} nm={nm} />}
     </>
   );
 }
@@ -185,9 +201,12 @@ function MyAccount({ people, busy, run }: any) {
   );
 }
 
-function Staff({ people, locations, stations, busy, run, nm }: any) {
-  const { t, lang } = useApp();
-  const blank = { nameAr: "", email: "", phone: "", password: "", role: "SHOWROOM_MANAGER",
+function Staff({ people, locations, stations, roles, busy, run, nm }: any) {
+  const { t, lang, me } = useApp();
+  // Offer only what the server would accept from this person, so the form
+  // cannot present a role that comes back refused.
+  const offer: string[] = roles.length ? roles : [];
+  const blank = { nameAr: "", email: "", phone: "", password: "", role: offer[0] ?? "",
                   locationId: "", stationId: "" };
   const [p, setP] = useState(blank);
   const showrooms = locations.filter((l: LocationRow) => l.type === "SHOWROOM");
@@ -199,7 +218,8 @@ function Staff({ people, locations, stations, busy, run, nm }: any) {
   // A QC inspector reads their own station's queue, exactly as a leader does.
   // Without a station their screen is simply empty, so ask for it here.
   const needsStation = p.role === "QC";
-  const staff = people.filter((x: PersonRow) => x.canLogin && x.role !== "GROUP_LEADER");
+  const staff = people.filter((x: PersonRow) =>
+    x.canLogin && x.role !== "GROUP_LEADER" && (offer.includes(x.role) || x.id === me?.id));
 
   return (
     <>
@@ -211,7 +231,7 @@ function Staff({ people, locations, stations, busy, run, nm }: any) {
         <input placeholder={t("fullName")} value={p.nameAr}
                onChange={(e) => setP({ ...p, nameAr: e.target.value })} style={{ marginTop: 8 }} />
         <select value={p.role} onChange={(e) => setP({ ...p, role: e.target.value })} style={{ marginTop: 8 }}>
-          {STAFF_ROLES.map((r) => <option key={r} value={r}>{t(r as any)}</option>)}
+          {offer.map((r) => <option key={r} value={r}>{t(r as any)}</option>)}
         </select>
         {needsStation && (
           <select value={p.stationId} onChange={(e) => setP({ ...p, stationId: e.target.value })} style={{ marginTop: 8 }}>

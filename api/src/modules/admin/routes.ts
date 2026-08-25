@@ -4,7 +4,7 @@ import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import { db } from "../../db.js";
 import { guard } from "../../auth/jwt.js";
-import { CATALOGUE, SELL, SETUP } from "../../auth/scopes.js";
+import { CATALOGUE, SELL, SETUP, STAFF_ADMIN, canGrant, grantableBy } from "../../auth/scopes.js";
 import { record } from "../../lib/events.js";
 
 /**
@@ -27,7 +27,7 @@ async function defaultShowroomId() {
 
 export default async function adminRoutes(app: FastifyInstance) {
   // ---------------------------------------------------------------- stations
-  app.get("/admin/stations", { preHandler: guard(SETUP) }, async () =>
+  app.get("/admin/stations", { preHandler: guard(STAFF_ADMIN) }, async () =>
     db.station.findMany({ orderBy: { code: "asc" }, include: { groups: true } }));
 
   app.post("/admin/stations", { preHandler: guard(SETUP) }, async (req) => {
@@ -39,6 +39,10 @@ export default async function adminRoutes(app: FastifyInstance) {
     if (!factory) throw new Error("no factory location configured");
     return db.station.create({ data: { ...b, locationId: factory.id } });
   });
+
+  /** What the signed-in person may hand out, so the form offers only that. */
+  app.get("/admin/grantable-roles", { preHandler: guard(STAFF_ADMIN) }, async (req) =>
+    grantableBy((req as any).user.role.key));
 
   // ---------------------------------------------------------------- locations
   app.get("/admin/locations", { preHandler: guard(CATALOGUE) }, async () =>
@@ -56,7 +60,7 @@ export default async function adminRoutes(app: FastifyInstance) {
   });
 
   // ---------------------------------------------------------------- people
-  app.get("/admin/people", { preHandler: guard(SETUP) }, async () => {
+  app.get("/admin/people", { preHandler: guard(STAFF_ADMIN) }, async () => {
     const people = await db.user.findMany({
       orderBy: [{ isActive: "desc" }, { nameAr: "asc" }],
       include: { role: true, group: true, station: true, location: true },
@@ -71,7 +75,7 @@ export default async function adminRoutes(app: FastifyInstance) {
     }));
   });
 
-  app.post("/admin/people", { preHandler: guard(SETUP) }, async (req, reply) => {
+  app.post("/admin/people", { preHandler: guard(STAFF_ADMIN) }, async (req, reply) => {
     const b = z.object({
       nameAr: z.string().min(1), nameEn: z.string().min(1).optional(),
       role: z.enum(["OWNER","FACTORY_MANAGER","SUPERVISOR","GROUP_LEADER","QC",
@@ -90,6 +94,10 @@ export default async function adminRoutes(app: FastifyInstance) {
     if (b.canLogin && !b.phone && !b.email) {
       return reply.code(400).send({ error: "login_needs_phone_or_email" });
     }
+    const actor = (req as any).user;
+    if (!canGrant(actor.role.key, b.role)) {
+      return reply.code(403).send({ error: "role_not_grantable", allowed: grantableBy(actor.role.key) });
+    }
     const role = await db.role.findUnique({ where: { key: b.role } });
     if (!role) return reply.code(400).send({ error: "unknown_role" });
 
@@ -105,7 +113,7 @@ export default async function adminRoutes(app: FastifyInstance) {
     });
   });
 
-  app.patch("/admin/people/:id", { preHandler: guard(SETUP) }, async (req, reply) => {
+  app.patch("/admin/people/:id", { preHandler: guard(STAFF_ADMIN) }, async (req, reply) => {
     const { id } = req.params as { id: string };
     const b = z.object({
       nameAr: z.string().min(1).optional(),
@@ -117,8 +125,14 @@ export default async function adminRoutes(app: FastifyInstance) {
       locationId: z.string().nullable().optional(),
       isActive: z.boolean().optional(),
     }).parse(req.body);
-    const exists = await db.user.findUnique({ where: { id } });
+    const exists = await db.user.findUnique({ where: { id }, include: { role: true } });
     if (!exists) return reply.code(404).send({ error: "not_found" });
+
+    const actor = (req as any).user;
+    const self = actor.id === exists.id;
+    if (!self && !canGrant(actor.role.key, exists.role.key)) {
+      return reply.code(403).send({ error: "not_your_account_to_edit" });
+    }
 
     // phone and email are unique. Colliding with someone else's would otherwise
     // surface as a 500 from the database rather than something a screen can say.
@@ -144,7 +158,7 @@ export default async function adminRoutes(app: FastifyInstance) {
   });
 
   // ---------------------------------------------------------------- groups
-  app.get("/admin/groups", { preHandler: guard(SETUP) }, async () => {
+  app.get("/admin/groups", { preHandler: guard(STAFF_ADMIN) }, async () => {
     const groups = await db.group.findMany({
       orderBy: { nameAr: "asc" },
       include: { station: true, leader: true, members: { where: { canLogin: false, isActive: true } } },
@@ -158,7 +172,7 @@ export default async function adminRoutes(app: FastifyInstance) {
     }));
   });
 
-  app.post("/admin/groups", { preHandler: guard(SETUP) }, async (req) => {
+  app.post("/admin/groups", { preHandler: guard(STAFF_ADMIN) }, async (req) => {
     const b = z.object({
       nameAr: z.string().min(1), nameEn: z.string().min(1).optional(),
       stationId: z.string(), leaderId: z.string().optional(),
@@ -171,7 +185,7 @@ export default async function adminRoutes(app: FastifyInstance) {
     return g;
   });
 
-  app.patch("/admin/groups/:id", { preHandler: guard(SETUP) }, async (req, reply) => {
+  app.patch("/admin/groups/:id", { preHandler: guard(STAFF_ADMIN) }, async (req, reply) => {
     const { id } = req.params as { id: string };
     const b = z.object({
       nameAr: z.string().min(1).optional(), stationId: z.string().optional(),

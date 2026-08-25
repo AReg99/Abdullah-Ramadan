@@ -39,7 +39,7 @@ const NAVS: Record<string, Tab[]> = {
   // and the showroom's, and money never appears on these screens.
   FACTORY_MANAGER: [
     ["/today", "◧", "today"], ["/floor", "▦", "floor"], ["/dispatch", "⇥", "dispatch"],
-    ["/orders", "▤", "orders"], ["/labels", "⌗", "labels"],
+    ["/orders", "▤", "orders"], ["/labels", "⌗", "labels"], ["/setup", "⚙", "setup"],
   ],
   SUPERVISOR: [
     ["/today", "◧", "today"], ["/floor", "▦", "floor"], ["/dispatch", "⇥", "dispatch"],

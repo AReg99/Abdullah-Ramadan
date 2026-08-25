@@ -14,6 +14,13 @@ depends on the decisions on this page.
 > The planning board and capacity commitments described below are the design for
 > a later phase.
 
+> **Your staff list.** Setup → Crews and Setup → Staff are yours: add a
+> supervisor, group leader, QC inspector, storekeeper or driver, and reset their
+> passwords when they forget one. The catalogue, the prices and the owner's own
+> account are not yours to change, and order values do not appear anywhere on
+> your screens — you run the factory, not the till.
+
+
 ---
 
 ## ENGLISH
