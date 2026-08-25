@@ -71,6 +71,7 @@ export const api = {
   requestOtp: (phone: string) => req<{ sent: boolean; devCode?: string }>("/auth/otp/request", { method: "POST", body: JSON.stringify({ phone }) }),
   verifyOtp: (phone: string, code: string) => req<{ token: string; user: Me }>("/auth/otp/verify", { method: "POST", body: JSON.stringify({ phone, code }) }),
   login: (email: string, password: string) => req<{ token: string; user: Me }>("/auth/login", { method: "POST", body: JSON.stringify({ email, password }) }),
+  loginByPhone: (phone: string, password: string) => req<{ token: string; user: Me }>("/auth/login", { method: "POST", body: JSON.stringify({ phone, password }) }),
   me: () => req<Me>("/me"),
 
   workToday: () => cachedGet<Stage[]>("/work/today", "today"),

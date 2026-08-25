@@ -156,6 +156,35 @@ function Crews({ stations, groups, people, busy, run, nm }: any) {
   );
 }
 
+function MyAccount({ people, busy, run }: any) {
+  const { t, me } = useApp();
+  const mine = people.find((p: PersonRow) => p.id === me?.id);
+  const [phone, setPhone] = useState<string | null>(null);
+  const [pw, setPw] = useState("");
+  if (!mine) return null;
+  const value = phone ?? mine.phone ?? "";
+
+  return (
+    <div className="card">
+      <span className="k">{t("myAccount")}</span>
+      <p className="note" style={{ marginTop: 4 }}>{t("accountHint")}</p>
+      <span className="k" style={{ marginTop: 8, display: "block" }}>{t("myPhone")}</span>
+      <input className="mono" placeholder="01xxxxxxxxx" value={value}
+             onChange={(e) => setPhone(e.target.value)} style={{ marginTop: 7 }} />
+      <span className="k" style={{ marginTop: 8, display: "block" }}>{t("newPassword")}</span>
+      <input type="password" value={pw} onChange={(e) => setPw(e.target.value)} style={{ marginTop: 7 }} />
+      <button className="btn sec sm" style={{ marginTop: 10 }}
+              disabled={busy || (value === (mine.phone ?? "") && pw.length < 6)}
+              onClick={() => run(() => api.updatePerson(mine.id, {
+                ...(value !== (mine.phone ?? "") ? { phone: value || null } : {}),
+                ...(pw.length >= 6 ? { password: pw } : {}),
+              }), t("saved")).then(() => { setPhone(null); setPw(""); })}>
+        {t("saveAccount")}
+      </button>
+    </div>
+  );
+}
+
 function Staff({ people, locations, stations, busy, run, nm }: any) {
   const { t, lang } = useApp();
   const blank = { nameAr: "", email: "", phone: "", password: "", role: "SHOWROOM_MANAGER",
@@ -174,6 +203,8 @@ function Staff({ people, locations, stations, busy, run, nm }: any) {
 
   return (
     <>
+      <MyAccount people={people} busy={busy} run={run} />
+
       <div className="card">
         <span className="k">{t("addStaff")}</span>
         <p className="note" style={{ marginTop: 4 }}>{t("staffHint")}</p>

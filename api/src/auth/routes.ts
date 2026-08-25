@@ -53,7 +53,10 @@ export default async function authRoutes(app: FastifyInstance) {
     if (!identifier) return reply.code(400).send({ error: "email_or_phone_required" });
 
     const user = await db.user.findFirst({
-      where: { OR: [{ email: identifier }, { phone: identifier }], canLogin: true },
+      where: {
+        OR: [{ email: identifier }, ...phoneForms(identifier).map((p) => ({ phone: p }))],
+        canLogin: true,
+      },
       include: { role: true },
     });
     if (!user?.passwordHash || !user.isActive) return reply.code(401).send({ error: "bad_credentials" });
@@ -74,3 +77,20 @@ const shape = (u: any) => ({
   role: u.role?.key ?? u.roleId,
   stationId: u.stationId ?? null,
 });
+
+/**
+ * People type their own number the way they say it: 01012345678, or with spaces,
+ * or 0020… — while it is stored as +201012345678. Matching only the exact string
+ * would lock out most of the factory over a leading zero, so try every form the
+ * same Egyptian number can be written in.
+ */
+function phoneForms(raw: string): string[] {
+  const d = raw.replace(/[\s()\-.]/g, "");
+  if (!/^[+0-9]+$/.test(d)) return [raw];
+  const forms = new Set([raw, d]);
+  const digits = d.replace(/^\+/, "").replace(/^00/, "");
+  if (digits.startsWith("20")) forms.add("+" + digits).add("0" + digits.slice(2));
+  else if (digits.startsWith("0")) forms.add("+20" + digits.slice(1)).add(digits);
+  else forms.add("+20" + digits).add("0" + digits);
+  return [...forms].filter(Boolean);
+}

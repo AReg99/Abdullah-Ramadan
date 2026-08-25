@@ -20,12 +20,16 @@ Short, practical guides. **One page per role** — you only need to read yours.
 ## Before you start / قبل البدء
 
 **Your login / تسجيل الدخول**
-Office and showroom staff sign in with an email and password. Workers and drivers
-sign in with **their phone number and a one-time code** by SMS — no password to
-forget.
+Everyone signs in the same way: **a number and a password**. The sign-in screen
+has two sections — **Owner**, who may also use the email their account was
+created with, and **Employees**, who use their phone number. The owner sets
+everyone's password in Setup. Type the number the way you say it
+(01xxxxxxxxx); the app recognises it in any form.
 
-موظفو المكتب والمعرض يدخلون بالبريد الإلكتروني وكلمة المرور. العمال والسائقون
-يدخلون **برقم الهاتف وكود يصل برسالة** — بدون كلمة مرور.
+الكل بيدخل بنفس الطريقة: **رقم وكلمة سر**. شاشة الدخول فيها قسمين — **المالك**،
+ويقدر كمان يدخل بالبريد الإلكتروني اللي حسابه اتعمل بيه، و**الموظفين** برقم
+الموبايل. المالك بيعمل كلمات السر من الإعدادات. اكتب الرقم زي ما بتقوله
+(01xxxxxxxxx) — التطبيق بيعرفه بأي شكل.
 
 **Changing the language / تغيير اللغة**
 The `ع | EN` toggle is in the top corner of every screen. It changes instantly

@@ -1,12 +1,10 @@
 export type Lang = "ar" | "en";
 
 const ar = {
-  signin: "تسجيل الدخول", phone: "رقم الموبايل", sendCode: "إرسال الكود", code: "الكود",
+  signin: "تسجيل الدخول", phone: "رقم الموبايل",
   enter: "دخول", email: "البريد الإلكتروني", password: "كلمة المرور",
-  worker: "رئيس عمال", office: "موظف",
   crew: "المجموعة", crewOnJob: "اللي شغالين على القطعة", present: "موجود", absent: "مش موجود",
   crewHint: "اختار مين موجود دلوقتي — الإنتاج بيتحسب عليهم.", noCrew: "مفيش عمال مسجلين في مجموعتك",
-  devHint: "الكود في التطوير: 1234",
   work: "شغل النهاردة", scan: "امسح", myday: "يومي", today: "اليوم", floor: "المصنع", orders: "الطلبات",
   jobcard: "بطاقة الشغل", order: "طلب", qty: "العدد", due: "موعد التسليم", std: "الزمن المعياري",
   spec: "المواصفات", serial: "الرقم المسلسل",
@@ -69,15 +67,22 @@ const ar = {
   FACTORY_MANAGER: "مدير المصنع", SUPERVISOR: "مشرف", SHOWROOM_MANAGER: "مدير المعرض",
   SALES_REP: "مندوب مبيعات", STOREKEEPER: "أمين المخزن", QC: "مفتش الجودة",
   DRIVER: "سائق", ACCOUNTANT: "محاسب",
+  ownerTab: "المالك", employeesTab: "الموظفين",
+  ownerSignInHint: "ادخل بالبريد الإلكتروني أو رقم الموبايل اللي حسابك اتعمل بيه.",
+  staffSignInHint: "ادخل برقم موبايلك وكلمة السر اللي المالك عملهالك.",
+  emailOrPhone: "البريد الإلكتروني أو رقم الموبايل",
+  badCredentials: "الرقم أو كلمة السر غلط",
+  signInFailed: "مش قادر يدخل — جرّب تاني",
+  forgotHint: "نسيت كلمة السر؟ المالك بيغيّرها من الإعدادات.",
+  myAccount: "حسابي", myPhone: "رقم موبايلي", newPassword: "كلمة سر جديدة",
+  saveAccount: "حفظ", accountHint: "الرقم ده هو اللي بتدخل بيه.",
 };
 
 const en: Record<keyof typeof ar, string> = {
-  signin: "Sign in", phone: "Phone number", sendCode: "Send code", code: "Code",
+  signin: "Sign in", phone: "Phone number",
   enter: "Enter", email: "Email", password: "Password",
-  worker: "Group leader", office: "Office",
   crew: "Crew", crewOnJob: "On this job", present: "Present", absent: "Absent",
   crewHint: "Tap anyone who is not here — output is credited to those left on.", noCrew: "No workers in your crew yet",
-  devHint: "Development code: 1234",
   work: "My work today", scan: "Scan", myday: "My day", today: "Today", floor: "Floor", orders: "Orders",
   jobcard: "Job card", order: "Order", qty: "Qty", due: "Due", std: "Standard time",
   spec: "Specification", serial: "Serial",
@@ -140,6 +145,15 @@ const en: Record<keyof typeof ar, string> = {
   FACTORY_MANAGER: "Factory manager", SUPERVISOR: "Supervisor", SHOWROOM_MANAGER: "Showroom manager",
   SALES_REP: "Sales rep", STOREKEEPER: "Storekeeper", QC: "QC inspector",
   DRIVER: "Driver", ACCOUNTANT: "Accountant",
+  ownerTab: "Owner", employeesTab: "Employees",
+  ownerSignInHint: "Sign in with the email or phone number your account was created with.",
+  staffSignInHint: "Sign in with your phone number and the password the owner gave you.",
+  emailOrPhone: "Email or phone number",
+  badCredentials: "That number or password is not right",
+  signInFailed: "Could not sign in — try again",
+  forgotHint: "Forgotten your password? The owner can change it in Setup.",
+  myAccount: "My account", myPhone: "My phone number", newPassword: "New password",
+  saveAccount: "Save", accountHint: "This is the number you sign in with.",
 };
 
 export const DICT = { ar, en };

@@ -15,7 +15,8 @@
 
 ### الدخول
 
-افتح التطبيق ← اكتب رقم موبايلك ← هيوصلك كود برسالة ← اكتبه. خلاص.
+افتح التطبيق ← اختار **الموظفين** ← اكتب رقم موبايلك وكلمة السر اللي المالك عملهالك. خلاص.
+اكتب الرقم زي ما بتقوله عادي (01xxxxxxxxx) — التطبيق بيعرفه بأي شكل.
 مفيش كلمة سر تنساها.
 
 ### شغلك كل يوم — ٧ خطوات
@@ -125,7 +126,9 @@
 ## ENGLISH
 
 ### Signing in
-Open the app → enter your phone number → a code arrives by SMS → type it in.
+Open the app → tap **Employees** → enter your phone number and the password the
+owner gave you. Type the number the way you say it (01xxxxxxxxx); the app
+recognises it in any form.
 No password.
 
 ### Your day — seven steps

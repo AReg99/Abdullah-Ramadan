@@ -107,6 +107,8 @@ export default async function adminRoutes(app: FastifyInstance) {
     const b = z.object({
       nameAr: z.string().min(1).optional(),
       password: z.string().min(6).optional(),
+      phone: z.string().min(6).nullable().optional(),
+      email: z.string().email().nullable().optional(),
       groupId: z.string().nullable().optional(),
       stationId: z.string().nullable().optional(),
       locationId: z.string().nullable().optional(),
@@ -114,11 +116,22 @@ export default async function adminRoutes(app: FastifyInstance) {
     }).parse(req.body);
     const exists = await db.user.findUnique({ where: { id } });
     if (!exists) return reply.code(404).send({ error: "not_found" });
+
+    // phone and email are unique. Colliding with someone else's would otherwise
+    // surface as a 500 from the database rather than something a screen can say.
+    for (const [field, value] of [["phone", b.phone], ["email", b.email]] as const) {
+      if (!value) continue;
+      const taken = await db.user.findFirst({ where: { [field]: value, id: { not: id } } });
+      if (taken) return reply.code(409).send({ error: `${field}_taken` });
+    }
+
     return db.user.update({
       where: { id },
       data: {
         ...(b.nameAr ? { nameAr: b.nameAr } : {}),
         ...(b.password ? { passwordHash: bcrypt.hashSync(b.password, 10) } : {}),
+        ...(b.phone !== undefined ? { phone: b.phone } : {}),
+        ...(b.email !== undefined ? { email: b.email } : {}),
         ...(b.groupId !== undefined ? { groupId: b.groupId } : {}),
         ...(b.stationId !== undefined ? { stationId: b.stationId } : {}),
         ...(b.locationId !== undefined ? { locationId: b.locationId } : {}),
