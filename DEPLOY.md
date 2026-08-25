@@ -183,35 +183,63 @@ ports, so do not rely on it for that.
 full PostgreSQL deployment rather than the lite one, and 128 GB of disk is years
 of photos.
 
-### Then
+### Then — one command
+
+Everything from here is scripted. On the server, as root:
 
 ```bash
-git clone https://github.com/AReg99/Abdullah-Ramadan.git
-cd Abdullah-Ramadan
-git checkout claude/furniture-factory-tracking-k4psgd
+curl -fsSL https://raw.githubusercontent.com/AReg99/Abdullah-Ramadan/claude/furniture-factory-tracking-k4psgd/scripts/server-setup.sh -o setup.sh
+bash setup.sh
+```
+
+It asks for three things — your domain, the email you want to sign in with, and
+a password for that account — and then does the rest: checks the domain really
+points at this server, installs Docker if it is missing, fetches the code to
+`/opt/aura`, generates `JWT_SECRET` and `POSTGRES_PASSWORD` with `openssl rand`,
+writes them to a `.env.prod` only root can read, and brings the stack up. First
+build takes a few minutes; it waits for the certificate and prints the address
+when the API answers.
+
+Run it again any time to update — it keeps the existing `.env.prod`, so your
+secrets are not rotated and your data is untouched.
+
+**If it stops at the DNS check**, the A record is either not added yet, still
+propagating, or proxied. That check is deliberate: without it the stack comes up
+looking healthy while Caddy quietly never obtains a certificate, and the site
+simply never loads.
+
+<details>
+<summary>Doing it by hand instead</summary>
+
+```bash
+git clone --branch claude/furniture-factory-tracking-k4psgd \
+  https://github.com/AReg99/Abdullah-Ramadan.git /opt/aura
+cd /opt/aura
 
 cp .env.prod.example .env.prod
-# Fill in DOMAIN, and generate the two secrets:
+# Fill in DOMAIN, OWNER_EMAIL, OWNER_PASSWORD, and generate the two secrets:
 #   openssl rand -hex 32   → JWT_SECRET
 #   openssl rand -hex 24   → POSTGRES_PASSWORD
+chmod 600 .env.prod
 
 docker compose -f docker-compose.prod.yml --env-file .env.prod up -d --build
 ```
 
-### Start empty, not with demo data
+</details>
 
-A real factory should not begin holding three invented orders for three
-invented customers. Seed for production instead:
+### It starts empty, not with demo data
 
-```bash
-docker compose -f docker-compose.prod.yml --env-file .env.prod exec api \
-  env SEED_DEMO=0 OWNER_EMAIL=you@yourdomain OWNER_PASSWORD='a-long-password' \
-  npx tsx prisma/seed.ts
-```
+A real factory should not begin holding three invented orders for three invented
+customers, and the demo owner's password is published in this repository. So the
+production compose files set `SEED_DEMO=0` and take the owner account from
+`OWNER_EMAIL` and `OWNER_PASSWORD` instead.
 
-That installs only what the system cannot run without — the factory, the eight
-stations and the standard routing with its photo gates — plus your owner
-account. Everything else you enter yourself under **Setup**.
+What gets installed is only what the system cannot run without — the factory,
+the eight stations, and the standard routing with its photo gates — plus your
+owner account. Everything else you enter yourself under **Setup**.
+
+The seed also no-ops entirely once the database has anything in it, so
+restarting or rebuilding never overwrites real work.
 
 ### Your first hour in the app
 
