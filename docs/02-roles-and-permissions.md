@@ -18,6 +18,38 @@
 | **Accountant** | Office | Web | Invoices, payments, costing, margin, exports |
 | *Customer* | — | Public link, no login | Track, approve a design or photo, pay a balance, request after-sales |
 
+
+## What each role opens in the app today
+
+Ten of the eleven roles above exist in the system and each signs in to a screen
+built for them. Verified by signing in as every one of them and opening its
+first tab.
+
+| Role | Signs in to | Sees |
+| --- | --- | --- |
+| Owner | Today | Everything: floor, dispatch, showroom, orders, setup |
+| Factory manager | Today | Floor, dispatch, orders, new order, labels, setup |
+| Supervisor | Today | Floor, dispatch, orders, labels |
+| Group leader | Work | Only their own group's station |
+| QC inspector | Work | Only the QC station's queue — needs a station assigned in Setup |
+| Storekeeper | Dispatch | The outbound bench, labels, orders |
+| Showroom manager | Showroom | Their branch's board and orders |
+| Sales rep | Showroom | Their branch's board and orders |
+| Delivery driver | Showroom | What is on the van, and signing it in on arrival |
+| Accountant | Orders | Order values and status |
+| *Worker* | — | Does not sign in, by design: a roster record so output stays attributable |
+
+**Purchasing officer is not in the system.** The role only makes sense with the
+purchasing module — shortages, purchase orders, suppliers, chasing — and none of
+that is built. Adding the role now would create an account with nothing to open.
+
+**The customer tracking page is not built either.** Every order already carries
+its `trackingToken`, so the link exists in the data and nothing serves it yet.
+
+Any role not listed above falls back to the shop-floor tabs and, without a
+station, sees no work at all — deliberately, so an unassigned account can never
+be handed the whole factory's job list.
+
 ## Permission matrix
 
 `R` = read, `W` = create/edit, `A` = approve, `—` = no access.

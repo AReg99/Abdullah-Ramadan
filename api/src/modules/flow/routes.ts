@@ -18,7 +18,7 @@ import { syncOrderStatus } from "../../lib/order-status.js";
  */
 
 const FACTORY_SIDE = ["OWNER", "FACTORY_MANAGER", "SUPERVISOR", "STOREKEEPER"];
-const SHOWROOM_SIDE = ["OWNER", "FACTORY_MANAGER", "SHOWROOM_MANAGER", "SALES_REP"];
+const SHOWROOM_SIDE = ["OWNER", "FACTORY_MANAGER", "SHOWROOM_MANAGER", "SALES_REP", "DRIVER"];
 
 const envelope = z.object({
   clientEventId: z.string().min(8).optional(),

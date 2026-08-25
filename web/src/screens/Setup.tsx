@@ -49,7 +49,7 @@ export default function Setup() {
       </div>
 
       {tab === "crews" && <Crews stations={stations} groups={groups} people={people} busy={busy} run={run} nm={nm} />}
-      {tab === "staff" && <Staff people={people} locations={locations} busy={busy} run={run} nm={nm} />}
+      {tab === "staff" && <Staff people={people} locations={locations} stations={stations} busy={busy} run={run} nm={nm} />}
       {tab === "products" && <Products products={products} cats={cats} busy={busy} run={run} nm={nm} />}
     </>
   );
@@ -156,9 +156,10 @@ function Crews({ stations, groups, people, busy, run, nm }: any) {
   );
 }
 
-function Staff({ people, locations, busy, run, nm }: any) {
+function Staff({ people, locations, stations, busy, run, nm }: any) {
   const { t, lang } = useApp();
-  const blank = { nameAr: "", email: "", phone: "", password: "", role: "SHOWROOM_MANAGER", locationId: "" };
+  const blank = { nameAr: "", email: "", phone: "", password: "", role: "SHOWROOM_MANAGER",
+                  locationId: "", stationId: "" };
   const [p, setP] = useState(blank);
   const showrooms = locations.filter((l: LocationRow) => l.type === "SHOWROOM");
   const [room, setRoom] = useState({ nameAr: "", address: "" });
@@ -166,6 +167,9 @@ function Staff({ people, locations, busy, run, nm }: any) {
   // A branch only needs choosing when there is more than one; with a single
   // showroom the server assigns it and the field would be noise.
   const needsBranch = ["SHOWROOM_MANAGER", "SALES_REP"].includes(p.role) && showrooms.length > 1;
+  // A QC inspector reads their own station's queue, exactly as a leader does.
+  // Without a station their screen is simply empty, so ask for it here.
+  const needsStation = p.role === "QC";
   const staff = people.filter((x: PersonRow) => x.canLogin && x.role !== "GROUP_LEADER");
 
   return (
@@ -178,6 +182,12 @@ function Staff({ people, locations, busy, run, nm }: any) {
         <select value={p.role} onChange={(e) => setP({ ...p, role: e.target.value })} style={{ marginTop: 8 }}>
           {STAFF_ROLES.map((r) => <option key={r} value={r}>{t(r as any)}</option>)}
         </select>
+        {needsStation && (
+          <select value={p.stationId} onChange={(e) => setP({ ...p, stationId: e.target.value })} style={{ marginTop: 8 }}>
+            <option value="">{t("pickStation")}</option>
+            {stations.map((st: Station) => <option key={st.id} value={st.id}>{nm(st.nameAr, st.nameEn)}</option>)}
+          </select>
+        )}
         {needsBranch && (
           <select value={p.locationId} onChange={(e) => setP({ ...p, locationId: e.target.value })} style={{ marginTop: 8 }}>
             <option value="">{t("allShowrooms")}</option>
@@ -191,12 +201,14 @@ function Staff({ people, locations, busy, run, nm }: any) {
         <input placeholder={t("password")} value={p.password}
                onChange={(e) => setP({ ...p, password: e.target.value })} style={{ marginTop: 8 }} />
         <button className="btn pri sm" style={{ marginTop: 10 }}
-          disabled={busy || !p.nameAr || (!p.email && !p.phone) || p.password.length < 6}
+          disabled={busy || !p.nameAr || (!p.email && !p.phone) || p.password.length < 6
+                    || (needsStation && !p.stationId)}
           onClick={() => run(() => api.addPerson({
             nameAr: p.nameAr, role: p.role, password: p.password,
             ...(p.email ? { email: p.email } : {}),
             ...(p.phone ? { phone: p.phone } : {}),
             ...(p.locationId ? { locationId: p.locationId } : {}),
+            ...(p.stationId ? { stationId: p.stationId } : {}),
           }), t("saved")).then(() => setP(blank))}>
           {t("add")}
         </button>
@@ -230,6 +242,7 @@ function Staff({ people, locations, busy, run, nm }: any) {
                 <b>{x.nameAr}</b>
                 <span className="muted"> · {t(x.role as any)}</span>
                 {x.locationName && <span className="muted"> · {x.locationName}</span>}
+                {x.stationName && <span className="muted"> · {x.stationName}</span>}
               </span>
               <span className="mono muted">{x.email ?? x.phone}</span>
             </div>

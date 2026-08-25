@@ -47,6 +47,14 @@ async function stationFor(user: { stationId: string | null; groupId: string | nu
   return user.stationId;
 }
 
+/**
+ * Managers legitimately look across every station. Nobody else does: without
+ * this, a station-less account — a driver, an unassigned QC inspector — asked
+ * for "my station's work" and was handed the entire factory's open job list,
+ * because an empty station filter matches everything.
+ */
+const CROSS_STATION = ["OWNER", "FACTORY_MANAGER", "SUPERVISOR"];
+
 /** A stage becomes READY only when every earlier stage is DONE. */
 async function refreshReadiness(workOrderId: string) {
   const stages = await db.workOrderStage.findMany({ where: { workOrderId }, orderBy: { seq: "asc" } });
@@ -64,6 +72,7 @@ export default async function workRoutes(app: FastifyInstance) {
   app.get("/work/today", { preHandler: guard() }, async (req) => {
     const user = (req as any).user;
     const stationId = await stationFor(user);
+    if (!stationId && !CROSS_STATION.includes(user.role.key)) return [];
     const stages = await db.workOrderStage.findMany({
       where: {
         status: { in: ["READY", "IN_PROGRESS", "PAUSED"] },

@@ -47,7 +47,14 @@ const NAVS: Record<string, Tab[]> = {
   STOREKEEPER: [["/dispatch", "⇥", "dispatch"], ["/labels", "⌗", "labels"], ["/orders", "▤", "orders"]],
   SHOWROOM_MANAGER: [["/showroom", "⌂", "showroom"], ["/orders", "▤", "orders"], ["/new-order", "✎", "newOrder"]],
   SALES_REP: [["/showroom", "⌂", "showroom"], ["/orders", "▤", "orders"], ["/new-order", "✎", "newOrder"]],
-  ACCOUNTANT: [["/today", "◧", "today"], ["/orders", "▤", "orders"]],
+  // On the road between the factory and the showroom: what is on the van, and
+  // signing it in when it lands.
+  DRIVER: [["/showroom", "⌂", "showroom"]],
+  // Not the ops dashboard — that is guarded to production roles, and pointing
+  // the accountant at it landed them on a 403 the moment they signed in.
+  ACCOUNTANT: [["/orders", "▤", "orders"]],
+  // QC stands at a station like a leader does, so they get the floor tabs.
+  QC: [["/work", "▤", "work"], ["/scan", "⌗", "scan"], ["/myday", "◔", "myday"]],
 };
 
 const FLOOR: Tab[] = [["/work", "▤", "work"], ["/scan", "⌗", "scan"], ["/myday", "◔", "myday"]];
