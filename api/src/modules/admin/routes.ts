@@ -336,57 +336,15 @@ export default async function adminRoutes(app: FastifyInstance) {
     return { removed: true };
   });
 
-  app.post("/admin/products", { preHandler: guard(SETUP) }, async (req, reply) => {
+  app.post("/admin/products", { preHandler: guard(SETUP) }, async (req) => {
     const b = z.object({
       sku: z.string().min(1), nameAr: z.string().min(1), nameEn: z.string().min(1).optional(),
       categoryId: z.string(), basePrice: z.number().nonnegative(),
       baseLeadDays: z.number().int().positive().default(14),
       kind: z.enum(["STANDARD", "CUSTOMIZABLE"]).default("STANDARD"),
     }).parse(req.body);
-    if (await db.product.findUnique({ where: { sku: b.sku } })) {
-      return reply.code(409).send({ error: "sku_taken" });
-    }
     return db.product.create({
       data: { ...b, nameEn: b.nameEn ?? b.nameAr, basePrice: String(b.basePrice) },
-    });
-  });
-
-  /**
-   * Correcting a product after the fact. Until now the catalogue was
-   * write-once: a price typed wrong stayed wrong, which also made importing
-   * drafts pointless — there was no way to finish them.
-   */
-  app.patch("/admin/products/:id", { preHandler: guard(SETUP) }, async (req, reply) => {
-    const { id } = req.params as { id: string };
-    const b = z.object({
-      sku: z.string().min(1).optional(),
-      nameAr: z.string().min(1).optional(),
-      nameEn: z.string().min(1).optional(),
-      categoryId: z.string().optional(),
-      basePrice: z.number().nonnegative().optional(),
-      baseLeadDays: z.number().int().positive().optional(),
-      kind: z.enum(["STANDARD", "CUSTOMIZABLE"]).optional(),
-      isActive: z.boolean().optional(),
-    }).parse(req.body);
-
-    if (!(await db.product.findUnique({ where: { id } }))) {
-      return reply.code(404).send({ error: "not_found" });
-    }
-    if (b.sku && await db.product.findFirst({ where: { sku: b.sku, id: { not: id } } })) {
-      return reply.code(409).send({ error: "sku_taken" });
-    }
-    return db.product.update({
-      where: { id },
-      data: {
-        ...(b.sku ? { sku: b.sku } : {}),
-        ...(b.nameAr ? { nameAr: b.nameAr } : {}),
-        ...(b.nameEn ? { nameEn: b.nameEn } : {}),
-        ...(b.categoryId ? { categoryId: b.categoryId } : {}),
-        ...(b.basePrice !== undefined ? { basePrice: String(b.basePrice) } : {}),
-        ...(b.baseLeadDays !== undefined ? { baseLeadDays: b.baseLeadDays } : {}),
-        ...(b.kind ? { kind: b.kind } : {}),
-        ...(b.isActive !== undefined ? { isActive: b.isActive } : {}),
-      },
     });
   });
 

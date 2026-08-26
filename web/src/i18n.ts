@@ -94,13 +94,6 @@ const ar = {
   addPhotos: "إضافة صور", productPhotos: "صور المنتج",
   photoHint: "الصورة الأولى هي اللي بتظهر في الطلبات وعند رئيس العمال.",
   images_only: "صور بس — مش ملفات",
-  igImport: "استيراد من انستجرام", igToken: "التوكن", igLoad: "اعرض البوستات",
-  igHint: "بيجيب البوستات من صفحتكم عن طريق انستجرام نفسه. محتاج توكن من حساب Business — الخطوات في الدليل.",
-  igTokenBad: "التوكن غلط أو انتهى", igFailed: "مش قادر يوصل لانستجرام",
-  igEmpty: "مفيش بوستات فيها صور", igSomeFailed: "بوستات مستوردتش",
-  igImportN: "استورد {n} منتج", igDraftHint: "المنتجات بتتسجل كمسودة ومقفولة — راجع السعر وفعّلها.",
-  draft: "مسودة", edit: "تعديل", cancel: "إلغاء", activate: "تفعيل", deactivate: "إيقاف",
-  sku_taken: "الكود ده مستخدم قبل كده",
 };
 
 const en: Record<keyof typeof ar, string> = {
@@ -197,13 +190,6 @@ const en: Record<keyof typeof ar, string> = {
   addPhotos: "Add photos", productPhotos: "Product photos",
   photoHint: "The first photo is the one shown on orders and on the job card.",
   images_only: "Images only — not documents",
-  igImport: "Import from Instagram", igToken: "Access token", igLoad: "Show posts",
-  igHint: "Reads your posts through Instagram's own API. Needs a token from a Business account — steps in the guide.",
-  igTokenBad: "That token is wrong or expired", igFailed: "Could not reach Instagram",
-  igEmpty: "No posts with pictures", igSomeFailed: "posts could not be imported",
-  igImportN: "Import {n} products", igDraftHint: "Imported products arrive as drafts, switched off — check the price, then activate.",
-  draft: "Draft", edit: "Edit", cancel: "Cancel", activate: "Activate", deactivate: "Deactivate",
-  sku_taken: "That code is already in use",
 };
 
 export const DICT = { ar, en };

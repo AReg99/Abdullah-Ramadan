@@ -100,14 +100,6 @@ export const api = {
   categories: () => req<{ id: string; nameAr: string; nameEn: string }[]>("/admin/categories"),
   addCategory: (b: { nameAr: string }) => req<any>("/admin/categories", { method: "POST", body: JSON.stringify(b) }),
   products: () => req<ProductRow[]>("/admin/products"),
-  updateProduct: (id: string, b: Partial<{ nameAr: string; sku: string; basePrice: number;
-      baseLeadDays: number; categoryId: string; isActive: boolean }>) =>
-    req<ProductRow>(`/admin/products/${id}`, { method: "PATCH", body: JSON.stringify(b) }),
-  instagramMedia: (token: string, limit = 24) =>
-    req<IgMedia[]>("/admin/instagram/media", { method: "POST", body: JSON.stringify({ token, limit }) }),
-  instagramImport: (categoryId: string, items: IgImportItem[]) =>
-    req<{ created: { id: string; sku: string; nameAr: string }[]; failed: { nameAr: string; reason: string }[] }>(
-      "/admin/instagram/import", { method: "POST", body: JSON.stringify({ categoryId, items }) }),
   addProductPhoto: (productId: string, file: File) => {
     const fd = new FormData();
     fd.append("file", file, file.name);
@@ -188,10 +180,6 @@ export type GroupRow = { id: string; nameAr: string; nameEn: string; isActive: b
   stationId: string; stationAr: string; stationEn: string;
   leader: { id: string; nameAr: string; phone: string | null } | null;
   memberCount: number; members: { id: string; nameAr: string }[] };
-export type IgMedia = { id: string; caption: string | null; permalink: string | null;
-  timestamp: string | null; imageUrl: string; mediaType: string };
-export type IgImportItem = { imageUrl: string; nameAr: string; sku?: string; basePrice?: number;
-  permalink?: string };
 export type ProductPhoto = { id: string; path: string; filename: string };
 export type ProductRow = { id: string; sku: string; nameAr: string; nameEn: string; kind: string;
   basePrice: number; baseLeadDays: number; isActive: boolean; categoryId: string; categoryAr: string;
