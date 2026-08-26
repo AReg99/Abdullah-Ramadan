@@ -68,7 +68,9 @@ export default function NewOrder() {
           </div>
           <select value={l.productId} onChange={(e) => setLine(i, { productId: e.target.value })} style={{ marginTop: 8 }}>
             <option value="">{t("pickProduct")}</option>
-            {products.map((p) => (
+            {/* Only what is switched on: a model still being set up has no
+                price, and the server refuses it anyway. */}
+            {products.filter((p) => p.isActive).map((p) => (
               <option key={p.id} value={p.id}>
                 {lang === "ar" ? p.nameAr : p.nameEn} — {p.basePrice.toLocaleString()} EGP
               </option>

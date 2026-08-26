@@ -161,6 +161,8 @@ model Product {
   kind           String     @default("STANDARD")
   basePrice      Decimal
   baseLeadDays   Int             @default(14)
+  /// The line the showroom reads to the customer. Marketing copy, not a spec.
+  description    String?
   warrantyMonths Int             @default(24)
   categoryId     String
   category       ProductCategory @relation(fields: [categoryId], references: [id])

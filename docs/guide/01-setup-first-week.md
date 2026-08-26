@@ -8,6 +8,22 @@ before your stations are defined.
 
 ---
 
+
+> **Loading the 2025 catalogue.** The three collections and their twelve models
+> — dining, bedrooms, kids — are in the app already, ready to load in one command
+> on the server:
+>
+> ```bash
+> cd /opt/aura && docker compose -f docker-compose.prod.yml --env-file .env.prod \
+>   exec api npx tsx prisma/load-catalogue.ts
+> ```
+>
+> Each model arrives **switched off with no price**, because the printed
+> catalogue carries none. Open **Setup → Products**, press **Edit** on each one,
+> type the price, and press **Activate**. Until you do, it cannot be put on an
+> order — deliberately, so nothing is ever sold at zero. Running the command
+> twice is safe: a model already there is left exactly as it is.
+
 ## Day 1 — Company, places, people
 
 **1.1 Company profile.** Name (Arabic and English), logo, tax number, addresses,

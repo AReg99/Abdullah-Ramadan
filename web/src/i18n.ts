@@ -94,6 +94,11 @@ const ar = {
   addPhotos: "إضافة صور", productPhotos: "صور المنتج",
   photoHint: "الصورة الأولى هي اللي بتظهر في الطلبات وعند رئيس العمال.",
   images_only: "صور بس — مش ملفات",
+  draft: "مسودة", edit: "تعديل", cancel: "إلغاء", activate: "تفعيل", deactivate: "إيقاف",
+  sku_taken: "الكود ده مستخدم قبل كده",
+  priceBeforeActive: "لازم تحط السعر الأول عشان تقدر تفعّله.",
+  price_required_to_activate: "لازم سعر أكبر من صفر قبل التفعيل",
+  product_not_active: "المنتج ده لسه مش مفعّل",
 };
 
 const en: Record<keyof typeof ar, string> = {
@@ -190,6 +195,11 @@ const en: Record<keyof typeof ar, string> = {
   addPhotos: "Add photos", productPhotos: "Product photos",
   photoHint: "The first photo is the one shown on orders and on the job card.",
   images_only: "Images only — not documents",
+  draft: "Draft", edit: "Edit", cancel: "Cancel", activate: "Activate", deactivate: "Deactivate",
+  sku_taken: "That code is already in use",
+  priceBeforeActive: "Set the price before you can activate it.",
+  price_required_to_activate: "A price above zero is needed before activating",
+  product_not_active: "That product is not active yet",
 };
 
 export const DICT = { ar, en };

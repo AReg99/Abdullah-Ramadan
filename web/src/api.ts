@@ -100,6 +100,9 @@ export const api = {
   categories: () => req<{ id: string; nameAr: string; nameEn: string }[]>("/admin/categories"),
   addCategory: (b: { nameAr: string }) => req<any>("/admin/categories", { method: "POST", body: JSON.stringify(b) }),
   products: () => req<ProductRow[]>("/admin/products"),
+  updateProduct: (id: string, b: Partial<{ nameAr: string; sku: string; basePrice: number;
+      baseLeadDays: number; categoryId: string; description: string | null; isActive: boolean }>) =>
+    req<ProductRow>(`/admin/products/${id}`, { method: "PATCH", body: JSON.stringify(b) }),
   addProductPhoto: (productId: string, file: File) => {
     const fd = new FormData();
     fd.append("file", file, file.name);
@@ -183,7 +186,7 @@ export type GroupRow = { id: string; nameAr: string; nameEn: string; isActive: b
 export type ProductPhoto = { id: string; path: string; filename: string };
 export type ProductRow = { id: string; sku: string; nameAr: string; nameEn: string; kind: string;
   basePrice: number; baseLeadDays: number; isActive: boolean; categoryId: string; categoryAr: string;
-  photos: ProductPhoto[] };
+  description: string | null; photos: ProductPhoto[] };
 export type NewProduct = { sku: string; nameAr: string; nameEn?: string; categoryId: string;
   basePrice: number; baseLeadDays?: number; kind?: string };
 export type NewOrder = { customerId?: string; customerName?: string; customerPhone?: string;

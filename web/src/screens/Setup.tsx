@@ -335,6 +335,73 @@ function Staff({ people, locations, stations, roles, busy, run, nm }: any) {
 }
 
 /**
+ * A product is not finished the moment it is created. A model loaded from the
+ * printed catalogue arrives with no price at all, and until now the catalogue
+ * was write-once, so there was no way to finish one.
+ */
+function ProductRowEditor({ product, cats, busy, run }: any) {
+  const { t } = useApp();
+  const [open, setOpen] = useState(false);
+  const [f, setF] = useState({
+    nameAr: product.nameAr, sku: product.sku,
+    basePrice: String(product.basePrice), categoryId: product.categoryId,
+  });
+  const price = Number(f.basePrice) || 0;
+
+  if (!open) {
+    return (
+      <div className="between">
+        <span style={{ flex: 1 }}>
+          <span className="nm">
+            {product.nameAr}
+            {!product.isActive && <span className="pill warn" style={{ marginInlineStart: 7 }}>{t("draft")}</span>}
+          </span>
+          <span className="sub">
+            <span className="mono">{product.sku}</span> · {product.categoryAr} ·{" "}
+            <span className="mono">{product.basePrice.toLocaleString()}</span> EGP
+          </span>
+          {product.description && <span className="sub">{product.description}</span>}
+        </span>
+        <button className="chip" onClick={() => setOpen(true)}>{t("edit")}</button>
+      </div>
+    );
+  }
+
+  return (
+    <>
+      <input value={f.nameAr} onChange={(e) => setF({ ...f, nameAr: e.target.value })} placeholder={t("productName")} />
+      <input className="mono" value={f.sku} onChange={(e) => setF({ ...f, sku: e.target.value })}
+             placeholder={t("sku")} style={{ marginTop: 8 }} />
+      <input className="mono" inputMode="numeric" value={f.basePrice}
+             onChange={(e) => setF({ ...f, basePrice: e.target.value })} placeholder={t("price")}
+             style={{ marginTop: 8 }} />
+      <select value={f.categoryId} onChange={(e) => setF({ ...f, categoryId: e.target.value })} style={{ marginTop: 8 }}>
+        {cats.map((c: any) => <option key={c.id} value={c.id}>{c.nameAr}</option>)}
+      </select>
+      <div className="row" style={{ marginTop: 10 }}>
+        <button className="btn sec sm" onClick={() => setOpen(false)}>{t("cancel")}</button>
+        <button className="btn pri sm" disabled={busy || !f.nameAr.trim() || !f.sku.trim()}
+          onClick={() => run(() => api.updateProduct(product.id, {
+            nameAr: f.nameAr.trim(), sku: f.sku.trim(),
+            basePrice: price, categoryId: f.categoryId,
+          }), t("saved")).then(() => setOpen(false))}>
+          {t("saveAccount")}
+        </button>
+      </div>
+      <div className="row" style={{ marginTop: 8 }}>
+        <button className={`btn sm ${product.isActive ? "dang" : "pri"}`}
+          disabled={busy || (!product.isActive && price <= 0)}
+          onClick={() => run(() => api.updateProduct(product.id,
+            { basePrice: price, isActive: !product.isActive }), t("saved")).then(() => setOpen(false))}>
+          {product.isActive ? t("deactivate") : t("activate")}
+        </button>
+      </div>
+      {!product.isActive && price <= 0 && <p className="note">{t("priceBeforeActive")}</p>}
+    </>
+  );
+}
+
+/**
  * A product's pictures. They attach after the product exists, which is why this
  * lives on the row rather than in the add form: there is nothing to attach a
  * photo to until the product has been saved.
@@ -393,12 +460,7 @@ function Products({ products, cats, busy, run, nm }: any) {
     <>
       {products.map((x: ProductRow) => (
         <div className="card" key={x.id}>
-          <div className="between">
-            <span style={{ flex: 1 }}>
-              <span className="nm">{x.nameAr}</span>
-              <span className="sub"><span className="mono">{x.sku}</span> · {x.categoryAr} · <span className="mono">{x.basePrice.toLocaleString()}</span> EGP</span>
-            </span>
-          </div>
+          <ProductRowEditor product={x} cats={cats} busy={busy} run={run} />
           <ProductPhotos product={x} busy={busy} run={run} />
         </div>
       ))}

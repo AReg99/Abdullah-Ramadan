@@ -287,6 +287,7 @@ export default async function adminRoutes(app: FastifyInstance) {
     return rows.map((p) => ({
       id: p.id, sku: p.sku, nameAr: p.nameAr, nameEn: p.nameEn, kind: p.kind,
       basePrice: Number(p.basePrice), baseLeadDays: p.baseLeadDays, isActive: p.isActive,
+      description: p.description,
       categoryId: p.categoryId, categoryAr: p.category.nameAr,
       photos: p.photos.map((ph) => ({ id: ph.id, path: ph.path, filename: ph.filename })),
     }));
@@ -336,15 +337,65 @@ export default async function adminRoutes(app: FastifyInstance) {
     return { removed: true };
   });
 
-  app.post("/admin/products", { preHandler: guard(SETUP) }, async (req) => {
+  app.post("/admin/products", { preHandler: guard(SETUP) }, async (req, reply) => {
     const b = z.object({
       sku: z.string().min(1), nameAr: z.string().min(1), nameEn: z.string().min(1).optional(),
       categoryId: z.string(), basePrice: z.number().nonnegative(),
       baseLeadDays: z.number().int().positive().default(14),
       kind: z.enum(["STANDARD", "CUSTOMIZABLE"]).default("STANDARD"),
+      description: z.string().max(500).optional(),
     }).parse(req.body);
+    if (await db.product.findUnique({ where: { sku: b.sku } })) {
+      return reply.code(409).send({ error: "sku_taken" });
+    }
     return db.product.create({
       data: { ...b, nameEn: b.nameEn ?? b.nameAr, basePrice: String(b.basePrice) },
+    });
+  });
+
+  /**
+   * Correcting a product after the fact. The catalogue was write-once: a price
+   * typed wrong stayed wrong, and a model loaded from the printed catalogue —
+   * which carries no prices — could never be finished.
+   */
+  app.patch("/admin/products/:id", { preHandler: guard(SETUP) }, async (req, reply) => {
+    const { id } = req.params as { id: string };
+    const b = z.object({
+      sku: z.string().min(1).optional(),
+      nameAr: z.string().min(1).optional(),
+      nameEn: z.string().min(1).optional(),
+      categoryId: z.string().optional(),
+      basePrice: z.number().nonnegative().optional(),
+      baseLeadDays: z.number().int().positive().optional(),
+      kind: z.enum(["STANDARD", "CUSTOMIZABLE"]).optional(),
+      description: z.string().max(500).nullable().optional(),
+      isActive: z.boolean().optional(),
+    }).parse(req.body);
+
+    const exists = await db.product.findUnique({ where: { id } });
+    if (!exists) return reply.code(404).send({ error: "not_found" });
+    if (b.sku && await db.product.findFirst({ where: { sku: b.sku, id: { not: id } } })) {
+      return reply.code(409).send({ error: "sku_taken" });
+    }
+    // Nothing sells at nothing. Switching a product on is the moment someone
+    // could put it on an order, so the price has to be real by then.
+    const price = b.basePrice ?? Number(exists.basePrice);
+    if ((b.isActive ?? exists.isActive) && price <= 0) {
+      return reply.code(400).send({ error: "price_required_to_activate" });
+    }
+    return db.product.update({
+      where: { id },
+      data: {
+        ...(b.sku ? { sku: b.sku } : {}),
+        ...(b.nameAr ? { nameAr: b.nameAr } : {}),
+        ...(b.nameEn ? { nameEn: b.nameEn } : {}),
+        ...(b.categoryId ? { categoryId: b.categoryId } : {}),
+        ...(b.basePrice !== undefined ? { basePrice: String(b.basePrice) } : {}),
+        ...(b.baseLeadDays !== undefined ? { baseLeadDays: b.baseLeadDays } : {}),
+        ...(b.kind ? { kind: b.kind } : {}),
+        ...(b.description !== undefined ? { description: b.description } : {}),
+        ...(b.isActive !== undefined ? { isActive: b.isActive } : {}),
+      },
     });
   });
 
@@ -402,6 +453,9 @@ export default async function adminRoutes(app: FastifyInstance) {
     if (products.length !== new Set(b.lines.map((l) => l.productId)).size) {
       return reply.code(400).send({ error: "unknown_product" });
     }
+    // A product still being set up — no price yet — must not reach an order.
+    const off = products.find((p) => !p.isActive);
+    if (off) return reply.code(400).send({ error: "product_not_active", sku: off.sku });
     const priceOf = (id: string) => Number(products.find((p) => p.id === id)!.basePrice);
 
     const seq = (await db.order.count()) + 1;
