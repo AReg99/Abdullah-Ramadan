@@ -99,6 +99,9 @@ const ar = {
   priceBeforeActive: "لازم تحط السعر الأول عشان تقدر تفعّله.",
   price_required_to_activate: "لازم سعر أكبر من صفر قبل التفعيل",
   product_not_active: "المنتج ده لسه مش مفعّل",
+  productDescription: "وصف قصير للعميل",
+  confirmRemoveProduct: "متأكد إنك عايز تشيل المنتج ده؟",
+  removeProductHint: "لو المنتج ده اتباع أو اتصنّع قبل كده، هيتقفل بس هيفضل موجود على الطلبات القديمة. لو لسه جديد هيتمسح خالص.",
 };
 
 const en: Record<keyof typeof ar, string> = {
@@ -200,6 +203,9 @@ const en: Record<keyof typeof ar, string> = {
   priceBeforeActive: "Set the price before you can activate it.",
   price_required_to_activate: "A price above zero is needed before activating",
   product_not_active: "That product is not active yet",
+  productDescription: "Short line for the customer",
+  confirmRemoveProduct: "Remove this product?",
+  removeProductHint: "If it has been sold or built before, it is switched off but stays readable on the old orders. If it is new, it is deleted outright.",
 };
 
 export const DICT = { ar, en };

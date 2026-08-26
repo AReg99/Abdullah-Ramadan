@@ -328,6 +328,41 @@ export default async function adminRoutes(app: FastifyInstance) {
     }
   });
 
+  /**
+   * Remove a product.
+   *
+   * The same split as removing a person, for the same reason. One created by
+   * mistake should vanish. One that has been ordered or built cannot: order
+   * lines and work orders point at it, and deleting the row would either fail
+   * on the foreign keys or orphan the history of pieces that were actually
+   * made. Those are retired — switched off, gone from the order form, and still
+   * readable on every order that included them.
+   */
+  app.delete("/admin/products/:id", { preHandler: guard(SETUP) }, async (req, reply) => {
+    const { id } = req.params as { id: string };
+    const product = await db.product.findUnique({
+      where: { id }, include: { photos: true },
+    });
+    if (!product) return reply.code(404).send({ error: "not_found" });
+
+    const [lines, workOrders] = await Promise.all([
+      db.orderLine.count({ where: { productId: id } }),
+      db.workOrder.count({ where: { productId: id } }),
+    ]);
+
+    if (lines + workOrders > 0) {
+      await db.product.update({ where: { id }, data: { isActive: false } });
+      return { removed: "retired" as const, keptFor: { lines, workOrders } };
+    }
+
+    // The photo rows go with the product, but the files on disk do not: nothing
+    // else refers to them, so they would sit there for good.
+    for (const photo of product.photos) await discard(photo.path);
+    await db.productPhoto.deleteMany({ where: { productId: id } });
+    await db.product.delete({ where: { id } });
+    return { removed: "deleted" as const };
+  });
+
   app.delete("/admin/products/:id/photos/:photoId", { preHandler: guard(SETUP) }, async (req, reply) => {
     const { id, photoId } = req.params as { id: string; photoId: string };
     const photo = await db.productPhoto.findUnique({ where: { id: photoId } });

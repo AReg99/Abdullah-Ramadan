@@ -108,9 +108,11 @@ export const api = {
     fd.append("file", file, file.name);
     return req<ProductPhoto>(`/admin/products/${productId}/photos`, { method: "POST", body: fd });
   },
+  removeProduct: (id: string) =>
+    req<{ removed: "deleted" | "retired" }>(`/admin/products/${id}`, { method: "DELETE" }),
   removeProductPhoto: (productId: string, photoId: string) =>
     req<{ removed: true }>(`/admin/products/${productId}/photos/${photoId}`, { method: "DELETE" }),
-  addProduct: (b: NewProduct) => req<any>("/admin/products", { method: "POST", body: JSON.stringify(b) }),
+  addProduct: (b: NewProduct) => req<ProductRow>("/admin/products", { method: "POST", body: JSON.stringify(b) }),
   customers: () => req<{ id: string; name: string; phone: string }[]>("/admin/customers"),
   createOrder: (b: NewOrder) => req<{ id: string; code: string; total: number }>("/admin/orders",
     { method: "POST", body: JSON.stringify(b) }),
@@ -188,7 +190,7 @@ export type ProductRow = { id: string; sku: string; nameAr: string; nameEn: stri
   basePrice: number; baseLeadDays: number; isActive: boolean; categoryId: string; categoryAr: string;
   description: string | null; photos: ProductPhoto[] };
 export type NewProduct = { sku: string; nameAr: string; nameEn?: string; categoryId: string;
-  basePrice: number; baseLeadDays?: number; kind?: string };
+  basePrice: number; baseLeadDays?: number; kind?: string; description?: string };
 export type NewOrder = { customerId?: string; customerName?: string; customerPhone?: string;
   promisedDate?: string; lines: { productId: string; qty: number; unitPrice?: number; specNotes?: string; lineKind?: string }[] };
 export type LabelRow = { id: string; serial: string; printedAt: string | null; workOrderCode: string;

@@ -395,6 +395,13 @@ function ProductRowEditor({ product, cats, busy, run }: any) {
             { basePrice: price, isActive: !product.isActive }), t("saved")).then(() => setOpen(false))}>
           {product.isActive ? t("deactivate") : t("activate")}
         </button>
+        <button className="btn dang sm" disabled={busy}
+          onClick={() => {
+            if (!confirm(`${t("confirmRemoveProduct")}\n\n${product.nameAr}\n\n${t("removeProductHint")}`)) return;
+            return run(() => api.removeProduct(product.id), t("removed")).then(() => setOpen(false));
+          }}>
+          {t("removeAccount")}
+        </button>
       </div>
       {!product.isActive && price <= 0 && <p className="note">{t("priceBeforeActive")}</p>}
     </>
@@ -452,9 +459,11 @@ function ProductPhotos({ product, busy, run }: any) {
 }
 
 function Products({ products, cats, busy, run, nm }: any) {
-  const { t } = useApp();
+  const { t, toast } = useApp();
   const [c, setC] = useState("");
-  const [p, setP] = useState({ sku: "", nameAr: "", categoryId: "", basePrice: "", baseLeadDays: "14" });
+  const BLANK = { sku: "", nameAr: "", categoryId: "", basePrice: "", baseLeadDays: "14", description: "" };
+  const [p, setP] = useState(BLANK);
+  const [files, setFiles] = useState<File[]>([]);
 
   return (
     <>
@@ -486,12 +495,47 @@ function Products({ products, cats, busy, run, nm }: any) {
           onChange={(e) => setP({ ...p, basePrice: e.target.value })} style={{ marginTop: 8 }} />
         <input className="mono" inputMode="numeric" placeholder={t("leadDays")} value={p.baseLeadDays}
           onChange={(e) => setP({ ...p, baseLeadDays: e.target.value })} style={{ marginTop: 8 }} />
+        <input placeholder={t("productDescription")} value={p.description}
+          onChange={(e) => setP({ ...p, description: e.target.value })} style={{ marginTop: 8 }} />
+
+        <span className="k" style={{ display: "block", marginTop: 12 }}>{t("productPhotos")}</span>
+        <p className="note">{t("photoHint")}</p>
+        <input type="file" multiple accept="image/*" style={{ marginTop: 8 }}
+          onChange={(e) => {
+            const picked = [...(e.target.files ?? [])];
+            const ok = picked.filter((f) => f.size <= 8 * 1024 * 1024);
+            if (ok.length < picked.length) toast(t("fileTooBig"));
+            setFiles((cur) => [...cur, ...ok]);
+            e.target.value = "";
+          }} />
+        {files.map((f, i) => (
+          <div key={`${f.name}-${i}`} className="evt">
+            <span style={{ flex: 1 }}>{f.name}
+              <span className="muted mono"> · {Math.round(f.size / 1024)} KB</span></span>
+            <button className="chip" onClick={() => setFiles((cur) => cur.filter((_, k) => k !== i))}>
+              {t("remove")}
+            </button>
+          </div>
+        ))}
+
         <button className="btn pri sm" style={{ marginTop: 10 }}
           disabled={busy || !p.nameAr || !p.sku || !p.categoryId || !p.basePrice}
-          onClick={() => run(() => api.addProduct({
-            sku: p.sku, nameAr: p.nameAr, categoryId: p.categoryId,
-            basePrice: Number(p.basePrice), baseLeadDays: Number(p.baseLeadDays) || 14,
-          }), t("saved")).then(() => setP({ sku: "", nameAr: "", categoryId: "", basePrice: "", baseLeadDays: "14" }))}>
+          onClick={() => run(async () => {
+            const created = await api.addProduct({
+              sku: p.sku.trim(), nameAr: p.nameAr.trim(), categoryId: p.categoryId,
+              basePrice: Number(p.basePrice), baseLeadDays: Number(p.baseLeadDays) || 14,
+              description: p.description.trim() || undefined,
+            });
+            // The pictures can only attach once the product exists. A failure
+            // here is not a failure to create it — saying otherwise would have
+            // the owner add the same product twice.
+            const failed: string[] = [];
+            for (const f of files) {
+              try { await api.addProductPhoto(created.id, f); } catch { failed.push(f.name); }
+            }
+            if (failed.length) toast(`${t("attachFailed")}: ${failed.join(", ")}`);
+            return created;
+          }, t("saved")).then(() => { setP(BLANK); setFiles([]); })}>
           {t("add")}
         </button>
       </div>
