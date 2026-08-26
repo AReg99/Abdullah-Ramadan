@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useApp } from "../app-context";
-import { api, type GroupRow, type LocationRow, type PersonRow, type ProductPhoto, type ProductRow, type Station } from "../api";
+import { api, type GroupRow, type IgMedia, type LocationRow, type PersonRow, type ProductPhoto, type ProductRow, type Station } from "../api";
 
 type Tab = "crews" | "staff" | "products";
 
@@ -339,6 +339,171 @@ function Staff({ people, locations, stations, roles, busy, run, nm }: any) {
  * lives on the row rather than in the add form: there is nothing to attach a
  * photo to until the product has been saved.
  */
+/**
+ * Bringing the catalogue in from the page it already lives on.
+ *
+ * Instagram's own API, with a token the owner pastes. It is used for the two
+ * requests and not kept: a long-lived token is a key to the account, and the
+ * app has no reason to hold one between clicks.
+ */
+/**
+ * A product is not finished the moment it is created — an import arrives with a
+ * price of zero and a caption for a name. Until now the catalogue was
+ * write-once, so a mistake stayed.
+ */
+function ProductRowEditor({ product, cats, busy, run }: any) {
+  const { t } = useApp();
+  const [open, setOpen] = useState(false);
+  const [f, setF] = useState({
+    nameAr: product.nameAr, sku: product.sku,
+    basePrice: String(product.basePrice), categoryId: product.categoryId,
+  });
+
+  if (!open) {
+    return (
+      <div className="between">
+        <span style={{ flex: 1 }}>
+          <span className="nm">
+            {product.nameAr}
+            {!product.isActive && <span className="pill warn" style={{ marginInlineStart: 7 }}>{t("draft")}</span>}
+          </span>
+          <span className="sub">
+            <span className="mono">{product.sku}</span> · {product.categoryAr} ·{" "}
+            <span className="mono">{product.basePrice.toLocaleString()}</span> EGP
+          </span>
+        </span>
+        <button className="chip" onClick={() => setOpen(true)}>{t("edit")}</button>
+      </div>
+    );
+  }
+
+  return (
+    <>
+      <input value={f.nameAr} onChange={(e) => setF({ ...f, nameAr: e.target.value })} placeholder={t("productName")} />
+      <input className="mono" value={f.sku} onChange={(e) => setF({ ...f, sku: e.target.value })}
+             placeholder={t("sku")} style={{ marginTop: 8 }} />
+      <input className="mono" inputMode="numeric" value={f.basePrice}
+             onChange={(e) => setF({ ...f, basePrice: e.target.value })} placeholder={t("price")}
+             style={{ marginTop: 8 }} />
+      <select value={f.categoryId} onChange={(e) => setF({ ...f, categoryId: e.target.value })} style={{ marginTop: 8 }}>
+        {cats.map((c: any) => <option key={c.id} value={c.id}>{c.nameAr}</option>)}
+      </select>
+      <div className="row" style={{ marginTop: 10 }}>
+        <button className="btn sec sm" onClick={() => setOpen(false)}>{t("cancel")}</button>
+        <button className="btn pri sm" disabled={busy || !f.nameAr.trim() || !f.sku.trim()}
+          onClick={() => run(() => api.updateProduct(product.id, {
+            nameAr: f.nameAr.trim(), sku: f.sku.trim(),
+            basePrice: Number(f.basePrice) || 0, categoryId: f.categoryId,
+          }), t("saved")).then(() => setOpen(false))}>
+          {t("saveAccount")}
+        </button>
+      </div>
+      <div className="row" style={{ marginTop: 8 }}>
+        <button className={`btn sm ${product.isActive ? "dang" : "pri"}`} disabled={busy}
+          onClick={() => run(() => api.updateProduct(product.id, { isActive: !product.isActive }),
+                             t("saved")).then(() => setOpen(false))}>
+          {product.isActive ? t("deactivate") : t("activate")}
+        </button>
+      </div>
+    </>
+  );
+}
+
+function InstagramImport({ cats, busy, run }: any) {
+  const { t, toast } = useApp();
+  const [token, setToken] = useState("");
+  const [media, setMedia] = useState<IgMedia[] | null>(null);
+  const [chosen, setChosen] = useState<Record<string, { on: boolean; name: string; price: string }>>({});
+  const [categoryId, setCategoryId] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  // A caption is a post, not a product name: take the first line, drop the
+  // hashtags, and let the owner correct it.
+  const nameFrom = (caption: string | null) =>
+    (caption ?? "").split("\n")[0].replace(/#[^\s]+/g, "").trim().slice(0, 60);
+
+  const load = async () => {
+    setLoading(true);
+    try {
+      const rows = await api.instagramMedia(token.trim());
+      setMedia(rows);
+      setChosen(Object.fromEntries(rows.map((m) => [m.id, { on: false, name: nameFrom(m.caption), price: "" }])));
+      if (rows.length === 0) toast(t("igEmpty"));
+    } catch (e: any) {
+      toast(e?.code === "instagram_failed" ? t("igTokenBad") : t("igFailed"));
+    } finally { setLoading(false); }
+  };
+
+  const picked = media?.filter((m) => chosen[m.id]?.on && chosen[m.id]?.name.trim()) ?? [];
+
+  return (
+    <div className="card">
+      <span className="k">{t("igImport")}</span>
+      <p className="note" style={{ marginTop: 4 }}>{t("igHint")}</p>
+
+      <input className="mono" placeholder={t("igToken")} value={token}
+             onChange={(e) => setToken(e.target.value)} style={{ marginTop: 8 }} />
+      <button className="btn sec sm" style={{ marginTop: 10 }}
+              disabled={loading || token.trim().length < 20} onClick={() => void load()}>
+        {loading ? t("loading") : t("igLoad")}
+      </button>
+
+      {media && media.length > 0 && (
+        <>
+          <div className="divide" />
+          <select value={categoryId} onChange={(e) => setCategoryId(e.target.value)}>
+            <option value="">{t("pickCategory")}</option>
+            {cats.map((c: any) => <option key={c.id} value={c.id}>{c.nameAr}</option>)}
+          </select>
+
+          {media.map((m) => {
+            const c = chosen[m.id];
+            return (
+              <div key={m.id} className="evt" style={{ alignItems: "flex-start", gap: 10 }}>
+                <img src={m.imageUrl} alt="" width={64} height={64}
+                     style={{ objectFit: "cover", borderRadius: "var(--rs)", border: "1px solid var(--g3)",
+                              opacity: c?.on ? 1 : 0.45 }} />
+                <span style={{ flex: 1 }}>
+                  <label style={{ display: "flex", gap: 7, alignItems: "center" }}>
+                    <input type="checkbox" checked={c?.on ?? false}
+                           onChange={(e) => setChosen((s) => ({ ...s, [m.id]: { ...s[m.id], on: e.target.checked } }))} />
+                    <span className="muted" style={{ fontSize: ".75rem" }}>
+                      {m.timestamp ? new Date(m.timestamp).toLocaleDateString() : m.mediaType}
+                    </span>
+                  </label>
+                  <input placeholder={t("productName")} value={c?.name ?? ""}
+                         onChange={(e) => setChosen((s) => ({ ...s, [m.id]: { ...s[m.id], name: e.target.value } }))}
+                         style={{ marginTop: 6 }} />
+                  <input className="mono" inputMode="numeric" placeholder={t("price")} value={c?.price ?? ""}
+                         onChange={(e) => setChosen((s) => ({ ...s, [m.id]: { ...s[m.id], price: e.target.value } }))}
+                         style={{ marginTop: 6 }} />
+                </span>
+              </div>
+            );
+          })}
+
+          <button className="btn pri sm" style={{ marginTop: 10 }}
+                  disabled={busy || !categoryId || picked.length === 0}
+                  onClick={() => run(async () => {
+                    const r = await api.instagramImport(categoryId, picked.map((m) => ({
+                      imageUrl: m.imageUrl,
+                      nameAr: chosen[m.id].name.trim(),
+                      basePrice: Number(chosen[m.id].price) || 0,
+                      permalink: m.permalink ?? undefined,
+                    })));
+                    if (r.failed.length) toast(`${t("igSomeFailed")}: ${r.failed.length}`);
+                    setMedia(null); setToken("");
+                    return r;
+                  }, t("saved"))}>
+            {t("igImportN").replace("{n}", String(picked.length))}
+          </button>
+          <p className="note">{t("igDraftHint")}</p>
+        </>
+      )}
+    </div>
+  );
+}
+
 function ProductPhotos({ product, busy, run }: any) {
   const { t, toast } = useApp();
   const [uploading, setUploading] = useState(false);
@@ -391,14 +556,11 @@ function Products({ products, cats, busy, run, nm }: any) {
 
   return (
     <>
+      <InstagramImport cats={cats} busy={busy} run={run} />
+
       {products.map((x: ProductRow) => (
         <div className="card" key={x.id}>
-          <div className="between">
-            <span style={{ flex: 1 }}>
-              <span className="nm">{x.nameAr}</span>
-              <span className="sub"><span className="mono">{x.sku}</span> · {x.categoryAr} · <span className="mono">{x.basePrice.toLocaleString()}</span> EGP</span>
-            </span>
-          </div>
+          <ProductRowEditor product={x} cats={cats} busy={busy} run={run} />
           <ProductPhotos product={x} busy={busy} run={run} />
         </div>
       ))}
