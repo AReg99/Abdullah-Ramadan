@@ -40,7 +40,13 @@ export const canGrant = (actorRole: string, target: string) =>
 /** Taking an order from a customer. The showroom sells; the factory does not. */
 export const SELL = ["OWNER", "SHOWROOM_MANAGER", "SALES_REP"];
 
-/** Reference data you need in order to sell: what exists and what it costs. */
+/**
+ * The catalogue: what exists and what it costs.
+ *
+ * Maintained by the people who sell — they are the ones who know a new model
+ * arrived and what it goes for. Destroying a product stays with the owner
+ * (SETUP), because that is not a correction, it is a decision.
+ */
 export const CATALOGUE = [...new Set([...SETUP, ...SELL])];
 
 /** Running the factory: the floor, the queue, the handover. */

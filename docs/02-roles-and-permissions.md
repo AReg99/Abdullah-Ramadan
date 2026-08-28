@@ -61,6 +61,17 @@ like.
 
 Images only here — a PDF datasheet is an order attachment, not a product photo.
 
+### Passwords
+
+**Everyone changes their own** from **My account** in the top bar, whatever
+their role. The current password is required, so a phone left on a bench is not
+enough to take the account.
+
+**The owner and the factory manager can set someone else's** from the staff list
+or the crew roster — within the same rule as everything else about accounts:
+only for the roles they could have created. That is how a leader who has
+forgotten theirs gets back in.
+
 ### Attachments
 
 What arrives with an order — a photo of the piece to copy, room measurements,
@@ -117,7 +128,13 @@ piece sold for is not part of running it.
 
 ### Who can change the business
 
-**The catalogue, prices and branches are the owner's alone.**
+**The catalogue is maintained by the people who sell from it** — the owner, the
+showroom manager and the sales rep. They add models, set and correct prices, and
+add photographs, because they are the ones who know a new model arrived and what
+it goes for. **Removing** a product stays with the owner: that is not a
+correction, it is a decision. The factory sees none of it.
+
+**Branches are the owner's alone.**
 
 **The staff list and the crews are shared with the factory manager**, who staffs
 his own factory: he may add a supervisor, group leader, QC inspector,

@@ -13,8 +13,11 @@ type Tab = "crews" | "staff" | "products";
  */
 export default function Setup() {
   const { t, lang, toast, me } = useApp();
-  const catalogue = me?.role === "OWNER";
-  const [tab, setTab] = useState<Tab>("crews");
+  // Each half of Setup belongs to different people: the factory's crews and
+  // staff to whoever runs the factory, the catalogue to whoever sells from it.
+  const catalogue = ["OWNER", "SHOWROOM_MANAGER", "SALES_REP"].includes(me?.role ?? "");
+  const factory = ["OWNER", "FACTORY_MANAGER"].includes(me?.role ?? "");
+  const [tab, setTab] = useState<Tab>(factory ? "crews" : "products");
   const [stations, setStations] = useState<Station[]>([]);
   const [groups, setGroups] = useState<GroupRow[]>([]);
   const [people, setPeople] = useState<PersonRow[]>([]);
@@ -56,17 +59,21 @@ export default function Setup() {
   return (
     <>
       <div className="row" style={{ marginBottom: 16 }}>
-        <button className={`btn sm ${tab === "crews" ? "pri" : "sec"}`} onClick={() => setTab("crews")}>{t("crewsTab")}</button>
-        <button className={`btn sm ${tab === "staff" ? "pri" : "sec"}`} onClick={() => setTab("staff")}>{t("staffTab")}</button>
+        {factory && (
+          <>
+            <button className={`btn sm ${tab === "crews" ? "pri" : "sec"}`} onClick={() => setTab("crews")}>{t("crewsTab")}</button>
+            <button className={`btn sm ${tab === "staff" ? "pri" : "sec"}`} onClick={() => setTab("staff")}>{t("staffTab")}</button>
+          </>
+        )}
         {catalogue && (
           <button className={`btn sm ${tab === "products" ? "pri" : "sec"}`}
                   onClick={() => setTab("products")}>{t("productsTab")}</button>
         )}
       </div>
 
-      {tab === "crews" && <Crews stations={stations} groups={groups} people={people}
+      {tab === "crews" && factory && <Crews stations={stations} groups={groups} people={people}
                                  roles={roles} busy={busy} run={run} nm={nm} />}
-      {tab === "staff" && <Staff people={people} locations={locations} stations={stations}
+      {tab === "staff" && factory && <Staff people={people} locations={locations} stations={stations}
                                  roles={roles} busy={busy} run={run} nm={nm} />}
       {tab === "products" && catalogue && <Products products={products} cats={cats} busy={busy} run={run} nm={nm} />}
     </>
@@ -169,12 +176,40 @@ function Crews({ stations, groups, people, roles, busy, run, nm }: any) {
                 {p.groupName && <span className="muted"> · {p.groupName}</span>}
               </span>
               {p.phone && <span className="mono muted">{p.phone}</span>}
+              {canRemove(p) && p.canLogin && <ResetPassword person={p} busy={busy} run={run} />}
               {canRemove(p) && <RemoveButton person={p} busy={busy} run={run} />}
             </div>
           ))}
         </div>
       </div>
     </>
+  );
+}
+
+/**
+ * Setting someone else's password. Until now the only moment a password could
+ * be typed was when the account was created, so a leader who forgot theirs had
+ * no way back in and no one had a way to let them.
+ */
+function ResetPassword({ person, busy, run }: any) {
+  const { t } = useApp();
+  const [open, setOpen] = useState(false);
+  const [pw, setPw] = useState("");
+
+  if (!open) return <button className="chip" onClick={() => setOpen(true)}>{t("resetPassword")}</button>;
+
+  return (
+    <span style={{ display: "flex", gap: 7, alignItems: "center", flexWrap: "wrap" }}>
+      <input type="text" placeholder={t("newPassword")} value={pw} autoComplete="off"
+             onChange={(e) => setPw(e.target.value)} style={{ width: 170 }} />
+      <button className="chip" onClick={() => { setOpen(false); setPw(""); }}>{t("cancel")}</button>
+      <button className="btn pri sm" style={{ width: "auto", padding: "0 12px", minHeight: 34 }}
+              disabled={busy || pw.length < 6}
+              onClick={() => run(() => api.updatePerson(person.id, { password: pw }), t("passwordReset"))
+                .then(() => { setOpen(false); setPw(""); })}>
+        {t("saveAccount")}
+      </button>
+    </span>
   );
 }
 
@@ -324,6 +359,7 @@ function Staff({ people, locations, stations, roles, busy, run, nm }: any) {
                 {x.stationName && <span className="muted"> · {x.stationName}</span>}
               </span>
               <span className="mono muted">{x.email ?? x.phone}</span>
+              {x.id !== me?.id && <ResetPassword person={x} busy={busy} run={run} />}
               {x.id !== me?.id && <RemoveButton person={x} busy={busy} run={run} />}
             </div>
           ))}

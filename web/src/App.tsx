@@ -16,6 +16,7 @@ import Setup from "./screens/Setup";
 import NewOrder from "./screens/NewOrder";
 import Dispatch from "./screens/Dispatch";
 import Showroom from "./screens/Showroom";
+import Account from "./screens/Account";
 import { onSyncChange, queued } from "./outbox";
 import { startSyncLoop } from "./sync";
 
@@ -46,8 +47,10 @@ const NAVS: Record<string, Tab[]> = {
     ["/orders", "▤", "orders"], ["/labels", "⌗", "labels"],
   ],
   STOREKEEPER: [["/dispatch", "⇥", "dispatch"], ["/labels", "⌗", "labels"], ["/orders", "▤", "orders"]],
-  SHOWROOM_MANAGER: [["/showroom", "⌂", "showroom"], ["/orders", "▤", "orders"], ["/new-order", "✎", "newOrder"]],
-  SALES_REP: [["/showroom", "⌂", "showroom"], ["/orders", "▤", "orders"], ["/new-order", "✎", "newOrder"]],
+  SHOWROOM_MANAGER: [["/showroom", "⌂", "showroom"], ["/orders", "▤", "orders"],
+                     ["/new-order", "✎", "newOrder"], ["/setup", "⚙", "setup"]],
+  SALES_REP: [["/showroom", "⌂", "showroom"], ["/orders", "▤", "orders"],
+              ["/new-order", "✎", "newOrder"], ["/setup", "⚙", "setup"]],
   // On the road between the factory and the showroom: what is on the van, and
   // signing it in when it lands.
   DRIVER: [["/showroom", "⌂", "showroom"]],
@@ -88,6 +91,7 @@ export default function App() {
         <button className="chip" onClick={() => setLang(lang === "ar" ? "en" : "ar")}>
           {lang === "ar" ? "EN" : "ع"}
         </button>
+        <NavLink to="/account" className="chip" style={{ textDecoration: "none" }}>{t("myAccount")}</NavLink>
         <button className="chip" onClick={signOut}>{t("signout")}</button>
       </div>
 
@@ -109,6 +113,8 @@ export default function App() {
           <Route path="/orders/:id" element={<OrderDetail />} />
           <Route path="/dispatch" element={<Dispatch />} />
           <Route path="/showroom" element={<Showroom />} />
+          {/* Every role has this one. */}
+          <Route path="/account" element={<Account />} />
           {/* Landing on the first tab of your own nav, so nobody opens the app
               on a screen their role cannot load. */}
           <Route path="*" element={<Navigate to={home} replace />} />

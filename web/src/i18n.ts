@@ -102,6 +102,16 @@ const ar = {
   productDescription: "وصف قصير للعميل",
   confirmRemoveProduct: "متأكد إنك عايز تشيل المنتج ده؟",
   removeProductHint: "لو المنتج ده اتباع أو اتصنّع قبل كده، هيتقفل بس هيفضل موجود على الطلبات القديمة. لو لسه جديد هيتمسح خالص.",
+  changePassword: "تغيير كلمة السر",
+  changePasswordHint: "اكتب كلمة السر الحالية الأول — ده بيمنع أي حد يمسك موبايلك ويغيّرها.",
+  currentPassword: "كلمة السر الحالية", repeatPassword: "أعد كتابة كلمة السر",
+  passwordsDiffer: "الكلمتين مش زي بعض", passwordTooShort: "٦ حروف على الأقل",
+  passwordChanged: "اتغيّرت كلمة السر",
+  current_password_wrong: "كلمة السر الحالية غلط",
+  password_unchanged: "دي نفس كلمة السر القديمة",
+  resetPassword: "تغيير كلمة السر", passwordReset: "اتغيّرت",
+  resetPasswordHint: "اكتب كلمة سر جديدة للشخص ده وقولهاله.",
+  PASSWORD_CHANGED: "تغيير كلمة السر",
 };
 
 const en: Record<keyof typeof ar, string> = {
@@ -206,6 +216,16 @@ const en: Record<keyof typeof ar, string> = {
   productDescription: "Short line for the customer",
   confirmRemoveProduct: "Remove this product?",
   removeProductHint: "If it has been sold or built before, it is switched off but stays readable on the old orders. If it is new, it is deleted outright.",
+  changePassword: "Change password",
+  changePasswordHint: "Type your current password first — that stops anyone who picks up your phone from changing it.",
+  currentPassword: "Current password", repeatPassword: "Repeat new password",
+  passwordsDiffer: "Those do not match", passwordTooShort: "At least 6 characters",
+  passwordChanged: "Password changed",
+  current_password_wrong: "That current password is wrong",
+  password_unchanged: "That is the same password",
+  resetPassword: "Set password", passwordReset: "Password set",
+  resetPasswordHint: "Type a new password for this person and tell them what it is.",
+  PASSWORD_CHANGED: "Password changed",
 };
 
 export const DICT = { ar, en };

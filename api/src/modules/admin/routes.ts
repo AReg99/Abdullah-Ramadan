@@ -274,7 +274,7 @@ export default async function adminRoutes(app: FastifyInstance) {
   app.get("/admin/categories", { preHandler: guard(CATALOGUE) }, async () =>
     db.productCategory.findMany({ orderBy: { nameAr: "asc" } }));
 
-  app.post("/admin/categories", { preHandler: guard(SETUP) }, async (req) => {
+  app.post("/admin/categories", { preHandler: guard(CATALOGUE) }, async (req) => {
     const b = z.object({ nameAr: z.string().min(1), nameEn: z.string().min(1).optional() }).parse(req.body);
     return db.productCategory.create({ data: { nameAr: b.nameAr, nameEn: b.nameEn ?? b.nameAr } });
   });
@@ -298,7 +298,7 @@ export default async function adminRoutes(app: FastifyInstance) {
    * showroom cannot show a customer what they are buying, and the leader on the
    * bench cannot see what it is meant to end up looking like.
    */
-  app.post("/admin/products/:id/photos", { preHandler: guard(SETUP) }, async (req, reply) => {
+  app.post("/admin/products/:id/photos", { preHandler: guard(CATALOGUE) }, async (req, reply) => {
     const { id } = req.params as { id: string };
     const product = await db.product.findUnique({ where: { id } });
     if (!product) return reply.code(404).send({ error: "product_not_found" });
@@ -363,7 +363,7 @@ export default async function adminRoutes(app: FastifyInstance) {
     return { removed: "deleted" as const };
   });
 
-  app.delete("/admin/products/:id/photos/:photoId", { preHandler: guard(SETUP) }, async (req, reply) => {
+  app.delete("/admin/products/:id/photos/:photoId", { preHandler: guard(CATALOGUE) }, async (req, reply) => {
     const { id, photoId } = req.params as { id: string; photoId: string };
     const photo = await db.productPhoto.findUnique({ where: { id: photoId } });
     if (!photo || photo.productId !== id) return reply.code(404).send({ error: "not_found" });
@@ -372,7 +372,7 @@ export default async function adminRoutes(app: FastifyInstance) {
     return { removed: true };
   });
 
-  app.post("/admin/products", { preHandler: guard(SETUP) }, async (req, reply) => {
+  app.post("/admin/products", { preHandler: guard(CATALOGUE) }, async (req, reply) => {
     const b = z.object({
       sku: z.string().min(1), nameAr: z.string().min(1), nameEn: z.string().min(1).optional(),
       categoryId: z.string(), basePrice: z.number().nonnegative(),
@@ -393,7 +393,7 @@ export default async function adminRoutes(app: FastifyInstance) {
    * typed wrong stayed wrong, and a model loaded from the printed catalogue —
    * which carries no prices — could never be finished.
    */
-  app.patch("/admin/products/:id", { preHandler: guard(SETUP) }, async (req, reply) => {
+  app.patch("/admin/products/:id", { preHandler: guard(CATALOGUE) }, async (req, reply) => {
     const { id } = req.params as { id: string };
     const b = z.object({
       sku: z.string().min(1).optional(),

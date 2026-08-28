@@ -73,6 +73,9 @@ export const api = {
   login: (email: string, password: string) => req<{ token: string; user: Me }>("/auth/login", { method: "POST", body: JSON.stringify({ email, password }) }),
   loginByPhone: (phone: string, password: string) => req<{ token: string; user: Me }>("/auth/login", { method: "POST", body: JSON.stringify({ phone, password }) }),
   me: () => req<Me>("/me"),
+  changeMyPassword: (currentPassword: string, newPassword: string) =>
+    req<{ changed: true }>("/auth/password", { method: "POST",
+      body: JSON.stringify({ currentPassword, newPassword }) }),
 
   workToday: () => cachedGet<Stage[]>("/work/today", "today"),
   stage: (id: string) => cachedGet<Stage & { previousAfterPhoto: string | null; crew: Person[] }>(`/work/stages/${id}`, `stage.${id}`),

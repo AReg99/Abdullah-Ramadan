@@ -66,6 +66,37 @@ export default async function authRoutes(app: FastifyInstance) {
   });
 
   app.get("/me", { preHandler: guard() }, async (req) => shape((req as any).user));
+
+  /**
+   * Changing your own password, whoever you are.
+   *
+   * Until now only the two roles that could open Setup had any way to do this,
+   * so a group leader handed a password by the owner was stuck with it for
+   * good. The current one is required: a phone left unlocked on a bench should
+   * not be enough to take the account.
+   */
+  app.post("/auth/password", { preHandler: guard() }, async (req, reply) => {
+    const b = z.object({
+      currentPassword: z.string().min(1),
+      newPassword: z.string().min(6),
+    }).parse(req.body);
+    const user = (req as any).user;
+
+    if (!user.passwordHash || !bcrypt.compareSync(b.currentPassword, user.passwordHash)) {
+      return reply.code(401).send({ error: "current_password_wrong" });
+    }
+    if (b.currentPassword === b.newPassword) {
+      return reply.code(400).send({ error: "password_unchanged" });
+    }
+    await db.user.update({
+      where: { id: user.id },
+      data: { passwordHash: bcrypt.hashSync(b.newPassword, 10) },
+    });
+    await record({
+      code: "PASSWORD_CHANGED", entityType: "user", entityId: user.id, actorId: user.id,
+    });
+    return { changed: true };
+  });
 }
 
 const shape = (u: any) => ({
