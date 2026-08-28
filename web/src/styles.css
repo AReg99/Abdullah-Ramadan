@@ -143,3 +143,12 @@ select{appearance:none;background-image:none}
 .nav{overflow-x:auto;scrollbar-width:none}
 .nav::-webkit-scrollbar{display:none}
 .nav a{min-width:74px}
+
+/* Order progress, as the showroom reads it to a customer. */
+.bar{margin-top:11px;height:7px;border-radius:4px;background:var(--g3);overflow:hidden}
+.bar>span{display:block;height:100%;background:var(--p);border-radius:4px;
+  transition:width .4s ease}
+@media (prefers-reduced-motion:reduce){.bar>span{transition:none}}
+.msg{margin:9px 0 0;padding:13px 15px;background:var(--g1);border:1px solid var(--g3);
+  border-radius:var(--rs);white-space:pre-wrap;font:inherit;font-size:.92rem;
+  line-height:1.65;color:var(--g9)}

@@ -112,6 +112,16 @@ const ar = {
   resetPassword: "تغيير كلمة السر", passwordReset: "اتغيّرت",
   resetPasswordHint: "اكتب كلمة سر جديدة للشخص ده وقولهاله.",
   PASSWORD_CHANGED: "تغيير كلمة السر",
+  track: "متابعة الطلب", onTrack: "في الموعد", daysLeft: "يوم باقي",
+  updated: "آخر تحديث", justNow: "دلوقتي", hoursAgo: "ساعة", daysAgo: "يوم",
+  nowAt: "دلوقتي في", stagesDone: "مرحلة",
+  whatToTell: "اللي تقوله للعميل",
+  whatToTellHint: "الرسالة دي مكتوبة بلغة العميل — مفيهاش أسماء المحطات الداخلية.",
+  copy: "نسخ", copied: "اتنسخت", copyFailed: "مش قادر ينسخ — اختار النص وانسخه",
+  sendWhatsapp: "ابعت واتساب", fullDetail: "التفاصيل الكاملة",
+  st_PENDING: "في الجدول", st_QUEUED: "في الجدول", st_IN_PRODUCTION: "تحت التصنيع",
+  st_FINISHED: "خلص التصنيع", st_IN_TRANSIT: "في الطريق للمعرض",
+  st_READY: "جاهز في المعرض", st_DELIVERED: "اتسلّم", st_CANCELLED: "ملغي",
 };
 
 const en: Record<keyof typeof ar, string> = {
@@ -226,6 +236,16 @@ const en: Record<keyof typeof ar, string> = {
   resetPassword: "Set password", passwordReset: "Password set",
   resetPasswordHint: "Type a new password for this person and tell them what it is.",
   PASSWORD_CHANGED: "Password changed",
+  track: "Track order", onTrack: "On track", daysLeft: "days left",
+  updated: "Updated", justNow: "just now", hoursAgo: "hours ago", daysAgo: "days ago",
+  nowAt: "Now in", stagesDone: "stages",
+  whatToTell: "What to tell the customer",
+  whatToTellHint: "Written in the customer's language — no internal station names.",
+  copy: "Copy", copied: "Copied", copyFailed: "Could not copy — select the text instead",
+  sendWhatsapp: "Send on WhatsApp", fullDetail: "Full detail",
+  st_PENDING: "Scheduled", st_QUEUED: "Scheduled", st_IN_PRODUCTION: "In production",
+  st_FINISHED: "Finished in factory", st_IN_TRANSIT: "On its way",
+  st_READY: "Ready at showroom", st_DELIVERED: "Delivered", st_CANCELLED: "Cancelled",
 };
 
 export const DICT = { ar, en };

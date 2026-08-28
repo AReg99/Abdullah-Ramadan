@@ -61,6 +61,16 @@ like.
 
 Images only here — a PDF datasheet is an order attachment, not a product photo.
 
+### Telling the customer
+
+Every role that may read an order can open its **tracking view** — the same
+order in the customer's language rather than the factory's. It names only the
+stages the routing marks customer-visible, and carries a ready-made message the
+showroom can copy or send on WhatsApp.
+
+Showroom staff tied to a branch see their own branch's orders there and no
+others, the same rule the orders list applies.
+
 ### Passwords
 
 **Everyone changes their own** from **My account** in the top bar, whatever

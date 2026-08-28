@@ -82,6 +82,119 @@ export default async function orderRoutes(app: FastifyInstance) {
   });
 
   /**
+   * Where the order actually is, in words the showroom can read to a customer.
+   *
+   * The order page already carried every stage and every event, but that is the
+   * factory's own record — station names, minutes against standard, raw event
+   * codes. A sales rep with a customer on the phone needs one sentence, and
+   * reading them the wrong one ("it is in sanding") is worse than saying
+   * nothing.
+   *
+   * So the routing's own isCustomerVisible flag decides what gets named. The
+   * hidden stages still count toward progress; they are simply not what the
+   * customer is told.
+   */
+  app.get("/orders/:id/progress", { preHandler: guard(READ_ORDERS) }, async (req, reply) => {
+    const { id } = req.params as { id: string };
+    const user = (req as any).user;
+
+    const order = await db.order.findUnique({
+      where: { id },
+      include: {
+        customer: true,
+        showroom: true,
+        lines: {
+          include: {
+            product: true,
+            workOrders: {
+              include: {
+                stages: { include: { routingStage: true }, orderBy: { seq: "asc" } },
+              },
+            },
+          },
+        },
+      },
+    });
+    if (!order) return reply.code(404).send({ error: "not_found" });
+
+    // Showroom staff see their own branch's orders and no others — the same
+    // rule the orders list applies, which this route would otherwise sidestep.
+    if (["SHOWROOM_MANAGER", "SALES_REP"].includes(user.role.key) &&
+        user.locationId && order.showroomId !== user.locationId) {
+      return reply.code(404).send({ error: "not_found" });
+    }
+
+    const lastEvent = await db.trackingEvent.findFirst({
+      where: { orderId: id },
+      orderBy: { occurredAt: "desc" },
+      select: { occurredAt: true },
+    });
+
+    const now = Date.now();
+    const lines = order.lines.map((l) => {
+      const stages = l.workOrders.flatMap((w) => w.stages);
+      const total = stages.length;
+      const done = stages.filter((s) => s.status === "DONE").length;
+      const running = stages.find((s) => s.status === "IN_PROGRESS")
+                   ?? stages.find((s) => s.status === "PAUSED");
+
+      // What to name to the customer: the stage being worked if they are meant
+      // to hear about it, otherwise the last milestone that passed.
+      const visibleDone = stages.filter((s) => s.status === "DONE" && s.routingStage.isCustomerVisible);
+      const named = running?.routingStage.isCustomerVisible
+        ? running.routingStage
+        : visibleDone.length ? visibleDone[visibleDone.length - 1].routingStage : null;
+
+      // Past the factory, the handover state is the whole story.
+      const afterFactory = ["FINISHED", "IN_TRANSIT", "READY", "DELIVERED"].includes(l.status);
+      const percent = l.status === "DELIVERED" ? 100
+        : l.status === "READY" ? 95
+        : l.status === "IN_TRANSIT" ? 88
+        : l.status === "FINISHED" ? 80
+        : total === 0 ? 0
+        : Math.round((done / total) * 75);
+
+      return {
+        id: l.id,
+        qty: l.qty,
+        status: l.status,
+        productAr: l.product.nameAr,
+        productEn: l.product.nameEn,
+        stagesTotal: total,
+        stagesDone: done,
+        percent,
+        blocked: Boolean(running && running.status === "PAUSED"),
+        /** Named only when the customer is meant to hear it. */
+        milestoneAr: afterFactory ? null : named?.nameAr ?? null,
+        milestoneEn: afterFactory ? null : named?.nameEn ?? null,
+        promisedDate: l.promisedDate ?? order.promisedDate,
+        receivedAt: l.receivedAt,
+        deliveredAt: l.deliveredAt,
+      };
+    });
+
+    const promised = order.promisedDate;
+    const settled = lines.every((l) => l.status === "DELIVERED");
+    const late = Boolean(promised && !settled && promised.getTime() < now);
+
+    return {
+      id: order.id,
+      code: order.code,
+      status: order.status,
+      customer: { name: order.customer.name, phone: order.customer.phone },
+      showroomAr: order.showroom?.nameAr ?? null,
+      showroomEn: order.showroom?.nameEn ?? null,
+      promisedDate: promised,
+      late,
+      daysToPromise: promised ? Math.ceil((promised.getTime() - now) / 86_400_000) : null,
+      lastUpdate: lastEvent?.occurredAt ?? null,
+      lines,
+      message: customerMessage(order.code, lines, promised, late),
+    };
+  });
+
+
+  /**
    * What arrived with the order: the photo of the piece to copy, the room
    * measurements, the signed quotation. Attached to the order rather than to a
    * stage, because it is true of the whole job and the factory needs it weeks
@@ -130,4 +243,58 @@ export default async function orderRoutes(app: FastifyInstance) {
     await discard(att.path);
     return { removed: true };
   });
+}
+
+/**
+ * The sentence the showroom reads out or sends. Built here rather than in the
+ * screen so the wording is the same however it is reached, and so it can never
+ * quote a stage the customer was not meant to hear about.
+ */
+type MsgLine = {
+  productAr: string; productEn: string; status: string;
+  milestoneAr: string | null; milestoneEn: string | null;
+};
+
+function customerMessage(code: string, lines: MsgLine[], promised: Date | null, late: boolean) {
+  // Once it is in the customer's house, promising them a date reads as a
+  // mistake. The date line only belongs on an order still owed.
+  const settled = lines.length > 0 && lines.every((l) => l.status === "DELIVERED");
+  const show = promised && !settled;
+  const dateAr = show ? promised!.toLocaleDateString("ar-EG", { day: "numeric", month: "long" }) : null;
+  const dateEn = show ? promised!.toLocaleDateString("en-GB", { day: "numeric", month: "long" }) : null;
+
+  const say = (l: MsgLine, lang: "ar" | "en") => {
+    const name = lang === "ar" ? l.productAr : l.productEn;
+    const at = lang === "ar" ? l.milestoneAr : l.milestoneEn;
+    if (lang === "ar") {
+      switch (l.status) {
+        case "DELIVERED":     return `${name}: اتسلّم`;
+        case "READY":         return `${name}: جاهز في المعرض للاستلام`;
+        case "IN_TRANSIT":    return `${name}: في الطريق للمعرض`;
+        case "FINISHED":      return `${name}: خلص التصنيع`;
+        case "IN_PRODUCTION": return at ? `${name}: في مرحلة ${at}` : `${name}: تحت التصنيع`;
+        default:              return `${name}: في الجدول`;
+      }
+    }
+    switch (l.status) {
+      case "DELIVERED":     return `${name}: delivered`;
+      case "READY":         return `${name}: ready for collection at the showroom`;
+      case "IN_TRANSIT":    return `${name}: on its way to the showroom`;
+      case "FINISHED":      return `${name}: finished in the factory`;
+      case "IN_PRODUCTION": return at ? `${name}: in ${at}` : `${name}: in production`;
+      default:              return `${name}: scheduled`;
+    }
+  };
+
+  const join = (head: string, body: string[], tail: string | null) =>
+    [head, ...body, tail].filter(Boolean).join("\n");
+
+  return {
+    ar: join(`طلب ${code}`, lines.map((l) => `• ${say(l, "ar")}`),
+      dateAr ? (late ? `الموعد كان ${dateAr} — بنعتذر عن التأخير وهنبلغك أول بأول.`
+                     : `الموعد المتوقع: ${dateAr}.`) : null),
+    en: join(`Order ${code}`, lines.map((l) => `• ${say(l, "en")}`),
+      dateEn ? (late ? `The promised date was ${dateEn} — we are sorry for the delay and will keep you updated.`
+                     : `Expected: ${dateEn}.`) : null),
+  };
 }

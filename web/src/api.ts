@@ -147,6 +147,7 @@ export const api = {
   floor: () => req<StationCard[]>("/dashboard/floor"),
   orders: () => req<OrderRow[]>("/orders"),
   order: (id: string) => req<OrderDetail>(`/orders/${id}`),
+  orderProgress: (id: string) => req<Progress>(`/orders/${id}/progress`),
 
   async uploadPhoto(stageId: string, kind: "BEFORE" | "AFTER", blob: Blob, w: number, h: number,
                     clientEventId?: string, capturedAt?: string) {
@@ -226,6 +227,18 @@ export type StationCard = {
   blocked: { stageId: string; orderCode: string; reason: string; minutes: number }[];
 };
 export type OrderRow = { id: string; code: string; status: string; kind: string; customer: string; total?: number; promisedDate: string | null; lines: { id: string; status: string; qty: number; productAr: string; productEn: string }[] };
+export type Progress = {
+  id: string; code: string; status: string;
+  customer: { name: string; phone: string };
+  showroomAr: string | null; showroomEn: string | null;
+  promisedDate: string | null; late: boolean; daysToPromise: number | null;
+  lastUpdate: string | null;
+  lines: { id: string; qty: number; status: string; productAr: string; productEn: string;
+    stagesTotal: number; stagesDone: number; percent: number; blocked: boolean;
+    milestoneAr: string | null; milestoneEn: string | null;
+    promisedDate: string | null; receivedAt: string | null; deliveredAt: string | null }[];
+  message: { ar: string; en: string };
+};
 export type OrderDetail = {
   id: string; code: string; status: string; customer: { name: string; phone: string };
   total?: number; promisedDate: string | null;

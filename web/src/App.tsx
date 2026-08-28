@@ -17,6 +17,7 @@ import NewOrder from "./screens/NewOrder";
 import Dispatch from "./screens/Dispatch";
 import Showroom from "./screens/Showroom";
 import Account from "./screens/Account";
+import Track from "./screens/Track";
 import { onSyncChange, queued } from "./outbox";
 import { startSyncLoop } from "./sync";
 
@@ -111,6 +112,9 @@ export default function App() {
           <Route path="/floor" element={<Floor />} />
           <Route path="/orders" element={<Orders />} />
           <Route path="/orders/:id" element={<OrderDetail />} />
+          {/* What the showroom reads to the customer, as opposed to the
+              factory's own record of the same order. */}
+          <Route path="/track/:id" element={<Track />} />
           <Route path="/dispatch" element={<Dispatch />} />
           <Route path="/showroom" element={<Showroom />} />
           {/* Every role has this one. */}

@@ -17,6 +17,19 @@ agreed to**, and **take the measurements correctly**.
 
 ---
 
+> **Telling a customer where their order is.** Open the order from **Orders**, or
+> tap a piece on the **Showroom** board. You get one screen written for the
+> customer, not for the factory: what stage each piece has reached, how far
+> along it is, the promised date, and whether it is running late. Underneath is
+> the message itself — **copy it**, or **send it on WhatsApp** to the number on
+> the order, without retyping anything.
+>
+> It never names a stage the customer was not meant to hear about. Cutting,
+> sanding and curing count toward the progress but are never mentioned;
+> assembly, finishing, QC and packing are. That is set per stage in the routing,
+> so what the customer hears is a decision the factory made once, not something
+> a rep has to remember on the phone.
+
 ## ENGLISH
 
 ### Selling a standard piece (جاهز)

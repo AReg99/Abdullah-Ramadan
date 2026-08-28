@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
+import { Link, useParams } from "react-router-dom";
 import { useApp } from "../app-context";
 import { api, type OrderDetail as OD } from "../api";
 
@@ -26,6 +26,10 @@ export default function OrderDetail() {
           )}
           {d.promisedDate && <><dt>{t("due")}</dt><dd>{when(d.promisedDate)}</dd></>}
         </dl>
+        <Link to={`/track/${d.id}`} className="btn sec sm"
+              style={{ marginTop: 12, textDecoration: "none" }}>
+          {t("track")}
+        </Link>
       </div>
 
       {d.lines.map((l) => (

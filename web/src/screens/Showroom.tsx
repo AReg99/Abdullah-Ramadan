@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import { useApp } from "../app-context";
 import { api, type FlowLine } from "../api";
 
@@ -43,11 +44,14 @@ export default function Showroom() {
 
   const head = (l: FlowLine) => (
     <>
-      <div className="nm">{lang === "ar" ? l.productAr : l.productEn} × {l.qty}</div>
-      <div className="sub">
-        <span className="mono">{l.order.code}</span> · {l.order.customer}
-        {l.order.phone && <> · <span className="mono">{l.order.phone}</span></>}
-      </div>
+      {/* Straight to what the customer needs to be told about this piece. */}
+      <Link to={`/track/${l.order.id}`} style={{ textDecoration: "none", color: "inherit" }}>
+        <div className="nm">{lang === "ar" ? l.productAr : l.productEn} × {l.qty}</div>
+        <div className="sub">
+          <span className="mono">{l.order.code}</span> · {l.order.customer}
+          {l.order.phone && <> · <span className="mono">{l.order.phone}</span></>}
+        </div>
+      </Link>
     </>
   );
 
