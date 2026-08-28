@@ -1,10 +1,12 @@
 import type { FastifyInstance } from "fastify";
+import { z } from "zod";
 import { db } from "../../db.js";
 import { guard } from "../../auth/jwt.js";
 import { discard, isAllowed, readUpload, storeFile } from "../../lib/uploads.js";
+import { syncOrderStatus } from "../../lib/order-status.js";
 import { record } from "../../lib/events.js";
 import { SELL } from "../../auth/scopes.js";
-import { READ_ORDERS, seesMoney } from "../../auth/scopes.js";
+import { READ_ORDERS, SETUP, seesMoney } from "../../auth/scopes.js";
 
 export default async function orderRoutes(app: FastifyInstance) {
   app.get("/orders", { preHandler: guard(READ_ORDERS) }, async (req) => {
@@ -190,6 +192,75 @@ export default async function orderRoutes(app: FastifyInstance) {
       lastUpdate: lastEvent?.occurredAt ?? null,
       lines,
       message: customerMessage(order.code, lines, promised, late),
+    };
+  });
+
+
+  /**
+   * Cancelling an order. The owner's alone — it stops work that people are
+   * paid to do and money that has been promised.
+   *
+   * Nothing is deleted. Every line still on the books is marked cancelled, its
+   * work orders with it, and any stage not yet finished is cancelled so it
+   * drops out of the leaders' queues, the dispatch bench and the showroom
+   * board. Stages already finished keep their record: the work happened, and
+   * the hours are still owed to whoever did them.
+   *
+   * A piece already handed to the customer cannot be cancelled — that is a
+   * return, which is a different transaction and not this one.
+   */
+  app.post("/orders/:id/cancel", { preHandler: guard(SETUP) }, async (req, reply) => {
+    const { id } = req.params as { id: string };
+    const { reason } = z.object({ reason: z.string().min(3).max(300) }).parse(req.body ?? {});
+    const user = (req as any).user;
+
+    const order = await db.order.findUnique({
+      where: { id },
+      include: { lines: { include: { product: true, workOrders: true } } },
+    });
+    if (!order) return reply.code(404).send({ error: "not_found" });
+    if (order.status === "CANCELLED") return reply.code(409).send({ error: "already_cancelled" });
+
+    const open = order.lines.filter((l) => !["DELIVERED", "CANCELLED"].includes(l.status));
+    if (open.length === 0) {
+      return reply.code(409).send({ error: "nothing_to_cancel" });
+    }
+
+    let stagesStopped = 0;
+    for (const line of open) {
+      const woIds = line.workOrders.map((w) => w.id);
+      if (woIds.length) {
+        const stopped = await db.workOrderStage.updateMany({
+          where: { workOrderId: { in: woIds }, status: { not: "DONE" } },
+          data: { status: "CANCELLED" },
+        });
+        stagesStopped += stopped.count;
+        await db.workOrder.updateMany({
+          where: { id: { in: woIds } },
+          data: { status: "CANCELLED" },
+        });
+      }
+      await db.orderLine.update({ where: { id: line.id }, data: { status: "CANCELLED" } });
+    }
+
+    await record({
+      code: "ORDER_CANCELLED", entityType: "order", entityId: order.id,
+      orderId: order.id, actorId: user.id, isCustomerVisible: true,
+      payload: {
+        reason,
+        lines: open.map((l) => l.product.nameAr),
+        stagesStopped,
+        // Named so the record says what survived, not just what stopped.
+        keptDelivered: order.lines.filter((l) => l.status === "DELIVERED").length,
+      },
+    });
+    const status = await syncOrderStatus(order.id);
+
+    return {
+      cancelled: open.length,
+      stagesStopped,
+      keptDelivered: order.lines.filter((l) => l.status === "DELIVERED").length,
+      orderStatus: status,
     };
   });
 

@@ -148,6 +148,9 @@ export const api = {
   orders: () => req<OrderRow[]>("/orders"),
   order: (id: string) => req<OrderDetail>(`/orders/${id}`),
   orderProgress: (id: string) => req<Progress>(`/orders/${id}/progress`),
+  cancelOrder: (id: string, reason: string) =>
+    req<{ cancelled: number; stagesStopped: number; keptDelivered: number }>(
+      `/orders/${id}/cancel`, { method: "POST", body: JSON.stringify({ reason }) }),
 
   async uploadPhoto(stageId: string, kind: "BEFORE" | "AFTER", blob: Blob, w: number, h: number,
                     clientEventId?: string, capturedAt?: string) {

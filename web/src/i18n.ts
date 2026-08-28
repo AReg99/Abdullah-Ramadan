@@ -122,6 +122,13 @@ const ar = {
   st_PENDING: "في الجدول", st_QUEUED: "في الجدول", st_IN_PRODUCTION: "تحت التصنيع",
   st_FINISHED: "خلص التصنيع", st_IN_TRANSIT: "في الطريق للمعرض",
   st_READY: "جاهز في المعرض", st_DELIVERED: "اتسلّم", st_CANCELLED: "ملغي",
+  cancelOrder: "إلغاء الطلب", cancelWhy: "السبب؟ (هيتسجل في السجل)",
+  confirmCancel: "متأكد إنك عايز تلغي الطلب ده؟",
+  cancelHint: "الشغل اللي لسه مبدأش هيقف ويختفي من قوايم رؤساء العمال والمعرض. الشغل اللي خلص بيفضل في السجل. القطع اللي اتسلّمت للعميل متتلغيش.",
+  orderCancelled: "الطلب اتلغى", cancelled: "ملغي",
+  already_cancelled: "الطلب ده ملغي أصلاً",
+  nothing_to_cancel: "مفيش حاجة تتلغي — كله اتسلّم أو اتلغى",
+  ORDER_CANCELLED: "إلغاء الطلب",
 };
 
 const en: Record<keyof typeof ar, string> = {
@@ -246,6 +253,13 @@ const en: Record<keyof typeof ar, string> = {
   st_PENDING: "Scheduled", st_QUEUED: "Scheduled", st_IN_PRODUCTION: "In production",
   st_FINISHED: "Finished in factory", st_IN_TRANSIT: "On its way",
   st_READY: "Ready at showroom", st_DELIVERED: "Delivered", st_CANCELLED: "Cancelled",
+  cancelOrder: "Cancel order", cancelWhy: "Why? (this goes on the record)",
+  confirmCancel: "Cancel this order?",
+  cancelHint: "Work not yet started stops and leaves the leaders' and showroom lists. Work already finished stays on the record. Pieces already delivered are not cancelled.",
+  orderCancelled: "Order cancelled", cancelled: "Cancelled",
+  already_cancelled: "That order is already cancelled",
+  nothing_to_cancel: "Nothing left to cancel — all delivered or already cancelled",
+  ORDER_CANCELLED: "Order cancelled",
 };
 
 export const DICT = { ar, en };

@@ -11,7 +11,17 @@ import { db } from "../db.js";
 export async function syncOrderStatus(orderId: string) {
   const lines = await db.orderLine.findMany({ where: { orderId }, select: { status: true } });
   const live = lines.filter((l) => l.status !== "CANCELLED");
-  if (live.length === 0) return null;
+
+  // Nothing left standing: the order itself is cancelled. Returning early here
+  // would leave a fully cancelled order still reading CONFIRMED.
+  if (live.length === 0) {
+    if (lines.length === 0) return null;
+    await db.order.updateMany({
+      where: { id: orderId, status: { not: "CANCELLED" } },
+      data: { status: "CANCELLED" },
+    });
+    return "CANCELLED";
+  }
 
   const every = (...s: string[]) => live.every((l) => s.includes(l.status));
   const some = (...s: string[]) => live.some((l) => s.includes(l.status));

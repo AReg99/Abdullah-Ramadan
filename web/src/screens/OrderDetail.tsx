@@ -5,7 +5,8 @@ import { api, type OrderDetail as OD } from "../api";
 
 export default function OrderDetail() {
   const { id = "" } = useParams();
-  const { t, lang } = useApp();
+  const { t, lang, me, toast } = useApp();
+  const [busy, setBusy] = useState(false);
   const [d, setD] = useState<OD | null>(null);
   useEffect(() => { api.order(id).then(setD).catch(() => {}); }, [id]);
   if (!d) return <div className="empty">{t("loading")}</div>;
@@ -30,6 +31,25 @@ export default function OrderDetail() {
               style={{ marginTop: 12, textDecoration: "none" }}>
           {t("track")}
         </Link>
+        {/* Only the owner, and never on an order that is already closed. */}
+        {me?.role === "OWNER" && d.status !== "CANCELLED" && d.status !== "DELIVERED" && (
+          <button className="btn dang sm" style={{ marginTop: 8 }} disabled={busy}
+            onClick={async () => {
+              const reason = prompt(`${t("cancelOrder")}\n\n${t("cancelWhy")}`);
+              if (!reason || reason.trim().length < 3) return;
+              if (!confirm(`${t("confirmCancel")}\n\n${d.code} · ${d.customer.name}\n\n${t("cancelHint")}`)) return;
+              setBusy(true);
+              try {
+                const r = await api.cancelOrder(d.id, reason.trim());
+                toast(`${t("orderCancelled")} · ${r.cancelled}`);
+                setD(await api.order(d.id));
+              } catch (e: any) {
+                toast(e?.code ? t(e.code) : t("signInFailed"));
+              } finally { setBusy(false); }
+            }}>
+            {t("cancelOrder")}
+          </button>
+        )}
       </div>
 
       {d.lines.map((l) => (

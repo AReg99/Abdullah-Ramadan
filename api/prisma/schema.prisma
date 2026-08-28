@@ -424,6 +424,9 @@ enum StageStatus {
   IN_PROGRESS
   PAUSED
   DONE
+  /// The order was cancelled before this stage was worked. Distinct from
+  /// PENDING, which means it is still coming.
+  CANCELLED
 }
 
 /// Fixed list — free text cannot be reported on. docs/03-order-lifecycle.md.

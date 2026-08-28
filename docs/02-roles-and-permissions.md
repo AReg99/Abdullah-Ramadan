@@ -61,6 +61,22 @@ like.
 
 Images only here — a PDF datasheet is an order attachment, not a product photo.
 
+### Cancelling an order
+
+**The owner's alone.** Cancelling stops work people are paid to do and money
+that has been promised, so it is not a correction anyone else can make.
+
+A reason is required and goes on the record with the cancellation. Nothing is
+deleted: every line still on the books is marked cancelled, its work orders with
+it, and any stage not yet finished is cancelled so it drops out of the leaders'
+queues, the dispatch bench and the showroom board. **Stages already finished keep
+their record** — the work happened, and the hours are still owed to whoever did
+them.
+
+A piece already handed to the customer is not cancelled. That is a return, which
+is a different transaction; an order whose lines are all delivered is refused
+rather than quietly closed.
+
 ### Telling the customer
 
 Every role that may read an order can open its **tracking view** — the same
