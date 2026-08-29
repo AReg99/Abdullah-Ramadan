@@ -129,6 +129,19 @@ export default async function orderRoutes(app: FastifyInstance) {
       return reply.code(404).send({ error: "not_found" });
     }
 
+    // The last visit that did not come off, per line. A piece a van stood
+    // outside the door for is not simply "waiting at the showroom".
+    const misses = await db.deliveryAttempt.findMany({
+      where: { orderLineId: { in: order.lines.map((l) => l.id) }, delivered: false },
+      orderBy: { occurredAt: "desc" },
+    });
+    const lastMiss = new Map<string, { at: Date; reason: string | null }>();
+    for (const m of misses) {
+      if (!lastMiss.has(m.orderLineId)) {
+        lastMiss.set(m.orderLineId, { at: m.occurredAt, reason: m.failReason });
+      }
+    }
+
     const lastEvent = await db.trackingEvent.findFirst({
       where: { orderId: id },
       orderBy: { occurredAt: "desc" },
@@ -175,6 +188,11 @@ export default async function orderRoutes(app: FastifyInstance) {
         promisedDate: l.promisedDate ?? order.promisedDate,
         receivedAt: l.receivedAt,
         deliveredAt: l.deliveredAt,
+        // A piece somebody tried to deliver and could not is not simply
+        // "ready". Telling the customer it is waiting for them, after a van
+        // stood outside their door, is how a small problem becomes a row.
+        missedAt: lastMiss.get(l.id)?.at ?? null,
+        missedReason: lastMiss.get(l.id)?.reason ?? null,
       };
     });
 
@@ -408,6 +426,7 @@ export default async function orderRoutes(app: FastifyInstance) {
 type MsgLine = {
   productAr: string; productEn: string; status: string;
   milestoneAr: string | null; milestoneEn: string | null;
+  missedAt?: Date | null;
 };
 
 function customerMessage(code: string, lines: MsgLine[], promised: Date | null, late: boolean) {
@@ -424,7 +443,9 @@ function customerMessage(code: string, lines: MsgLine[], promised: Date | null, 
     if (lang === "ar") {
       switch (l.status) {
         case "DELIVERED":     return `${name}: اتسلّم`;
-        case "READY":         return `${name}: جاهز في المعرض للاستلام`;
+        case "READY":         return l.missedAt
+          ? `${name}: حاولنا نوصّله ومعرفناش — هنتواصل معاك لميعاد تاني`
+          : `${name}: جاهز في المعرض للاستلام`;
         case "IN_TRANSIT":    return `${name}: في الطريق للمعرض`;
         case "FINISHED":      return `${name}: خلص التصنيع`;
         case "IN_PRODUCTION": return at ? `${name}: في مرحلة ${at}` : `${name}: تحت التصنيع`;
@@ -433,7 +454,9 @@ function customerMessage(code: string, lines: MsgLine[], promised: Date | null, 
     }
     switch (l.status) {
       case "DELIVERED":     return `${name}: delivered`;
-      case "READY":         return `${name}: ready for collection at the showroom`;
+      case "READY":         return l.missedAt
+        ? `${name}: we tried to deliver and could not — we will call to arrange another time`
+        : `${name}: ready for collection at the showroom`;
       case "IN_TRANSIT":    return `${name}: on its way to the showroom`;
       case "FINISHED":      return `${name}: finished in the factory`;
       case "IN_PRODUCTION": return at ? `${name}: in ${at}` : `${name}: in production`;

@@ -200,6 +200,37 @@ export const api = {
     req<Record<string, string>>("/settings", { method: "PUT", body: JSON.stringify(b) }),
   invoice: (id: string) => req<Invoice>(`/orders/${id}/invoice`),
 
+  // ---- the road ----
+  deliveryRun: () => req<DeliveryRun>("/delivery/run"),
+  deliveryAttempts: (lineId: string) => req<DeliveryStop>(`/delivery/lines/${lineId}/attempts`),
+  markDelivered: (lineId: string, b: {
+    recipientName: string; note?: string; photoPath?: string; signaturePath?: string;
+    lat?: number; lng?: number;
+  }) => req<DeliveryStop>(`/delivery/lines/${lineId}/delivered`,
+    { method: "POST", body: JSON.stringify(b) }),
+  markFailed: (lineId: string, b: { reason: string; note?: string; photoPath?: string;
+                                    lat?: number; lng?: number }) =>
+    req<any>(`/delivery/lines/${lineId}/failed`, { method: "POST", body: JSON.stringify(b) }),
+  deliveryReport: (from?: string, to?: string) => {
+    const q = new URLSearchParams();
+    if (from) q.set("from", from);
+    if (to) q.set("to", to);
+    return req<DeliveryReport>(`/delivery/report${q.toString() ? `?${q}` : ""}`);
+  },
+  /** Upload one piece of proof; returns the stored path to attach. */
+  uploadProof: async (blob: Blob, kind: "PHOTO" | "SIGNATURE") => {
+    const fd = new FormData();
+    fd.append("kind", kind);
+    fd.append("file", blob, kind === "SIGNATURE" ? "sign.png" : "proof.jpg");
+    const r = await fetch("/api/delivery/proof", {
+      method: "POST",
+      headers: { authorization: `Bearer ${token.get()}` },
+      body: fd,
+    });
+    if (!r.ok) throw new ApiError(r.status, (await r.json().catch(() => ({}))).error);
+    return (await r.json()) as { path: string; kind: string };
+  },
+
   // ---- quality ----
   defectTypes: () => req<DefectType[]>("/quality/defect-types"),
   addDefectType: (b: { code: string; nameAr: string; nameEn?: string }) =>
@@ -394,6 +425,33 @@ export type Summary = {
   lowStock: { id: string; name: string; unit: string; onHand: number;
               reorderLevel: number; value: number }[];
   byExpense: Record<string, number>;
+};
+export type DeliveryStop = {
+  id: string; status: string; qty: number; retry?: boolean;
+  product: { nameAr: string; nameEn: string; sku: string };
+  order: { id: string; code: string; invoiceNo: string | null };
+  customer: { name: string; phone: string; whatsapp: string | null; address: string | null };
+  showroom: string | null;
+  promisedDate: string | null;
+  specNotes: string | null;
+  attempts: { id: string; delivered: boolean; failReason: string | null;
+              recipientName: string | null; note: string | null;
+              photo: string | null; signature: string | null;
+              at: string; by: string | null }[];
+};
+export type DeliveryRun = {
+  onVan: DeliveryStop[]; toDeliver: DeliveryStop[]; done: DeliveryStop[];
+  totals: { onVan: number; toDeliver: number; done: number };
+};
+export type DeliveryReport = {
+  from: string; to: string;
+  totals: { attempts: number; delivered: number; failed: number;
+            repeats: number; firstTimeRate: number };
+  byReason: { reason: string; count: number }[];
+  byDriver: { name: string; delivered: number; failed: number }[];
+  rows: { id: string; at: string; delivered: boolean; reason: string | null;
+          customer: string; order: string; recipient: string | null;
+          note: string | null; by: string | null }[];
 };
 export type DefectType = { id: string; code: string; nameAr: string; nameEn: string };
 export type QcStage = {

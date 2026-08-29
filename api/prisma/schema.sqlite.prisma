@@ -103,6 +103,7 @@ model User {
   attendance    Attendance[]      @relation("AttendanceOf")
   attendanceTaken Attendance[]    @relation("AttendanceAuthor")
   inspections   Inspection[]      @relation("InspectionAuthor")
+  deliveries    DeliveryAttempt[] @relation("DeliveryDriver")
 }
 
 /// A crew working one station under one leader.
@@ -347,6 +348,7 @@ model OrderLine {
   deliveredAt  DateTime?
 
   workOrders WorkOrder[]
+  deliveries DeliveryAttempt[]
 
   @@index([status, promisedDate])
 }
@@ -461,6 +463,40 @@ model UnitLabel {
 
 
 /// What the inspector decided.
+
+/// Why a delivery did not happen.
+
+/// One attempt at handing a piece to a customer.
+///
+/// Every attempt is kept, not just the one that worked. A piece delivered on
+/// the third try tells you something about the address, the customer or the
+/// van that a single success record throws away — and a driver accused of not
+/// turning up has the record to say otherwise.
+model DeliveryAttempt {
+  id            String              @id @default(uuid())
+  orderLineId   String
+  orderLine     OrderLine           @relation(fields: [orderLineId], references: [id], onDelete: Cascade)
+  driverId      String?
+  driver        User?               @relation("DeliveryDriver", fields: [driverId], references: [id])
+  /// True when the piece was actually handed over.
+  delivered     Boolean             @default(false)
+  failReason    String?
+  /// Who signed for it. Not always the customer — a doorman, a son.
+  recipientName String?
+  note          String?
+  /// The proof: a photograph of the piece where it was left, and a signature.
+  photoPath     String?
+  signaturePath String?
+  /// Where the phone was when it was signed. Optional: a basement has no fix,
+  /// and refusing the delivery over a missing GPS reading would be absurd.
+  lat           Float?
+  lng           Float?
+  occurredAt    DateTime            @default(now())
+  createdAt     DateTime            @default(now())
+
+  @@index([orderLineId])
+  @@index([occurredAt])
+}
 
 /// A kind of fault, so a defect report can group by something other than free
 /// text. Editable, because every workshop has its own vocabulary for what goes

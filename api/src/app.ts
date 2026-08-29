@@ -18,6 +18,7 @@ import adminRoutes from "./modules/admin/routes.js";
 import settingsRoutes from "./modules/settings/routes.js";
 import stockRoutes from "./modules/stock/routes.js";
 import qualityRoutes from "./modules/quality/routes.js";
+import deliveryRoutes from "./modules/delivery/routes.js";
 
 export async function build() {
   const app = Fastify({ logger: { level: "warn" } });
@@ -77,6 +78,7 @@ export async function build() {
   await app.register(settingsRoutes);
   await app.register(stockRoutes);
   await app.register(qualityRoutes);
+  await app.register(deliveryRoutes);
 
   return app;
 }

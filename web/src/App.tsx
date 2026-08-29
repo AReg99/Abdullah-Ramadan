@@ -26,6 +26,7 @@ import Summary from "./screens/Summary";
 import Stock from "./screens/Stock";
 import Attendance from "./screens/Attendance";
 import Inspect from "./screens/Inspect";
+import Run from "./screens/Run";
 import Quality from "./screens/Quality";
 import Money from "./screens/Money";
 import { onSyncChange, queued } from "./outbox";
@@ -48,7 +49,7 @@ const NAVS: Record<string, Tab[]> = {
     ["/showroom", "⌂", "showroom"], ["/orders", "▤", "orders"], ["/new-order", "✎", "newOrder"],
     ["/labels", "⌗", "labels"], ["/stock", "▥", "stock"], ["/money", "₤", "money"],
     ["/attendance", "✓", "attendance"], ["/payroll", "☰", "payroll"],
-    ["/quality", "◎", "quality"], ["/setup", "⚙", "setup"],
+    ["/quality", "◎", "quality"], ["/run", "⇢", "run"], ["/setup", "⚙", "setup"],
   ],
   // Runs the factory. Not the business: setup and order entry are the owner's,
   // and the showroom's, and money never appears on these screens.
@@ -65,14 +66,14 @@ const NAVS: Record<string, Tab[]> = {
   ],
   STOREKEEPER: [["/dispatch", "⇥", "dispatch"], ["/stock", "▥", "stock"],
                 ["/labels", "⌗", "labels"], ["/orders", "▤", "orders"]],
-  SHOWROOM_MANAGER: [["/showroom", "⌂", "showroom"], ["/orders", "▤", "orders"],
-                     ["/new-order", "✎", "newOrder"], ["/stock", "▥", "stock"],
-                     ["/setup", "⚙", "setup"]],
+  SHOWROOM_MANAGER: [["/showroom", "⌂", "showroom"], ["/run", "⇢", "run"],
+                     ["/orders", "▤", "orders"], ["/new-order", "✎", "newOrder"],
+                     ["/stock", "▥", "stock"], ["/setup", "⚙", "setup"]],
   SALES_REP: [["/showroom", "⌂", "showroom"], ["/orders", "▤", "orders"],
               ["/new-order", "✎", "newOrder"], ["/setup", "⚙", "setup"]],
   // On the road between the factory and the showroom: what is on the van, and
   // signing it in when it lands.
-  DRIVER: [["/showroom", "⌂", "showroom"]],
+  DRIVER: [["/run", "⇢", "run"], ["/showroom", "⌂", "showroom"]],
   // Not the ops dashboard — that is guarded to production roles, and pointing
   // the accountant at it landed them on a 403 the moment they signed in.
   // The books are the whole job: the cash box, the invoices, what is owed.
@@ -146,6 +147,7 @@ export default function App() {
           <Route path="/attendance" element={<Attendance />} />
           <Route path="/inspect/:id" element={<Inspect />} />
           <Route path="/quality" element={<Quality />} />
+          <Route path="/run" element={<Run />} />
           <Route path="/money" element={<Money />} />
           <Route path="/dispatch" element={<Dispatch />} />
           <Route path="/showroom" element={<Showroom />} />

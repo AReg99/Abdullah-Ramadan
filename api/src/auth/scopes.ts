@@ -103,6 +103,12 @@ export const STOCK_ADMIN = ["OWNER", "FACTORY_MANAGER", "ACCOUNTANT"];
  * answer for the floor — a supervisor has to be able to release a piece when
  * the inspector is off.
  */
+/**
+ * The road. The driver's own job, plus the showroom that answers the phone
+ * when a customer asks where their bedroom is.
+ */
+export const DELIVERY = ["OWNER", "DRIVER", "SHOWROOM_MANAGER", "SALES_REP"];
+
 export const QUALITY = ["OWNER", "FACTORY_MANAGER", "SUPERVISOR", "QC"];
 
 export const ATTENDANCE = ["OWNER", "FACTORY_MANAGER", "SUPERVISOR", "ACCOUNTANT"];
