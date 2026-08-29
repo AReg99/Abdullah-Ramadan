@@ -152,3 +152,12 @@ select{appearance:none;background-image:none}
 .msg{margin:9px 0 0;padding:13px 15px;background:var(--g1);border:1px solid var(--g3);
   border-radius:var(--rs);white-space:pre-wrap;font:inherit;font-size:.92rem;
   line-height:1.65;color:var(--g9)}
+
+/* The books: report tabs that overflow, and tables wider than a phone. */
+.scroll-x{overflow-x:auto;-webkit-overflow-scrolling:touch}
+.tbl{width:100%;border-collapse:collapse;font-size:.84rem;white-space:nowrap}
+.tbl th{text-align:start;font-weight:600;color:var(--g6);font-size:.72rem;
+  letter-spacing:.04em;padding:7px 10px;border-bottom:1px solid var(--g3)}
+.tbl td{padding:8px 10px;border-bottom:1px solid var(--g2);color:var(--g9)}
+.tbl tr:last-child td{border-bottom:none}
+.tbl td.num{text-align:end;font-variant-numeric:tabular-nums}

@@ -57,7 +57,9 @@ export default async function orderRoutes(app: FastifyInstance) {
       id: order.id, code: order.code, status: order.status,
       customer: { name: order.customer.name, phone: order.customer.phone },
       promisedDate: order.promisedDate,
-      ...(seesMoney(user.role.key) ? { total: Number(order.total) } : {}),
+      ...(seesMoney(user.role.key)
+        ? { total: Number(order.total), paidTotal: Number(order.paidTotal) }
+        : {}),
       lines: order.lines.map((l) => ({
         id: l.id, qty: l.qty, status: l.status,
         productAr: l.product.nameAr, productEn: l.product.nameEn,

@@ -59,6 +59,19 @@ export const PRODUCTION = ["OWNER", "FACTORY_MANAGER", "SUPERVISOR"];
  */
 export const OVERSIGHT = ["OWNER"];
 
+/**
+ * The books: the cash box, supplier invoices, expenses and every report over
+ * them. The accountant keeps them and the owner reads them; nobody else has
+ * business in the drawer.
+ */
+export const BOOKS = ["OWNER", "ACCOUNTANT"];
+
+/**
+ * Taking money from a customer. The showroom does this at the counter — a
+ * deposit is collected where the sale happens, not by whoever keeps the books.
+ */
+export const COLLECT = ["OWNER", "ACCOUNTANT", "SHOWROOM_MANAGER", "SALES_REP"];
+
 /** May see prices, order values and takings. */
 export const MONEY = ["OWNER", "ACCOUNTANT", "SHOWROOM_MANAGER", "SALES_REP"];
 

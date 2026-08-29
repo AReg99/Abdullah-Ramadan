@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { useApp } from "../app-context";
-import { api, type OrderDetail as OD } from "../api";
+import { api, type CashAccount, type OrderDetail as OD } from "../api";
 
 export default function OrderDetail() {
   const { id = "" } = useParams();
@@ -51,6 +51,10 @@ export default function OrderDetail() {
           </button>
         )}
       </div>
+
+      {d.total !== undefined && d.status !== "CANCELLED" && (
+        <Collect order={d} onDone={async () => setD(await api.order(d.id))} />
+      )}
 
       {d.lines.map((l) => (
         <div className="card" key={l.id}>
@@ -127,5 +131,94 @@ export default function OrderDetail() {
         </div>
       </div>
     </>
+  );
+}
+
+/**
+ * Taking money at the counter. The showroom does this where the sale happens —
+ * a deposit is collected by whoever is standing with the customer, not by
+ * whoever keeps the books.
+ */
+function Collect({ order, onDone }: { order: OD; onDone: () => void }) {
+  const { t, lang, me, toast } = useApp();
+  const ar = lang === "ar";
+  const [accounts, setAccounts] = useState<CashAccount[]>([]);
+  const [open, setOpen] = useState(false);
+  const [f, setF] = useState({ accountId: "", amount: "", method: "CASH", reference: "" });
+  const [busy, setBusy] = useState(false);
+
+  const mayCollect = ["OWNER", "ACCOUNTANT", "SHOWROOM_MANAGER", "SALES_REP"].includes(me?.role ?? "");
+  useEffect(() => {
+    if (mayCollect) api.cashAccounts().then(setAccounts).catch(() => setAccounts([]));
+  }, [mayCollect]);
+  if (!mayCollect) return null;
+
+  const total = order.total ?? 0;
+  const paid = order.paidTotal ?? 0;
+  const outstanding = Math.max(0, total - paid);
+  const num = (v: number) => v.toLocaleString(ar ? "ar-EG" : "en-GB", { maximumFractionDigits: 2 });
+
+  return (
+    <div className="card">
+      <div className="between">
+        <span style={{ flex: 1 }}>
+          <span className="k">{t("paidSoFar")}</span>
+          <div><b className="mono">{num(paid)}</b> <span className="muted mono">/ {num(total)}</span></div>
+        </span>
+        <span style={{ textAlign: "end" }}>
+          <span className="k">{t("outstanding")}</span>
+          <div><b className="mono" style={{ color: outstanding > 0 ? "var(--warn)" : "var(--ok)" }}>
+            {num(outstanding)}
+          </b></div>
+        </span>
+      </div>
+
+      {outstanding > 0 && !open && (
+        <button className="btn pri sm" style={{ marginTop: 11 }} onClick={() => setOpen(true)}>
+          {t("collect")}
+        </button>
+      )}
+
+      {open && (
+        <>
+          <select value={f.accountId} onChange={(e) => setF({ ...f, accountId: e.target.value })}
+                  style={{ marginTop: 10 }}>
+            <option value="">{t("pickAccount")}</option>
+            {accounts.map((a) => <option key={a.id} value={a.id}>{ar ? a.nameAr : a.nameEn}</option>)}
+          </select>
+          <input className="mono" inputMode="decimal" placeholder={num(outstanding)} value={f.amount}
+                 onChange={(e) => setF({ ...f, amount: e.target.value })} style={{ marginTop: 8 }} />
+          <select value={f.method} onChange={(e) => setF({ ...f, method: e.target.value })}
+                  style={{ marginTop: 8 }}>
+            {["CASH","BANK_TRANSFER","INSTAPAY","CHEQUE","CARD"]
+              .map((m) => <option key={m} value={m}>{t(m as any)}</option>)}
+          </select>
+          <input placeholder={t("reference")} value={f.reference}
+                 onChange={(e) => setF({ ...f, reference: e.target.value })} style={{ marginTop: 8 }} />
+          <div className="row" style={{ marginTop: 10 }}>
+            <button className="btn sec sm" onClick={() => setOpen(false)}>{t("cancel")}</button>
+            <button className="btn pri sm"
+                    disabled={busy || !f.accountId || !(Number(f.amount) > 0)}
+                    onClick={async () => {
+                      setBusy(true);
+                      try {
+                        const r = await api.collect({
+                          orderId: order.id, accountId: f.accountId,
+                          amount: Number(f.amount), method: f.method,
+                          reference: f.reference.trim() || undefined });
+                        toast(`${t("collected")} · ${t("outstanding")} ${num(r.outstanding)}`);
+                        setF({ accountId: "", amount: "", method: "CASH", reference: "" });
+                        setOpen(false);
+                        onDone();
+                      } catch (e: any) { toast(e?.code ? t(e.code) : t("signInFailed")); }
+                      finally { setBusy(false); }
+                    }}>
+              {t("save")}
+            </button>
+          </div>
+          <p className="note">{t("collectHint")}</p>
+        </>
+      )}
+    </div>
   );
 }

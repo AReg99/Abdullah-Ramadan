@@ -143,6 +143,37 @@ export const api = {
   addLocation: (b: { nameAr: string; nameEn?: string; address?: string; type?: string }) =>
     req<LocationRow>("/admin/locations", { method: "POST", body: JSON.stringify(b) }),
 
+  // ---- the books ----
+  cashAccounts: () => req<CashAccount[]>("/money/accounts"),
+  addCashAccount: (b: { code: string; nameAr: string; kind?: string; openingBalance?: number }) =>
+    req<CashAccount>("/money/accounts", { method: "POST", body: JSON.stringify(b) }),
+  collect: (b: { orderId: string; accountId: string; amount: number; method?: string;
+                 reference?: string; note?: string }) =>
+    req<{ id: string; paidTotal: number; outstanding: number }>("/money/collect",
+      { method: "POST", body: JSON.stringify(b) }),
+  spend: (b: { accountId: string; amount: number; category?: string; method?: string;
+               purchaseInvoiceId?: string; reference?: string; note?: string }) =>
+    req<any>("/money/spend", { method: "POST", body: JSON.stringify(b) }),
+  reverseEntry: (id: string, reason: string) =>
+    req<any>(`/money/entries/${id}/reverse`, { method: "POST", body: JSON.stringify({ reason }) }),
+  suppliers: () => req<{ id: string; name: string; phone: string | null }[]>("/money/suppliers"),
+  addSupplier: (b: { name: string; phone?: string }) =>
+    req<any>("/money/suppliers", { method: "POST", body: JSON.stringify(b) }),
+  addPurchase: (b: { supplierId: string; number: string; issuedOn: string; amount: number; note?: string }) =>
+    req<any>("/money/purchases", { method: "POST", body: JSON.stringify(b) }),
+  report: (name: string, from?: string, to?: string) => {
+    const q = new URLSearchParams();
+    if (from) q.set("from", from);
+    if (to) q.set("to", to);
+    return req<Report>(`/money/reports/${name}${q.toString() ? `?${q}` : ""}`);
+  },
+  exportUrl: (name: string, from?: string, to?: string) => {
+    const q = new URLSearchParams({ report: name });
+    if (from) q.set("from", from);
+    if (to) q.set("to", to);
+    return `/api/money/export?${q}`;
+  },
+
   today: () => req<Dashboard>("/dashboard/today"),
   floor: () => req<StationCard[]>("/dashboard/floor"),
   orders: () => req<OrderRow[]>("/orders"),
@@ -230,6 +261,18 @@ export type StationCard = {
   blocked: { stageId: string; orderCode: string; reason: string; minutes: number }[];
 };
 export type OrderRow = { id: string; code: string; status: string; kind: string; customer: string; total?: number; promisedDate: string | null; lines: { id: string; status: string; qty: number; productAr: string; productEn: string }[] };
+export type CashAccount = { id: string; code: string; nameAr: string; nameEn: string;
+  kind: "CASH" | "BANK"; isActive: boolean; openingBalance: number;
+  totalIn: number; totalOut: number; balance: number };
+export type Report = {
+  from?: string; to?: string;
+  totals: Record<string, number>;
+  byMethod?: Record<string, number>;
+  buckets?: Record<string, number>;
+  accounts?: { id: string; code: string; nameAr: string; nameEn: string; kind: string;
+    opening: number; in: number; out: number; closing: number }[];
+  rows: Record<string, any>[];
+};
 export type Progress = {
   id: string; code: string; status: string;
   customer: { name: string; phone: string };
@@ -244,7 +287,7 @@ export type Progress = {
 };
 export type OrderDetail = {
   id: string; code: string; status: string; customer: { name: string; phone: string };
-  total?: number; promisedDate: string | null;
+  total?: number; paidTotal?: number; promisedDate: string | null;
   lines: { id: string; qty: number; status: string; productAr: string; productEn: string;
     workOrders: { code: string; status: string; stages: { seq: number; status: string; nameAr: string; nameEn: string; actualMinutes: number; stdMinutes: number; photos: { kind: string; path: string }[] }[] }[] }[];
   attachments: Attachment[];

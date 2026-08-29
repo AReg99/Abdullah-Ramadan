@@ -82,6 +82,8 @@ model User {
   otps          OtpCode[]
   uploads       OrderAttachment[] @relation("AttachmentAuthor")
   productPhotos ProductPhoto[]    @relation("ProductPhotoAuthor")
+  cashEntries   CashEntry[]       @relation("CashEntryAuthor")
+  purchases     PurchaseInvoice[] @relation("PurchaseAuthor")
 }
 
 /// A crew working one station under one leader.
@@ -275,6 +277,7 @@ model Order {
   lines       OrderLine[]
   events      TrackingEvent[]
   attachments OrderAttachment[]
+  payments    CashEntry[]
 
   @@index([status, promisedDate])
 }
@@ -539,4 +542,120 @@ model TrackingEvent {
   @@index([orderId, occurredAt])
   @@index([code, occurredAt])
   @@index([occurredAt])
+}
+
+// ─────────────────────────────────────────────────────────── money
+// Every movement of money is one CashEntry against one account. A collection
+// from a customer, a payment to a supplier and a running expense are the same
+// shape — direction, amount, where it landed — which is what makes the cash box
+// add up without a second set of books to reconcile against.
+
+enum CashAccountKind {
+  CASH
+  BANK
+}
+
+/// A drawer or a bank account. الخزنة.
+model CashAccount {
+  id             String          @id @default(uuid())
+  code           String          @unique
+  nameAr         String
+  nameEn         String
+  kind           CashAccountKind @default(CASH)
+  /// What was in it the day the books opened here.
+  openingBalance Decimal         @default(0) @db.Decimal(14, 2)
+  isActive       Boolean         @default(true)
+  createdAt      DateTime        @default(now())
+
+  entries CashEntry[]
+}
+
+enum CashDirection {
+  IN
+  OUT
+}
+
+enum PaymentMethod {
+  CASH
+  BANK_TRANSFER
+  INSTAPAY
+  CHEQUE
+  CARD
+}
+
+/// What money out of the drawer was for, when it was not a supplier invoice.
+enum ExpenseCategory {
+  MATERIALS
+  SALARIES
+  RENT
+  UTILITIES
+  TRANSPORT
+  MAINTENANCE
+  MARKETING
+  OTHER
+}
+
+/// One movement of money. Never edited — a mistake is corrected by its reverse,
+/// so the cash box can always be re-derived from the entries themselves.
+model CashEntry {
+  id                String           @id @default(uuid())
+  accountId         String
+  account           CashAccount      @relation(fields: [accountId], references: [id])
+  direction         CashDirection
+  amount            Decimal          @db.Decimal(14, 2)
+  method            PaymentMethod    @default(CASH)
+  /// The day the money actually moved, which is not always the day it was typed.
+  occurredOn        DateTime
+  /// Collected against a customer's order.
+  orderId           String?
+  order             Order?           @relation(fields: [orderId], references: [id])
+  /// Paid against a supplier's invoice.
+  purchaseInvoiceId String?
+  purchaseInvoice   PurchaseInvoice? @relation(fields: [purchaseInvoiceId], references: [id])
+  /// Set on money out that is neither a supplier invoice nor a refund.
+  category          ExpenseCategory?
+  reference         String?
+  note              String?
+  /// Set when this entry exists only to undo another.
+  reversesId        String?          @unique
+  reverses          CashEntry?       @relation("Reversal", fields: [reversesId], references: [id])
+  reversedBy        CashEntry?       @relation("Reversal")
+  actorId           String?
+  actor             User?            @relation("CashEntryAuthor", fields: [actorId], references: [id])
+  createdAt         DateTime         @default(now())
+
+  @@index([occurredOn])
+  @@index([orderId])
+  @@index([accountId, occurredOn])
+}
+
+model Supplier {
+  id        String   @id @default(uuid())
+  name      String
+  phone     String?
+  note      String?
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  invoices PurchaseInvoice[]
+}
+
+/// فاتورة مشتريات — what a supplier billed us.
+model PurchaseInvoice {
+  id         String   @id @default(uuid())
+  supplierId String
+  supplier   Supplier @relation(fields: [supplierId], references: [id])
+  /// The supplier's own invoice number, as printed on their paper.
+  number     String
+  issuedOn   DateTime
+  amount     Decimal  @db.Decimal(14, 2)
+  note       String?
+  actorId    String?
+  actor      User?    @relation("PurchaseAuthor", fields: [actorId], references: [id])
+  createdAt  DateTime @default(now())
+
+  entries CashEntry[]
+
+  @@unique([supplierId, number])
+  @@index([issuedOn])
 }

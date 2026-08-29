@@ -62,6 +62,11 @@ async function main() {
   console.log(demo ? "seeding with demo data…" : "seeding for production (no demo data)…");
   // Order matters: children before parents.
   await db.trackingEvent.deleteMany();
+  // Money first: entries point at orders and invoices, so they cannot outlive them.
+  await db.cashEntry.deleteMany();
+  await db.purchaseInvoice.deleteMany();
+  await db.supplier.deleteMany();
+  await db.cashAccount.deleteMany();
   await db.stageWorker.deleteMany();
   await db.stagePhoto.deleteMany();
   await db.unitLabel.deleteMany();
@@ -95,6 +100,15 @@ async function main() {
   const showroom = await db.location.create({
     data: { type: "SHOWROOM", nameAr: "معرض أورا", nameEn: "Aura Showroom",
             address: "In front of Mecca Center" },
+  });
+
+  // The books need somewhere for money to land on day one; without an account
+  // the first deposit anyone tries to take has nowhere to go.
+  await db.cashAccount.createMany({
+    data: [
+      { code: "CASH", nameAr: "الخزنة الرئيسية", nameEn: "Main cash box", kind: "CASH" },
+      { code: "BANK", nameAr: "الحساب البنكي", nameEn: "Bank account", kind: "BANK" },
+    ],
   });
 
   const stations = Object.fromEntries(
