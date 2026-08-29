@@ -67,6 +67,10 @@ export default function Summary() {
               </div>
             </div>
             <div className="tile">
+              <span className="k">{t("stockValue")}</span>
+              <div className="big mono">{num(s.totals.stockValue ?? 0)}</div>
+            </div>
+            <div className="tile">
               <span className="k">{t("weOwe")}</span>
               <div className="big mono" style={{ color: s.totals.payable > 0 ? "var(--bad)" : undefined }}>
                 {num(s.totals.payable)}
@@ -114,6 +118,24 @@ export default function Summary() {
                     render={(r) => ({ to: `/orders/${r.id}`, name: r.customer,
                                       sub: `${r.code} · ${r.ageDays} ${t("day")}`,
                                       value: r.outstanding })} money={money} />
+          {s.lowStock?.length > 0 && (
+            <div className="card" style={{ marginTop: 11 }}>
+              <span className="k">{t("runningOut")}</span>
+              {s.lowStock.map((r) => (
+                <Link key={r.id} to="/stock" className="evt"
+                      style={{ textDecoration: "none", color: "inherit" }}>
+                  <span style={{ flex: 1 }}>
+                    <b>{r.name}</b>
+                    <span className="sub mono">{t("reorderAt")} {money(r.reorderLevel)}</span>
+                  </span>
+                  <b className="mono" style={{ color: "var(--warn)" }}>
+                    {money(r.onHand)} {r.unit}
+                  </b>
+                </Link>
+              ))}
+            </div>
+          )}
+
           <NameList title={t("topBills")} rows={s.topBills} empty={t("nothingOwed")}
                     render={(r) => ({ to: `/purchase/${r.id}`, name: r.supplier,
                                       sub: `${r.number} · ${r.ageDays} ${t("day")}`,

@@ -93,6 +93,8 @@ model User {
   payslips      PayrollLine[]
   payAdjustments PayrollAdjustment[]
   payrollRuns   PayrollRun[]      @relation("PayrollAuthor")
+  stockMoves    StockMovement[]   @relation("StockAuthor")
+  stocktakes    Stocktake[]       @relation("StocktakeAuthor")
 }
 
 /// A crew working one station under one leader.
@@ -150,6 +152,8 @@ model Location {
   staff     User[]
   soldFrom  OrderLine[]         @relation("LineWarehouse")
   received  PurchaseInvoiceLine[]
+  stock     StockMovement[]
+  stocktakes Stocktake[]
 }
 
 model Station {
@@ -199,6 +203,7 @@ model Product {
   orderLines OrderLine[]
   workOrders WorkOrder[]
   photos     ProductPhoto[]
+  stockItem  StockItem?
 }
 
 // ---------------------------------------------------------------- sales
@@ -521,6 +526,12 @@ model CashAccount {
 /// expenses only — and is left alone because renaming a live enum is a
 /// migration nobody needs.
 
+
+/// Why stock moved. The reason is what makes a stock report readable: a shelf
+/// that dropped by four tells you nothing until you know whether they were
+/// sold, damaged, or counted wrong.
+
+
 /// One movement of money. Never edited — a mistake is corrected by its reverse,
 /// so the cash box can always be re-derived from the entries themselves.
 model CashEntry {
@@ -645,6 +656,109 @@ model PurchaseInvoiceLine {
   discount    Decimal         @default(0)
   warehouseId String?
   warehouse   Location?       @relation(fields: [warehouseId], references: [id])
+  /// Set when this line is something the store actually holds, so receiving
+  /// the bill puts it on a shelf. Most lines are not — a repair or a delivery
+  /// charge is on the invoice but never in stock.
+  stockItemId String?
+}
+
+/// Something the store holds a quantity of.
+///
+/// Not the same thing as a catalogue product: a factory stocks timber, foam and
+/// glue that will never appear in a showroom, and a showroom holds pieces the
+/// catalogue does list. So a stock item stands on its own and *may* point at a
+/// product, rather than every product silently becoming stock.
+model StockItem {
+  id           String       @id @default(uuid())
+  sku          String       @unique
+  nameAr       String
+  nameEn       String
+  kind         String    @default("MATERIAL")
+  /// متر، كيلو، قطعة — printed beside every quantity, because "12" of an
+  /// unknown unit is not a stock figure.
+  unit         String       @default("قطعة")
+  /// Below this, the item is flagged as running out. Zero means never flag it.
+  reorderLevel Decimal      @default(0)
+  /// What one costs, for valuing what is on the shelf.
+  unitCost     Decimal      @default(0)
+  /// Set when this item is a catalogue product, so selling one moves it.
+  productId    String?      @unique
+  product      Product?     @relation(fields: [productId], references: [id])
+  isActive     Boolean      @default(true)
+  createdAt    DateTime     @default(now())
+
+  movements       StockMovement[]
+  stocktakeLines  StocktakeLine[]
+}
+
+/// One movement of stock, in or out of one store.
+///
+/// Append-only, exactly like the cash book: the quantity on a shelf is
+/// re-derived by summing movements rather than kept as a number somebody edits.
+/// A wrong movement is corrected by its reverse, so both stay on the record and
+/// the balance still comes out right.
+model StockMovement {
+  id                String            @id @default(uuid())
+  itemId            String
+  item              StockItem         @relation(fields: [itemId], references: [id])
+  warehouseId       String
+  warehouse         Location          @relation(fields: [warehouseId], references: [id])
+  direction         String
+  qty               Decimal
+  reason            String
+  /// The cost on the day it moved, for valuation.
+  unitCost          Decimal           @default(0)
+  occurredOn        DateTime
+  /// What caused it, where there was a cause.
+  orderLineId       String?
+  purchaseInvoiceId String?
+  stocktakeId       String?
+  stocktake         Stocktake?        @relation(fields: [stocktakeId], references: [id])
+  /// Both halves of a move between two stores share one id.
+  transferId        String?
+  note              String?
+  reversesId        String?           @unique
+  reverses          StockMovement?    @relation("StockReversal", fields: [reversesId], references: [id])
+  reversedBy        StockMovement?    @relation("StockReversal")
+  actorId           String?
+  actor             User?             @relation("StockAuthor", fields: [actorId], references: [id])
+  createdAt         DateTime          @default(now())
+
+  @@index([itemId, warehouseId])
+  @@index([occurredOn])
+  @@index([transferId])
+}
+
+/// الجرد — counting what is actually on the shelf against what the system
+/// thinks. The difference is posted as movements with a reason, never as a
+/// silent correction of the balance.
+model Stocktake {
+  id          String          @id @default(uuid())
+  warehouseId String
+  warehouse   Location        @relation(fields: [warehouseId], references: [id])
+  startedAt   DateTime        @default(now())
+  postedAt    DateTime?
+  note        String?
+  actorId     String?
+  actor       User?           @relation("StocktakeAuthor", fields: [actorId], references: [id])
+
+  lines     StocktakeLine[]
+  movements StockMovement[]
+}
+
+model StocktakeLine {
+  id          String    @id @default(uuid())
+  stocktakeId String
+  stocktake   Stocktake @relation(fields: [stocktakeId], references: [id], onDelete: Cascade)
+  itemId      String
+  item        StockItem @relation(fields: [itemId], references: [id])
+  /// What the books said when the count was taken, frozen so the variance can
+  /// still be explained after the adjustment has moved the balance.
+  expected    Decimal
+  counted     Decimal
+  note        String?
+
+  @@unique([stocktakeId, itemId])
 }
 
 model Supplier {

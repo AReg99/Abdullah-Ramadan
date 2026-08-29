@@ -67,8 +67,11 @@ a{color:var(--p)}
 .job{display:flex;gap:12px;align-items:center;width:100%;text-align:start;padding:14px;
   background:var(--g1);border:1px solid var(--g3);border-radius:var(--rl);margin-bottom:10px;min-height:76px}
 [dir="rtl"] .job{text-align:right}
-.job .nm{font-weight:600;font-size:1rem;line-height:1.25}
-.job .sub{font-size:.8rem;color:var(--g6);margin-top:3px;display:block}
+/* A name with a quieter line under it. Scoped to .job for years, which meant
+   every other screen using the same two classes got unstyled inline text
+   jammed against the name. They are general now. */
+.nm{font-weight:600;font-size:1rem;line-height:1.25;display:block}
+.sub{font-size:.8rem;color:var(--g6);margin-top:3px;display:block}
 .spec{display:grid;grid-template-columns:auto 1fr;gap:7px 16px;font-size:.92rem;margin:0}
 .spec dt{color:var(--g6)} .spec dd{margin:0;font-weight:600}
 .strip{display:flex;gap:7px;margin-top:9px}

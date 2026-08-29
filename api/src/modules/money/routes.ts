@@ -6,6 +6,7 @@ import { guard } from "../../auth/jwt.js";
 import { BOOKS, COLLECT } from "../../auth/scopes.js";
 import { record } from "../../lib/events.js";
 import { nextNumber } from "../../lib/sequence.js";
+import { receiveOnPurchase } from "../../lib/stock.js";
 import { allSettings, applyVat } from "../../lib/settings.js";
 
 /**
@@ -348,6 +349,8 @@ export default async function moneyRoutes(app: FastifyInstance) {
         unitPrice: z.number().nonnegative(),
         discount: z.number().nonnegative().default(0),
         warehouseId: z.string().optional(),
+        /** Name a stock item and the goods land on that shelf. */
+        stockItemId: z.string().optional(),
       })).default([]),
       amount: money().optional(),
       discount: z.number().nonnegative().default(0),
@@ -369,7 +372,7 @@ export default async function moneyRoutes(app: FastifyInstance) {
     if (net <= 0) return reply.code(400).send({ error: "amount_required" });
     const taxTotal = Math.round(net * (b.taxRate / 100) * 100) / 100;
 
-    return db.purchaseInvoice.create({
+    const invoice = await db.purchaseInvoice.create({
       data: {
         supplierId: b.supplierId, number: b.number, issuedOn: new Date(b.issuedOn),
         warehouseId: b.warehouseId ?? null,
@@ -382,11 +385,16 @@ export default async function moneyRoutes(app: FastifyInstance) {
             description: l.description, qty: String(l.qty),
             unitPrice: String(l.unitPrice), discount: String(l.discount),
             warehouseId: l.warehouseId ?? null,
+            stockItemId: l.stockItemId ?? null,
           })),
         },
       },
       include: { lines: true },
     });
+
+    // Anything on the bill that a shelf actually holds arrives now.
+    await receiveOnPurchase(invoice.id, (req as any).user.id).catch(() => {});
+    return invoice;
   });
 
   /** One supplier bill in full, for the screen and for the printed copy. */
@@ -1028,6 +1036,27 @@ export default async function moneyRoutes(app: FastifyInstance) {
       })
       .filter((r) => r.outstanding > 0.005);
 
+    // What is on the shelves is part of what the business is worth, and what
+    // is running out is the thing an owner most wants to be told before a
+    // customer asks for it.
+    const stockItems = await db.stockItem.findMany({ where: { isActive: true } });
+    const stockSums = await db.stockMovement.groupBy({
+      by: ["itemId", "direction"], _sum: { qty: true },
+    });
+    const onHandOf = (id: string) =>
+      n(stockSums.find((g) => g.itemId === id && g.direction === "IN")?._sum.qty)
+      - n(stockSums.find((g) => g.itemId === id && g.direction === "OUT")?._sum.qty);
+    const stock = stockItems.map((i) => ({
+      id: i.id, name: i.nameAr, unit: i.unit,
+      onHand: onHandOf(i.id), reorderLevel: n(i.reorderLevel),
+      value: Math.round(onHandOf(i.id) * n(i.unitCost) * 100) / 100,
+    }));
+    const stockValue = Math.round(stock.reduce((s, r) => s + r.value, 0) * 100) / 100;
+    const lowStock = stock
+      .filter((r) => r.reorderLevel > 0 && r.onHand <= r.reorderLevel)
+      .sort((a, b) => a.onHand - b.onHand)
+      .slice(0, 5);
+
     const receivable = debts.reduce((s, r) => s + r.outstanding, 0);
     const payable = owed.reduce((s, r) => s + r.outstanding, 0);
     const inHand = cash.reduce((s, a) => s + a.balance, 0);
@@ -1042,7 +1071,7 @@ export default async function moneyRoutes(app: FastifyInstance) {
         expenses,
         profit: sales - cogs - expenses,
         collected: n(collected),
-        receivable, payable,
+        receivable, payable, stockValue,
         // What the business is worth on paper today: the drawer plus what is
         // owed to it, less what it owes. The one number an owner asks for.
         net: inHand + receivable - payable,
@@ -1052,6 +1081,7 @@ export default async function moneyRoutes(app: FastifyInstance) {
       topDebtors: [...debts].sort((a, b) => b.outstanding - a.outstanding).slice(0, 5),
       oldestDebts: [...debts].sort((a, b) => b.ageDays - a.ageDays).slice(0, 5),
       topBills: [...owed].sort((a, b) => b.outstanding - a.outstanding).slice(0, 5),
+      lowStock,
       byExpense: Object.fromEntries(
         spendRows.filter((g) => g.category).map((g) => [g.category!, n(g._sum.amount)])),
     };

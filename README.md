@@ -82,6 +82,7 @@ web/   React + Vite — worker app and owner console, RTL-first
 | [09 — Arabic & English](docs/09-localization.md) | The bilingual specification: RTL rules, fonts, formats, and the full EN↔AR terminology glossary |
 | [10 — Design system & brand](docs/10-design-system.md) | Token architecture, the one-file brand swap, components, density modes, the logo system |
 | [11 — Money & the books](docs/11-money-and-books.md) | Sales and purchase invoices, the cash box, collections, the accountant's reports |
+| [12 — Stock](docs/12-stock.md) | What is on the shelves, why it moved, the stocktake, running out |
 | [**User guide**](docs/guide/README.md) | How to actually use the app, one short guide per role, in Arabic and English |
 
 ## Design principles

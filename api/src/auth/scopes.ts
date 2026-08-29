@@ -78,4 +78,18 @@ export const MONEY = ["OWNER", "ACCOUNTANT", "SHOWROOM_MANAGER", "SALES_REP"];
 /** Anyone who looks at orders at all, whether or not they see the money on them. */
 export const READ_ORDERS = [...new Set([...PRODUCTION, ...MONEY])];
 
+/**
+ * The store. Whoever moves goods needs to record the movement: the storekeeper
+ * and the driver put things on and off shelves all day, and stock that only the
+ * office may touch is stock nobody records.
+ */
+export const STOCK = ["OWNER", "FACTORY_MANAGER", "SUPERVISOR", "STOREKEEPER",
+                      "SHOWROOM_MANAGER", "SALES_REP", "ACCOUNTANT"];
+
+/**
+ * Setting up what is tracked, and what it is worth. Costs are on a stock item,
+ * so this is narrower than moving goods around.
+ */
+export const STOCK_ADMIN = ["OWNER", "FACTORY_MANAGER", "ACCOUNTANT"];
+
 export const seesMoney = (roleKey: string) => MONEY.includes(roleKey);

@@ -3,6 +3,7 @@ import { z } from "zod";
 import { db } from "../../db.js";
 import { guard } from "../../auth/jwt.js";
 import { record } from "../../lib/events.js";
+import { releaseOnDelivery } from "../../lib/stock.js";
 import { syncOrderStatus } from "../../lib/order-status.js";
 
 /**
@@ -166,6 +167,11 @@ export default async function flowRoutes(app: FastifyInstance) {
         occurredAt: at, clientEventId: body.clientEventId ?? null,
       });
       await syncOrderStatus(r.line.orderId);
+      // The piece is off the shelf now. Best-effort on purpose: the customer
+      // has it whether or not the stock figure could be updated, and refusing
+      // the delivery over a shelf count would be the software arguing with
+      // what already happened.
+      await releaseOnDelivery(id, (req as any).user.id).catch(() => {});
     }
     return lineView(r.line);
   });

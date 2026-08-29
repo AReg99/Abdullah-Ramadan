@@ -186,6 +186,42 @@ export const api = {
   saveSettings: (b: Record<string, string>) =>
     req<Record<string, string>>("/settings", { method: "PUT", body: JSON.stringify(b) }),
   invoice: (id: string) => req<Invoice>(`/orders/${id}/invoice`),
+
+  // ---- the store ----
+  stockItems: () => req<StockItem[]>("/stock/items"),
+  addStockItem: (b: { sku: string; nameAr: string; kind?: string; unit?: string;
+                      reorderLevel?: number; unitCost?: number; productId?: string }) =>
+    req<StockItem>("/stock/items", { method: "POST", body: JSON.stringify(b) }),
+  updateStockItem: (id: string, b: Record<string, unknown>) =>
+    req<StockItem>(`/stock/items/${id}`, { method: "PATCH", body: JSON.stringify(b) }),
+  removeStockItem: (id: string) =>
+    req<{ removed: "deleted" | "retired" }>(`/stock/items/${id}`, { method: "DELETE" }),
+  stockMovements: (q: { itemId?: string; warehouseId?: string } = {}) => {
+    const p = new URLSearchParams();
+    if (q.itemId) p.set("itemId", q.itemId);
+    if (q.warehouseId) p.set("warehouseId", q.warehouseId);
+    return req<StockMovement[]>(`/stock/movements${p.toString() ? `?${p}` : ""}`);
+  },
+  stockMove: (b: { itemId: string; warehouseId: string; direction: "IN" | "OUT";
+                   qty: number; reason?: string; note?: string }) =>
+    req<any>("/stock/move", { method: "POST", body: JSON.stringify(b) }),
+  stockTransfer: (b: { itemId: string; fromWarehouseId: string; toWarehouseId: string;
+                       qty: number; note?: string }) =>
+    req<any>("/stock/transfer", { method: "POST", body: JSON.stringify(b) }),
+  reverseStockMovement: (id: string, reason: string) =>
+    req<any>(`/stock/movements/${id}/reverse`, { method: "POST", body: JSON.stringify({ reason }) }),
+  stockReport: () => req<StockReport>("/stock/report"),
+  stocktakes: () => req<{ id: string; warehouse: string; startedAt: string;
+                          postedAt: string | null; lines: number }[]>("/stock/stocktakes"),
+  stocktake: (id: string) => req<Stocktake>(`/stock/stocktakes/${id}`),
+  openStocktake: (warehouseId: string) =>
+    req<{ id: string; lines: number }>("/stock/stocktakes",
+      { method: "POST", body: JSON.stringify({ warehouseId }) }),
+  saveStocktake: (id: string, counts: { itemId: string; counted: number; note?: string }[]) =>
+    req<{ saved: number }>(`/stock/stocktakes/${id}`,
+      { method: "PUT", body: JSON.stringify({ counts }) }),
+  postStocktake: (id: string) =>
+    req<{ posted: number; lines: number }>(`/stock/stocktakes/${id}/post`, { method: "POST" }),
   report: (name: string, from?: string, to?: string) => {
     const q = new URLSearchParams();
     if (from) q.set("from", from);
@@ -316,11 +352,40 @@ export type Summary = {
   month: string;
   cash: { id: string; nameAr: string; nameEn: string; kind: string; balance: number }[];
   totals: { inHand: number; sales: number; cogs: number; gross: number; expenses: number;
-            profit: number; collected: number; receivable: number; payable: number; net: number };
+            profit: number; collected: number; receivable: number; payable: number;
+            stockValue: number; net: number };
   topDebtors: { id: string; code: string; customer: string; outstanding: number; ageDays: number }[];
   oldestDebts: { id: string; code: string; customer: string; outstanding: number; ageDays: number }[];
   topBills: { id: string; number: string; supplier: string; outstanding: number; ageDays: number }[];
+  lowStock: { id: string; name: string; unit: string; onHand: number;
+              reorderLevel: number; value: number }[];
   byExpense: Record<string, number>;
+};
+export type StockItem = {
+  id: string; sku: string; nameAr: string; nameEn: string; kind: "PRODUCT" | "MATERIAL";
+  unit: string; reorderLevel: number; unitCost: number;
+  productId: string | null; productSku: string | null; isActive: boolean;
+  onHand: number; value: number; low: boolean;
+  byWarehouse: { warehouseId: string; nameAr: string; nameEn: string; qty: number }[];
+};
+export type StockMovement = {
+  id: string; date: string; item: string; sku: string; unit: string; warehouse: string;
+  direction: "IN" | "OUT"; qty: number; reason: string;
+  note: string | null; by: string | null; reversal: boolean;
+};
+export type StockReport = {
+  totals: { items: number; value: number; low: number; outOfStock: number };
+  rows: { id: string; sku: string; name: string; unit: string; kind: string;
+          onHand: number; unitCost: number; value: number;
+          reorderLevel: number; low: boolean }[];
+};
+export type Stocktake = {
+  id: string; warehouse: string; warehouseId: string; startedAt: string;
+  postedAt: string | null; note: string | null; by: string | null;
+  totals: { counted: number; differences: number; value: number };
+  lines: { itemId: string; sku: string; nameAr: string; unit: string;
+           expected: number; counted: number; variance: number; value: number;
+           note: string | null }[];
 };
 export type Payroll = {
   month: string; posted: boolean; postedAt?: string; total: number;
