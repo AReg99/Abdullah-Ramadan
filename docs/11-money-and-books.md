@@ -82,6 +82,25 @@ person was allowed to see on screen — and the printed figure cannot drift from
 the on-screen one. The file is written with a UTF-8 BOM, without which Excel
 opens every Arabic name as mojibake.
 
+## Doing the work, not just reading it
+
+Every report is also where the work happens, because that is the order the job
+is actually done in: you look at who owes, you ring them, you write down what
+they paid. Each row carries the one action it allows, and no others.
+
+| Where | Row | Button |
+| --- | --- | --- |
+| Receivables, Sales | An order still owing | **Collect** — pre-filled with the full outstanding amount, since settling in full is the common case and a part payment is one edit away |
+| Purchase invoices | A bill not yet settled | **Pay** — pre-filled the same way, and the payment is linked to the invoice so it pays that bill down rather than vanishing into general expenses |
+| Collections, Cash box | Any entry that is not itself a reversal | **Reverse** — asks why, then writes the opposite entry |
+
+A row with nothing to do gets no button. A reversal is never offered a reversal.
+
+Suppliers and their bills are added from the purchase-invoices tab, where the
+person looking at what is owed to suppliers is the person about to record
+another one. Expenses that are not a supplier bill — wages, rent, electricity —
+go through **Record an expense** at the bottom of every tab.
+
 ## Who may do what
 
 Two scopes, in `api/src/auth/scopes.ts`:
@@ -112,5 +131,3 @@ Stated plainly because a half-built one of these is worse than none:
 - **Cost and profit.** Requires per-product cost, which the catalogue does not
   carry yet. Revenue is honest today; margin would not be.
 - **Payroll.** Wages currently go through as ordinary expenses.
-- **A supplier and purchase-invoice screen.** The API is complete and tested;
-  only the expense form is wired into the Money screen so far.

@@ -159,6 +159,20 @@ const ar = {
   account_not_found: "الخزنة دي مش موجودة", order_not_found: "الطلب ده مش موجود",
   code_taken: "الكود ده مستخدم", invoice_number_taken: "رقم الفاتورة ده مسجل قبل كده",
   supplier_not_found: "المورد ده مش موجود", already_reversed: "القيد ده اتعكس قبل كده",
+  cannot_reverse_a_reversal: "ده أصلاً قيد عكسي — مينفعش يتعكس",
+  invoice_not_found: "الفاتورة دي مش موجودة",
+  act_collect: "تحصيل", act_pay: "دفع", act_reverse: "عكس",
+  col_action: "",
+  collectFor: "تحصيل من", payFor: "دفع لفاتورة", reverseEntry: "عكس القيد",
+  reverseWhy: "سبب العكس", reverseHint:
+    "القيد الغلط مايتمسحش. بيتكتب قيد عكسي جنبه، والاتنين يفضلوا ظاهرين — ده اللي بيخلي الدفتر ينفع تحتكم بيه.",
+  amountDue: "المستحق", prefillHint: "المبلغ متحطلك، غيّره لو الدفعة جزئية",
+  newSupplier: "مورد جديد", newPurchase: "فاتورة مشتريات جديدة",
+  supplierName: "اسم المورد", supplierPhone: "موبايل المورد",
+  invoiceNumber: "رقم الفاتورة", issuedOn: "تاريخ الفاتورة", pickSupplier: "اختار المورد",
+  noSuppliers: "لسه مفيش موردين — ضيف واحد الأول",
+  addedSupplier: "المورد اتضاف", addedInvoice: "الفاتورة اتسجلت", reversed: "القيد اتعكس",
+  paid_full: "مدفوعة بالكامل",
   PAYMENT_RECEIVED: "تحصيل دفعة",
 };
 
@@ -321,6 +335,20 @@ const en: Record<keyof typeof ar, string> = {
   account_not_found: "That account does not exist", order_not_found: "That order does not exist",
   code_taken: "That code is already in use", invoice_number_taken: "That invoice number is already recorded",
   supplier_not_found: "That supplier does not exist", already_reversed: "That entry has already been reversed",
+  cannot_reverse_a_reversal: "That is already a reversal — it cannot be reversed",
+  invoice_not_found: "That invoice does not exist",
+  act_collect: "Collect", act_pay: "Pay", act_reverse: "Reverse",
+  col_action: "",
+  collectFor: "Collect from", payFor: "Pay invoice", reverseEntry: "Reverse this entry",
+  reverseWhy: "Why", reverseHint:
+    "A wrong entry is not deleted. Its opposite is written beside it and both stay visible — that is what makes the book worth arguing from.",
+  amountDue: "Due", prefillHint: "Filled in for you — change it for a part payment",
+  newSupplier: "New supplier", newPurchase: "New purchase invoice",
+  supplierName: "Supplier name", supplierPhone: "Supplier phone",
+  invoiceNumber: "Invoice number", issuedOn: "Invoice date", pickSupplier: "Choose the supplier",
+  noSuppliers: "No suppliers yet — add one first",
+  addedSupplier: "Supplier added", addedInvoice: "Invoice recorded", reversed: "Entry reversed",
+  paid_full: "Paid in full",
   PAYMENT_RECEIVED: "Payment received",
 };
 
