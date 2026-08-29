@@ -70,20 +70,26 @@ async function ensureBaseline() {
   }
 
   // An inspection with nothing to pick from is an inspection nobody records.
-  if ((await db.defectType.count()) === 0) {
-    await db.defectType.createMany({
-      data: [
-        { code: "SCRATCH",  nameAr: "خدش",            nameEn: "Scratch" },
-        { code: "JOINT",    nameAr: "وصلة مش مظبوطة", nameEn: "Bad joint" },
-        { code: "FINISH",   nameAr: "عيب في الدهان",   nameEn: "Finish defect" },
-        { code: "MEASURE",  nameAr: "مقاس غلط",        nameEn: "Wrong measurement" },
-        { code: "FABRIC",   nameAr: "عيب في القماش",   nameEn: "Fabric fault" },
-        { code: "HARDWARE", nameAr: "كالون أو مفصلة",  nameEn: "Hardware" },
-        { code: "WOOD",     nameAr: "عيب في الخشب",    nameEn: "Timber flaw" },
-        { code: "OTHER",    nameAr: "غير كده",         nameEn: "Something else" },
-      ],
-    });
-    console.log("  added the default defect types");
+  //
+  // Row by row, and only what is missing. Inserting the set in one statement
+  // and guarding it on a count of zero is what took the server down: the count
+  // is not proof that none of the eight exist, and a single collision aborts
+  // the whole start-up.
+  const defects = [
+    { code: "SCRATCH",  nameAr: "خدش",            nameEn: "Scratch" },
+    { code: "JOINT",    nameAr: "وصلة مش مظبوطة", nameEn: "Bad joint" },
+    { code: "FINISH",   nameAr: "عيب في الدهان",   nameEn: "Finish defect" },
+    { code: "MEASURE",  nameAr: "مقاس غلط",        nameEn: "Wrong measurement" },
+    { code: "FABRIC",   nameAr: "عيب في القماش",   nameEn: "Fabric fault" },
+    { code: "HARDWARE", nameAr: "كالون أو مفصلة",  nameEn: "Hardware" },
+    { code: "WOOD",     nameAr: "عيب في الخشب",    nameEn: "Timber flaw" },
+    { code: "OTHER",    nameAr: "غير كده",         nameEn: "Something else" },
+  ];
+  for (const d of defects) {
+    if (!(await db.defectType.findUnique({ where: { code: d.code } }))) {
+      await db.defectType.create({ data: d });
+      console.log(`  added the default fault type ${d.code}`);
+    }
   }
 
   // An existing routing whose QC stage predates the gate would let inspections
@@ -103,20 +109,6 @@ async function main() {
     console.log("database already seeded — checking baseline only");
     await ensureBaseline();
 
-  // The vocabulary of faults. Editable, and every workshop adds its own — but
-  // an empty list on day one means the first inspection has nothing to pick.
-  await db.defectType.createMany({
-    data: [
-      { code: "SCRATCH",  nameAr: "خدش",              nameEn: "Scratch" },
-      { code: "JOINT",    nameAr: "وصلة مش مظبوطة",   nameEn: "Bad joint" },
-      { code: "FINISH",   nameAr: "عيب في الدهان",     nameEn: "Finish defect" },
-      { code: "MEASURE",  nameAr: "مقاس غلط",          nameEn: "Wrong measurement" },
-      { code: "FABRIC",   nameAr: "عيب في القماش",     nameEn: "Fabric fault" },
-      { code: "HARDWARE", nameAr: "كالون أو مفصلة",    nameEn: "Hardware" },
-      { code: "WOOD",     nameAr: "عيب في الخشب",      nameEn: "Timber flaw" },
-      { code: "OTHER",    nameAr: "غير كده",           nameEn: "Something else" },
-    ],
-  });
     return;
   }
 
