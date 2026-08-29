@@ -200,6 +200,25 @@ export const api = {
     req<Record<string, string>>("/settings", { method: "PUT", body: JSON.stringify(b) }),
   invoice: (id: string) => req<Invoice>(`/orders/${id}/invoice`),
 
+  // ---- quality ----
+  defectTypes: () => req<DefectType[]>("/quality/defect-types"),
+  addDefectType: (b: { code: string; nameAr: string; nameEn?: string }) =>
+    req<DefectType>("/quality/defect-types", { method: "POST", body: JSON.stringify(b) }),
+  removeDefectType: (id: string) =>
+    req<{ removed: "deleted" | "retired" }>(`/quality/defect-types/${id}`, { method: "DELETE" }),
+  qcStage: (id: string) => req<QcStage>(`/quality/stages/${id}`),
+  qcVerdict: (id: string, b: {
+    result: "PASS" | "REWORK" | "SCRAP"; qty?: number; reworkToSeq?: number; note?: string;
+    defects?: { defectTypeId: string; qty: number; stationId?: string | null;
+                groupId?: string | null; note?: string }[];
+  }) => req<any>(`/quality/stages/${id}/verdict`, { method: "POST", body: JSON.stringify(b) }),
+  qualityReport: (from?: string, to?: string) => {
+    const q = new URLSearchParams();
+    if (from) q.set("from", from);
+    if (to) q.set("to", to);
+    return req<QualityReport>(`/quality/report${q.toString() ? `?${q}` : ""}`);
+  },
+
   // ---- the store ----
   stockItems: () => req<StockItem[]>("/stock/items"),
   addStockItem: (b: { sku: string; nameAr: string; kind?: string; unit?: string;
@@ -316,7 +335,7 @@ export type Person = { id: string; nameAr: string; nameEn: string };
 export type Stage = {
   id: string; seq: number; status: string; startedAt: string | null; actualMinutes: number;
   blockedReason: string | null;
-  stage: { key: string; nameAr: string; nameEn: string; stdMinutes: number; photoBefore: string; photoAfter: string; station: { code: string; nameAr: string; nameEn: string } | null };
+  stage: { key: string; nameAr: string; nameEn: string; stdMinutes: number; isQcGate?: boolean; photoBefore: string; photoAfter: string; station: { code: string; nameAr: string; nameEn: string } | null };
   workOrder: { id: string; code: string; qty: number; serial: string | null; specNotes: string | null;
     product: { sku: string; nameAr: string; nameEn: string; photo: string | null };
     order: { code: string; promisedDate: string | null } };
@@ -375,6 +394,29 @@ export type Summary = {
   lowStock: { id: string; name: string; unit: string; onHand: number;
               reorderLevel: number; value: number }[];
   byExpense: Record<string, number>;
+};
+export type DefectType = { id: string; code: string; nameAr: string; nameEn: string };
+export type QcStage = {
+  stageId: string; isQcGate: boolean; status: string;
+  workOrder: { id: string; code: string; qty: number };
+  product: { nameAr: string; sku: string };
+  order: { id: string; code: string; customer: string };
+  reworkTargets: { seq: number; nameAr: string; nameEn: string;
+                   stationId: string; groupId: string | null; status: string }[];
+  history: { id: string; result: string; qty: number; reworkToSeq: number | null;
+             note: string | null; at: string; by: string | null;
+             defects: { nameAr: string; code: string; qty: number; note: string | null }[] }[];
+};
+export type QualityReport = {
+  from: string; to: string;
+  totals: { inspections: number; checked: number; passed: number;
+            rework: number; scrap: number; passRate: number };
+  byDefect: { name: string; qty: number }[];
+  byStation: { name: string; qty: number }[];
+  byCrew: { name: string; qty: number }[];
+  byProduct: { name: string; checked: number; failed: number; failRate: number }[];
+  rows: { id: string; at: string; result: string; qty: number; product: string;
+          workOrder: string; defects: string | null; note: string | null }[];
 };
 export type StockItem = {
   id: string; sku: string; nameAr: string; nameEn: string; kind: "PRODUCT" | "MATERIAL";

@@ -57,7 +57,14 @@ async function stationFor(user: { stationId: string | null; groupId: string | nu
 const CROSS_STATION = ["OWNER", "FACTORY_MANAGER", "SUPERVISOR"];
 
 /** A stage becomes READY only when every earlier stage is DONE. */
-async function refreshReadiness(workOrderId: string) {
+/**
+ * Open every stage whose predecessors are all done.
+ *
+ * Exported because the QC verdict closes a stage without going through the
+ * finish route, and a second copy of this is how a work order ends up moving
+ * on one path and stalling on the other.
+ */
+export async function refreshReadiness(workOrderId: string) {
   const stages = await db.workOrderStage.findMany({ where: { workOrderId }, orderBy: { seq: "asc" } });
   for (const s of stages) {
     if (s.status !== "PENDING") continue;
@@ -278,6 +285,12 @@ export default async function workRoutes(app: FastifyInstance) {
     if (s.routingStage.photoAfter === "REQUIRED" && !s.photos.some((p) => p.kind === "AFTER")) {
       return reply.code(428).send({ error: "photo_after_required" });
     }
+    // A QC gate is not finished by tapping finish. Without this, "it passed"
+    // and "somebody closed the stage" are the same event, and there is no
+    // quality record at all.
+    if (s.routingStage.isQcGate) {
+      return reply.code(428).send({ error: "verdict_required" });
+    }
 
     const at = deviceTime(env);
     const mins = s.startedAt ? Math.max(0, Math.round((at.getTime() - s.startedAt.getTime()) / 60000)) : 0;
@@ -330,6 +343,10 @@ const view = (s: any) => ({
     stdMinutes: s.routingStage.stdMinutes,
     photoBefore: s.routingStage.photoBefore,
     photoAfter: s.routingStage.photoAfter,
+    // The screen has to know before the button is pressed: a QC gate takes a
+    // verdict, and queueing a plain finish for one would fail silently in the
+    // outbox with nobody the wiser.
+    isQcGate: s.routingStage.isQcGate,
     station: s.routingStage.station
       ? { code: s.routingStage.station.code, nameAr: s.routingStage.station.nameAr, nameEn: s.routingStage.station.nameEn }
       : null,

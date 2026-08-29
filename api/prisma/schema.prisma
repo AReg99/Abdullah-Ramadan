@@ -115,6 +115,7 @@ model User {
   stocktakes    Stocktake[]       @relation("StocktakeAuthor")
   attendance    Attendance[]      @relation("AttendanceOf")
   attendanceTaken Attendance[]    @relation("AttendanceAuthor")
+  inspections   Inspection[]      @relation("InspectionAuthor")
 }
 
 /// A crew working one station under one leader.
@@ -131,6 +132,7 @@ model Group {
 
   members User[]           @relation("GroupMembers")
   stages  WorkOrderStage[]
+  defects InspectionDefect[]
 }
 
 /// Which workers were actually on a stage. The leader records this when they
@@ -195,6 +197,7 @@ model Station {
   groups        Group[]
   routingStages RoutingStage[]
   events        TrackingEvent[]
+  defects       InspectionDefect[]
 }
 
 // ---------------------------------------------------------------- catalogue
@@ -443,6 +446,10 @@ model RoutingStage {
   station           Station   @relation(fields: [stationId], references: [id])
   stdMinutes        Int
   isCustomerVisible Boolean   @default(false)
+  /// A gate: finishing it asks for a verdict rather than just marking it done.
+  /// Without this the inspector closes the stage exactly like anybody else, and
+  /// "it passed" is indistinguishable from "somebody tapped finish".
+  isQcGate          Boolean   @default(false)
   photoBefore       PhotoRule @default(OFF)
   photoAfter        PhotoRule @default(OFF)
   photoMinCount     Int       @default(1)
@@ -481,6 +488,7 @@ model WorkOrder {
   stages WorkOrderStage[]
   labels UnitLabel[]
   photos StagePhoto[]
+  inspections Inspection[]
 }
 
 enum StageStatus {
@@ -529,8 +537,9 @@ model WorkOrderStage {
   blockedMinutes Int            @default(0)
   pausedAt       DateTime?
 
-  photos  StagePhoto[]
-  workers StageWorker[]
+  photos      StagePhoto[]
+  workers     StageWorker[]
+  inspections Inspection[]
 
   @@unique([workOrderId, seq])
   @@index([status])
@@ -551,6 +560,81 @@ enum PhotoKind {
   AFTER
   ISSUE
   EXTRA
+  /// What was wrong with it. Kept apart from ISSUE, which is a stoppage on the
+  /// floor rather than a fault in the piece.
+  DEFECT
+}
+
+/// What the inspector decided.
+enum InspectionResult {
+  PASS
+  /// Goes back to a named station to be put right.
+  REWORK
+  /// Written off. The piece is not going to the customer.
+  SCRAP
+}
+
+/// A kind of fault, so a defect report can group by something other than free
+/// text. Editable, because every workshop has its own vocabulary for what goes
+/// wrong — and a list somebody cannot add to is a list that gets bypassed with
+/// "other".
+model DefectType {
+  id       String   @id @default(uuid())
+  code     String   @unique
+  nameAr   String
+  nameEn   String
+  isActive Boolean  @default(true)
+
+  defects InspectionDefect[]
+}
+
+/// One verdict on one QC gate.
+///
+/// The verdict is a record of its own rather than a status on the stage,
+/// because a piece can be inspected more than once: rejected, reworked, and
+/// inspected again. Keeping each pass means "how many went back" is a question
+/// with an answer.
+model Inspection {
+  id            String           @id @default(uuid())
+  stageId       String
+  stage         WorkOrderStage   @relation(fields: [stageId], references: [id], onDelete: Cascade)
+  workOrderId   String
+  workOrder     WorkOrder        @relation(fields: [workOrderId], references: [id], onDelete: Cascade)
+  result        InspectionResult
+  /// How many of the units on this work order the verdict covers.
+  qty           Int              @default(1)
+  /// Where a rework was sent back to, by sequence within the routing.
+  reworkToSeq   Int?
+  note          String?
+  inspectorId   String?
+  inspector     User?            @relation("InspectionAuthor", fields: [inspectorId], references: [id])
+  createdAt     DateTime         @default(now())
+
+  defects InspectionDefect[]
+
+  @@index([workOrderId])
+  @@index([createdAt])
+}
+
+/// What was wrong, and who is answerable for it.
+///
+/// The station and the crew are recorded because the whole point of a defect
+/// report is to say where faults come from — a count with nobody attached to it
+/// changes nothing on the floor.
+model InspectionDefect {
+  id           String     @id @default(uuid())
+  inspectionId String
+  inspection   Inspection @relation(fields: [inspectionId], references: [id], onDelete: Cascade)
+  defectTypeId String
+  defectType   DefectType @relation(fields: [defectTypeId], references: [id])
+  qty          Int        @default(1)
+  /// The station the fault is attributed to, which is not always where it was
+  /// found: a bad cut is discovered at final QC.
+  stationId    String?
+  station      Station?   @relation(fields: [stationId], references: [id])
+  groupId      String?
+  group        Group?     @relation(fields: [groupId], references: [id])
+  note         String?
 }
 
 model StagePhoto {

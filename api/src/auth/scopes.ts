@@ -98,6 +98,13 @@ export const STOCK_ADMIN = ["OWNER", "FACTORY_MANAGER", "ACCOUNTANT"];
  * there, the accountant is not. They see the day rates, though, which is why
  * this is not wider still.
  */
+/**
+ * Passing or failing a piece. The inspector's own job, plus the people who
+ * answer for the floor — a supervisor has to be able to release a piece when
+ * the inspector is off.
+ */
+export const QUALITY = ["OWNER", "FACTORY_MANAGER", "SUPERVISOR", "QC"];
+
 export const ATTENDANCE = ["OWNER", "FACTORY_MANAGER", "SUPERVISOR", "ACCOUNTANT"];
 
 export const seesMoney = (roleKey: string) => MONEY.includes(roleKey);

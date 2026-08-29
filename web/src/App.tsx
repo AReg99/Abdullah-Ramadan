@@ -25,6 +25,8 @@ import PurchaseDoc from "./screens/PurchaseDoc";
 import Summary from "./screens/Summary";
 import Stock from "./screens/Stock";
 import Attendance from "./screens/Attendance";
+import Inspect from "./screens/Inspect";
+import Quality from "./screens/Quality";
 import Money from "./screens/Money";
 import { onSyncChange, queued } from "./outbox";
 import { startSyncLoop } from "./sync";
@@ -46,19 +48,20 @@ const NAVS: Record<string, Tab[]> = {
     ["/showroom", "⌂", "showroom"], ["/orders", "▤", "orders"], ["/new-order", "✎", "newOrder"],
     ["/labels", "⌗", "labels"], ["/stock", "▥", "stock"], ["/money", "₤", "money"],
     ["/attendance", "✓", "attendance"], ["/payroll", "☰", "payroll"],
-    ["/setup", "⚙", "setup"],
+    ["/quality", "◎", "quality"], ["/setup", "⚙", "setup"],
   ],
   // Runs the factory. Not the business: setup and order entry are the owner's,
   // and the showroom's, and money never appears on these screens.
   FACTORY_MANAGER: [
     ["/today", "◧", "today"], ["/floor", "▦", "floor"], ["/dispatch", "⇥", "dispatch"],
     ["/orders", "▤", "orders"], ["/labels", "⌗", "labels"], ["/stock", "▥", "stock"],
-    ["/attendance", "✓", "attendance"], ["/setup", "⚙", "setup"],
+    ["/attendance", "✓", "attendance"], ["/quality", "◎", "quality"],
+    ["/setup", "⚙", "setup"],
   ],
   SUPERVISOR: [
     ["/today", "◧", "today"], ["/floor", "▦", "floor"], ["/dispatch", "⇥", "dispatch"],
     ["/orders", "▤", "orders"], ["/labels", "⌗", "labels"],
-    ["/attendance", "✓", "attendance"],
+    ["/attendance", "✓", "attendance"], ["/quality", "◎", "quality"],
   ],
   STOREKEEPER: [["/dispatch", "⇥", "dispatch"], ["/stock", "▥", "stock"],
                 ["/labels", "⌗", "labels"], ["/orders", "▤", "orders"]],
@@ -77,7 +80,8 @@ const NAVS: Record<string, Tab[]> = {
                ["/payroll", "☰", "payroll"], ["/attendance", "✓", "attendance"],
                ["/stock", "▥", "stock"], ["/orders", "▤", "orders"]],
   // QC stands at a station like a leader does, so they get the floor tabs.
-  QC: [["/work", "▤", "work"], ["/scan", "⌗", "scan"], ["/myday", "◔", "myday"]],
+  QC: [["/work", "▤", "work"], ["/scan", "⌗", "scan"],
+       ["/quality", "◎", "quality"], ["/myday", "◔", "myday"]],
 };
 
 const FLOOR: Tab[] = [["/work", "▤", "work"], ["/scan", "⌗", "scan"], ["/myday", "◔", "myday"]];
@@ -140,6 +144,8 @@ export default function App() {
           <Route path="/summary" element={<Summary />} />
           <Route path="/stock" element={<Stock />} />
           <Route path="/attendance" element={<Attendance />} />
+          <Route path="/inspect/:id" element={<Inspect />} />
+          <Route path="/quality" element={<Quality />} />
           <Route path="/money" element={<Money />} />
           <Route path="/dispatch" element={<Dispatch />} />
           <Route path="/showroom" element={<Showroom />} />

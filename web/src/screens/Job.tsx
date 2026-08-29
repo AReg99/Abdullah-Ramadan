@@ -232,10 +232,13 @@ export default function Job() {
         <>
           <button className="btn pri" onClick={async () => {
             if (s.stage.photoAfter === "REQUIRED" && !has("AFTER")) { setKind("AFTER"); setShot(null); setMode("capture"); return; }
+            // An inspection is not closed by tapping finish. Queueing one here
+            // would fail in the outbox with nobody the wiser.
+            if (s.stage.isQcGate) { nav(`/inspect/${s.id}`); return; }
             await enqueue({ kind: "finish", stageId: s.id, clientEventId: newId(), occurredAt: new Date().toISOString() });
             patchCachedStage(s.id, { status: "DONE" });
             toast(t("STAGE_FINISHED")); nav("/work");
-          }}>{t("finish")}</button>
+          }}>{s.stage.isQcGate ? t("inspect") : t("finish")}</button>
           <div style={{ height: 9 }} />
           <button className="btn sec" onClick={() => setMode("pause")}>{t("pause")}</button>
         </>

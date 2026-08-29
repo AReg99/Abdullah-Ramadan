@@ -68,6 +68,30 @@ async function ensureBaseline() {
       console.log(`  added missing cash account ${a.code}`);
     }
   }
+
+  // An inspection with nothing to pick from is an inspection nobody records.
+  if ((await db.defectType.count()) === 0) {
+    await db.defectType.createMany({
+      data: [
+        { code: "SCRATCH",  nameAr: "خدش",            nameEn: "Scratch" },
+        { code: "JOINT",    nameAr: "وصلة مش مظبوطة", nameEn: "Bad joint" },
+        { code: "FINISH",   nameAr: "عيب في الدهان",   nameEn: "Finish defect" },
+        { code: "MEASURE",  nameAr: "مقاس غلط",        nameEn: "Wrong measurement" },
+        { code: "FABRIC",   nameAr: "عيب في القماش",   nameEn: "Fabric fault" },
+        { code: "HARDWARE", nameAr: "كالون أو مفصلة",  nameEn: "Hardware" },
+        { code: "WOOD",     nameAr: "عيب في الخشب",    nameEn: "Timber flaw" },
+        { code: "OTHER",    nameAr: "غير كده",         nameEn: "Something else" },
+      ],
+    });
+    console.log("  added the default defect types");
+  }
+
+  // An existing routing whose QC stage predates the gate would let inspections
+  // be closed with a tap for ever.
+  const qc = await db.routingStage.updateMany({
+    where: { key: "QC", isQcGate: false }, data: { isQcGate: true },
+  });
+  if (qc.count > 0) console.log(`  marked ${qc.count} QC stage(s) as an inspection gate`);
 }
 
 async function main() {
@@ -78,6 +102,21 @@ async function main() {
   if (process.env.SEED_IF_EMPTY === "1" && (await db.role.count()) > 0) {
     console.log("database already seeded — checking baseline only");
     await ensureBaseline();
+
+  // The vocabulary of faults. Editable, and every workshop adds its own — but
+  // an empty list on day one means the first inspection has nothing to pick.
+  await db.defectType.createMany({
+    data: [
+      { code: "SCRATCH",  nameAr: "خدش",              nameEn: "Scratch" },
+      { code: "JOINT",    nameAr: "وصلة مش مظبوطة",   nameEn: "Bad joint" },
+      { code: "FINISH",   nameAr: "عيب في الدهان",     nameEn: "Finish defect" },
+      { code: "MEASURE",  nameAr: "مقاس غلط",          nameEn: "Wrong measurement" },
+      { code: "FABRIC",   nameAr: "عيب في القماش",     nameEn: "Fabric fault" },
+      { code: "HARDWARE", nameAr: "كالون أو مفصلة",    nameEn: "Hardware" },
+      { code: "WOOD",     nameAr: "عيب في الخشب",      nameEn: "Timber flaw" },
+      { code: "OTHER",    nameAr: "غير كده",           nameEn: "Something else" },
+    ],
+  });
     return;
   }
 
@@ -196,7 +235,9 @@ async function main() {
     db.routingStage.create({
       data: { routingId: routing.id, seq: i + 1, key, nameAr: ar, nameEn: en,
               stationId: stations[code].id, stdMinutes: mins, isCustomerVisible: vis,
-              photoBefore: pb as any, photoAfter: pa as any },
+              photoBefore: pb as any, photoAfter: pa as any,
+              // The inspection stage takes a verdict rather than a tap.
+              isQcGate: key === "QC" },
     })));
 
   if (!demo) {
