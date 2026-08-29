@@ -1,4 +1,5 @@
 import type { FastifyInstance } from "fastify";
+import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import { db } from "../../db.js";
 import { guard } from "../../auth/jwt.js";
@@ -76,6 +77,103 @@ export default async function moneyRoutes(app: FastifyInstance) {
     return db.cashAccount.create({
       data: { ...b, nameEn: b.nameEn ?? b.nameAr, openingBalance: String(b.openingBalance) },
     });
+  });
+
+  /**
+   * What was in the drawer the day the books opened here, and the drawer's own
+   * details. This is the one figure that is not derived from entries, because
+   * there is nothing behind it to derive it from — the business existed before
+   * the software did.
+   */
+  app.patch("/money/accounts/:id", { preHandler: guard(BOOKS) }, async (req, reply) => {
+    const { id } = req.params as { id: string };
+    const b = z.object({
+      nameAr: z.string().min(1).optional(),
+      nameEn: z.string().min(1).optional(),
+      openingBalance: z.number().finite().optional(),
+      isActive: z.boolean().optional(),
+    }).parse(req.body ?? {});
+    if (!(await db.cashAccount.findUnique({ where: { id } }))) {
+      return reply.code(404).send({ error: "account_not_found" });
+    }
+    return db.cashAccount.update({
+      where: { id },
+      data: {
+        ...(b.nameAr ? { nameAr: b.nameAr } : {}),
+        ...(b.nameEn ? { nameEn: b.nameEn } : {}),
+        ...(b.openingBalance !== undefined ? { openingBalance: String(b.openingBalance) } : {}),
+        ...(b.isActive !== undefined ? { isActive: b.isActive } : {}),
+      },
+    });
+  });
+
+  /**
+   * Money into the drawer that is not a customer paying for an order: the owner
+   * putting capital in, a supplier refunding, a sale of scrap. Without this the
+   * cash box can only ever be right by accident — every real drawer takes money
+   * from somewhere other than the till.
+   */
+  app.post("/money/receive", { preHandler: guard(BOOKS) }, async (req, reply) => {
+    const b = z.object({
+      accountId: z.string(),
+      amount: money(),
+      category: z.enum(["CAPITAL", "REFUND", "OTHER_INCOME"]).default("OTHER_INCOME"),
+      method: z.enum(["CASH", "BANK_TRANSFER", "INSTAPAY", "CHEQUE", "CARD"]).default("CASH"),
+      occurredOn: day(),
+      reference: z.string().max(80).optional(),
+      note: z.string().max(300).optional(),
+    }).parse(req.body);
+
+    if (!(await db.cashAccount.findUnique({ where: { id: b.accountId } }))) {
+      return reply.code(404).send({ error: "account_not_found" });
+    }
+    return db.cashEntry.create({
+      data: {
+        accountId: b.accountId, direction: "IN", amount: String(b.amount),
+        method: b.method, occurredOn: b.occurredOn ? new Date(b.occurredOn) : new Date(),
+        category: b.category, reference: b.reference ?? null, note: b.note ?? null,
+        actorId: (req as any).user.id,
+      },
+    });
+  });
+
+  /**
+   * Moving money between your own accounts — cash banked, cash drawn out.
+   *
+   * Two entries sharing one transferId, because a transfer is not income to one
+   * drawer and expense from another: recorded as two unrelated movements it
+   * inflates both the income and the expense figures, and every report built on
+   * them is then wrong.
+   */
+  app.post("/money/transfer", { preHandler: guard(BOOKS) }, async (req, reply) => {
+    const b = z.object({
+      fromAccountId: z.string(),
+      toAccountId: z.string(),
+      amount: money(),
+      occurredOn: day(),
+      note: z.string().max(300).optional(),
+    }).parse(req.body);
+    if (b.fromAccountId === b.toAccountId) {
+      return reply.code(400).send({ error: "same_account" });
+    }
+    const [from, to] = await Promise.all([
+      db.cashAccount.findUnique({ where: { id: b.fromAccountId } }),
+      db.cashAccount.findUnique({ where: { id: b.toAccountId } }),
+    ]);
+    if (!from || !to) return reply.code(404).send({ error: "account_not_found" });
+
+    const transferId = randomUUID();
+    const on = b.occurredOn ? new Date(b.occurredOn) : new Date();
+    const common = {
+      amount: String(b.amount), method: "BANK_TRANSFER" as const, occurredOn: on,
+      category: "TRANSFER" as const, transferId, note: b.note ?? null,
+      actorId: (req as any).user.id,
+    };
+    const [out, inn] = await db.$transaction([
+      db.cashEntry.create({ data: { ...common, accountId: from.id, direction: "OUT" } }),
+      db.cashEntry.create({ data: { ...common, accountId: to.id, direction: "IN" } }),
+    ]);
+    return { transferId, out, in: inn };
   });
 
   // ───────────────────────────────────────────── collections (تحصيل من عميل)
@@ -221,6 +319,102 @@ export default async function moneyRoutes(app: FastifyInstance) {
         amount: String(b.amount), note: b.note ?? null, actorId: (req as any).user.id,
       },
     });
+  });
+
+  // ──────────────────────────────────────────────────────── payroll (المرتبات)
+
+  /**
+   * Who is on the payroll and what they are owed this month.
+   *
+   * A wage lives on the person, so this is a view rather than a list to be
+   * maintained separately — the two would drift the first time someone got a
+   * rise.
+   */
+  app.get("/money/payroll/:month", { preHandler: guard(BOOKS) }, async (req, reply) => {
+    const { month } = req.params as { month: string };
+    if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(month)) {
+      return reply.code(400).send({ error: "bad_month" });
+    }
+    const run = await db.payrollRun.findUnique({
+      where: { month },
+      include: { lines: { include: { user: true } }, account: true },
+    });
+    // Once posted, the run is the record — not today's salaries, which may
+    // have changed since. An old month must reprint as it was paid.
+    if (run) {
+      return {
+        month, posted: true, postedAt: run.postedAt,
+        account: { id: run.account.id, nameAr: run.account.nameAr, nameEn: run.account.nameEn },
+        total: run.lines.reduce((s, l) => s + n(l.amount), 0),
+        lines: run.lines.map((l) => ({
+          userId: l.userId, nameAr: l.user.nameAr, nameEn: l.user.nameEn, amount: n(l.amount),
+        })),
+      };
+    }
+    const staff = await db.user.findMany({
+      where: { isActive: true, salary: { not: null } },
+      include: { role: true },
+      orderBy: { nameAr: "asc" },
+    });
+    return {
+      month, posted: false,
+      total: staff.reduce((s, u) => s + n(u.salary), 0),
+      lines: staff.map((u) => ({
+        userId: u.id, nameAr: u.nameAr, nameEn: u.nameEn,
+        role: u.role.key, amount: n(u.salary),
+      })),
+    };
+  });
+
+  /**
+   * Pay the month. One entry per person so a single payslip can be reversed
+   * without unpicking the rest, and unique on the month so August cannot be
+   * paid twice — which is the mistake this whole record exists to prevent.
+   */
+  app.post("/money/payroll/:month", { preHandler: guard(BOOKS) }, async (req, reply) => {
+    const { month } = req.params as { month: string };
+    if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(month)) {
+      return reply.code(400).send({ error: "bad_month" });
+    }
+    const b = z.object({
+      accountId: z.string(),
+      note: z.string().max(300).optional(),
+      /** Leave someone out this month without touching their salary. */
+      skip: z.array(z.string()).default([]),
+    }).parse(req.body);
+
+    if (await db.payrollRun.findUnique({ where: { month } })) {
+      return reply.code(409).send({ error: "month_already_paid" });
+    }
+    if (!(await db.cashAccount.findUnique({ where: { id: b.accountId } }))) {
+      return reply.code(404).send({ error: "account_not_found" });
+    }
+    const staff = (await db.user.findMany({
+      where: { isActive: true, salary: { not: null } },
+    })).filter((u) => !b.skip.includes(u.id) && n(u.salary) > 0);
+    if (staff.length === 0) return reply.code(400).send({ error: "nobody_on_payroll" });
+
+    // The last day of the month being paid: wages belong to the month worked,
+    // not the day the transfer happened to clear.
+    const [y, m] = month.split("-").map(Number);
+    const occurredOn = new Date(Date.UTC(y, m, 0, 12));
+
+    const run = await db.payrollRun.create({
+      data: { month, accountId: b.accountId, actorId: (req as any).user.id, note: b.note ?? null },
+    });
+    for (const u of staff) {
+      const entry = await db.cashEntry.create({
+        data: {
+          accountId: b.accountId, direction: "OUT", amount: String(n(u.salary)),
+          method: "CASH", occurredOn, category: "SALARIES",
+          note: `${month} · ${u.nameAr}`, actorId: (req as any).user.id,
+        },
+      });
+      await db.payrollLine.create({
+        data: { runId: run.id, userId: u.id, amount: String(n(u.salary)), entryId: entry.id },
+      });
+    }
+    return { month, paid: staff.length, total: staff.reduce((s, u) => s + n(u.salary), 0) };
   });
 
   // ───────────────────────────────────────────────────────────── reports
@@ -394,6 +588,97 @@ export default async function moneyRoutes(app: FastifyInstance) {
     };
   });
 
+  /**
+   * الأرباح — what was sold, what it cost to make, and what is left.
+   *
+   * Cost comes off the order line, captured on the day it was sold, so last
+   * year's margin does not move when this year's timber does. Revenue is net of
+   * tax: VAT collected is the government's money passing through, and counting
+   * it as income overstates every margin on the page.
+   *
+   * Expenses are the period's own cash out, less anything already counted as
+   * cost of goods — a supplier bill for timber is in the cost of the piece it
+   * became, and adding it again would double-count it.
+   */
+  app.get("/money/reports/profit", { preHandler: guard(BOOKS) }, async (req) => {
+    const { from, to } = period(req.query);
+    const orders = await db.order.findMany({
+      where: { createdAt: { gte: from, lte: to }, status: { not: "CANCELLED" } },
+      orderBy: { createdAt: "desc" },
+      include: { customer: true, lines: true },
+    });
+
+    const rows = orders.map((o) => {
+      const cost = o.lines.reduce((s, l) => s + n(l.unitCost) * l.qty, 0);
+      const revenue = n(o.subtotal) || n(o.total);
+      return {
+        id: o.id, code: o.code, date: o.createdAt, customer: o.customer.name,
+        revenue, tax: n(o.taxTotal), cost,
+        profit: revenue - cost,
+        margin: revenue > 0 ? Math.round((revenue - cost) / revenue * 1000) / 10 : 0,
+      };
+    });
+
+    const revenue = rows.reduce((s, r) => s + r.revenue, 0);
+    const cogs = rows.reduce((s, r) => s + r.cost, 0);
+    // Cash out in the period, excluding what is already inside cost of goods
+    // and excluding transfers, which move money without spending it.
+    const spend = await db.cashEntry.groupBy({
+      by: ["category"], _sum: { amount: true },
+      where: {
+        direction: "OUT", occurredOn: { gte: from, lte: to },
+        category: { notIn: ["MATERIALS", "TRANSFER"] },
+      },
+    });
+    const expenses = spend.reduce((s, g) => s + n(g._sum.amount), 0);
+    const byCategory = Object.fromEntries(
+      spend.filter((g) => g.category).map((g) => [g.category!, n(g._sum.amount)]));
+
+    return {
+      from, to,
+      totals: {
+        revenue, cogs,
+        gross: revenue - cogs,
+        expenses,
+        net: revenue - cogs - expenses,
+        margin: revenue > 0 ? Math.round((revenue - cogs) / revenue * 1000) / 10 : 0,
+      },
+      byCategory,
+      rows,
+    };
+  });
+
+  /**
+   * الضريبة — what was charged on sales in the period. A tax return needs one
+   * number and the invoices behind it, and it needs them separated from the
+   * money that was actually earned.
+   */
+  app.get("/money/reports/vat", { preHandler: guard(BOOKS) }, async (req) => {
+    const { from, to } = period(req.query);
+    const orders = await db.order.findMany({
+      where: {
+        createdAt: { gte: from, lte: to }, status: { not: "CANCELLED" },
+        taxTotal: { gt: 0 },
+      },
+      orderBy: { createdAt: "desc" },
+      include: { customer: true },
+    });
+    const rows = orders.map((o) => ({
+      id: o.id, code: o.code, date: o.createdAt, customer: o.customer.name,
+      subtotal: n(o.subtotal), rate: n(o.taxRate), tax: n(o.taxTotal), total: n(o.total),
+    }));
+    return {
+      from, to,
+      totals: {
+        count: rows.length,
+        subtotal: rows.reduce((s, r) => s + r.subtotal, 0),
+        tax: rows.reduce((s, r) => s + r.tax, 0),
+        total: rows.reduce((s, r) => s + r.total, 0),
+      },
+      rows,
+    };
+  });
+
   /** كشف حساب عميل — one customer, everything billed and everything paid. */
   app.get("/money/reports/customer/:id", { preHandler: guard(BOOKS) }, async (req, reply) => {
     const { id } = req.params as { id: string };
@@ -450,7 +735,8 @@ export default async function moneyRoutes(app: FastifyInstance) {
    */
   app.get("/money/export", { preHandler: guard(BOOKS) }, async (req, reply) => {
     const q = z.object({
-      report: z.enum(["sales", "purchases", "cashbox", "collections", "receivables"]),
+      report: z.enum(["sales", "purchases", "cashbox", "collections",
+                      "receivables", "profit", "vat"]),
       from: z.string().optional(), to: z.string().optional(),
     }).parse(req.query);
 

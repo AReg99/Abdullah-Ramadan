@@ -15,6 +15,7 @@ import moneyRoutes from "./modules/money/routes.js";
 import orderRoutes from "./modules/orders/routes.js";
 import labelRoutes from "./modules/labels/routes.js";
 import adminRoutes from "./modules/admin/routes.js";
+import settingsRoutes from "./modules/settings/routes.js";
 
 export async function build() {
   const app = Fastify({ logger: { level: "warn" } });
@@ -71,6 +72,7 @@ export async function build() {
   await app.register(moneyRoutes);
   await app.register(labelRoutes);
   await app.register(adminRoutes);
+  await app.register(settingsRoutes);
 
   return app;
 }

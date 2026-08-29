@@ -27,10 +27,17 @@ export default function OrderDetail() {
           )}
           {d.promisedDate && <><dt>{t("due")}</dt><dd>{when(d.promisedDate)}</dd></>}
         </dl>
-        <Link to={`/track/${d.id}`} className="btn sec sm"
-              style={{ marginTop: 12, textDecoration: "none" }}>
-          {t("track")}
-        </Link>
+        <div className="row" style={{ marginTop: 12 }}>
+          <Link to={`/track/${d.id}`} className="btn sec sm" style={{ textDecoration: "none" }}>
+            {t("track")}
+          </Link>
+          {/* Only where the server would answer: the invoice carries prices. */}
+          {["OWNER", "ACCOUNTANT", "SHOWROOM_MANAGER", "SALES_REP"].includes(me?.role ?? "") && (
+            <Link to={`/invoice/${d.id}`} className="btn sec sm" style={{ textDecoration: "none" }}>
+              {t("invoice")}
+            </Link>
+          )}
+        </div>
         {/* Only the owner, and never on an order that is already closed. */}
         {me?.role === "OWNER" && d.status !== "CANCELLED" && d.status !== "DELIVERED" && (
           <button className="btn dang sm" style={{ marginTop: 8 }} disabled={busy}

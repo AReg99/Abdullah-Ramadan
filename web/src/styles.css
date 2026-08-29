@@ -52,6 +52,9 @@ a{color:var(--p)}
 .btn.dang{background:var(--badS);color:var(--bad);border-color:var(--bad)}
 .btn.sm{min-height:44px;font-size:.9rem}
 .btn:disabled{opacity:.45}
+/* A yes/no switch sitting at the end of a row. Without this the button takes
+   its default full width and squeezes the label it belongs to into a column. */
+.btn.toggle{width:auto;flex:0 0 auto;min-width:66px;padding-inline:16px}
 .row{display:flex;gap:9px}
 .between{display:flex;justify-content:space-between;align-items:center;gap:10px}
 .divide{border-top:1px solid var(--g3);margin:13px 0}
@@ -161,3 +164,35 @@ select{appearance:none;background-image:none}
 .tbl td{padding:8px 10px;border-bottom:1px solid var(--g2);color:var(--g9)}
 .tbl tr:last-child td{border-bottom:none}
 .tbl td.num{text-align:end;font-variant-numeric:tabular-nums}
+
+/* ---------------------------------------------------------------- invoice
+   A sheet of paper on screen, and a sheet of paper on paper. The print rules
+   strip everything the page is wrapped in, because a customer's copy with an
+   app's navigation down the side is not an invoice. */
+.invoice{background:#fff;color:#1a1512;border:1px solid var(--g3);border-radius:var(--rl);
+  padding:22px;line-height:1.5}
+.inv-head{display:flex;justify-content:space-between;gap:16px;align-items:flex-start;
+  border-bottom:2px solid #1a1512;padding-bottom:14px}
+.inv-brand{font-family:Literata,serif;font-size:1.35rem;font-weight:600}
+.inv-title{font-family:Literata,serif;font-size:1.1rem;font-weight:600}
+.inv-sub{font-size:.78rem;color:#5b5148;margin-top:2px}
+.inv-party{margin-top:16px}
+.inv-lines{margin-top:16px;white-space:normal}
+.inv-lines th{color:#5b5148;border-bottom:1px solid #cfc6bc}
+.inv-lines td{border-bottom:1px solid #ece6df;color:#1a1512;vertical-align:top}
+.inv-totals{margin-top:16px;margin-inline-start:auto;max-width:320px;font-size:.9rem}
+.inv-totals .between{padding:5px 0}
+.inv-grand{border-top:1px solid #cfc6bc;margin-top:6px;padding-top:9px!important;font-size:1.05rem}
+.inv-due{border-top:1px solid #ece6df;margin-top:4px}
+.inv-pay{margin-top:18px;border-top:1px solid #ece6df;padding-top:12px;font-size:.85rem}
+.inv-pay .between{padding:4px 0}
+.inv-foot{margin-top:22px;border-top:1px solid #ece6df;padding-top:12px;
+  font-size:.75rem;color:#5b5148;text-align:center}
+
+@media print{
+  .no-print,.topbar,.tabbar,nav,.toast{display:none!important}
+  body{background:#fff}
+  main,.wrap,.page{padding:0!important;margin:0!important;max-width:none!important}
+  .invoice{border:none;border-radius:0;padding:0;box-shadow:none}
+  @page{margin:14mm}
+}

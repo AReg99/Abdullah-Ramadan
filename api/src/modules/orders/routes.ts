@@ -6,7 +6,8 @@ import { discard, isAllowed, readUpload, storeFile } from "../../lib/uploads.js"
 import { syncOrderStatus } from "../../lib/order-status.js";
 import { record } from "../../lib/events.js";
 import { SELL } from "../../auth/scopes.js";
-import { READ_ORDERS, SETUP, seesMoney } from "../../auth/scopes.js";
+import { MONEY, READ_ORDERS, SETUP, seesMoney } from "../../auth/scopes.js";
+import { allSettings } from "../../lib/settings.js";
 
 export default async function orderRoutes(app: FastifyInstance) {
   app.get("/orders", { preHandler: guard(READ_ORDERS) }, async (req) => {
@@ -211,6 +212,76 @@ export default async function orderRoutes(app: FastifyInstance) {
    * A piece already handed to the customer cannot be cancelled — that is a
    * return, which is a different transaction and not this one.
    */
+  /**
+   * Everything a printed invoice needs, in one answer.
+   *
+   * The layout lives in the browser, which is what gives a phone a PDF without
+   * a rendering service: the page prints, and iOS and Android both offer "save
+   * as PDF" from the share sheet. What the server owes it is the figures — and
+   * they come from the order as it was written, tax rate included, so an
+   * invoice reprinted next year is the invoice that was issued.
+   */
+  app.get("/orders/:id/invoice", { preHandler: guard(MONEY) }, async (req, reply) => {
+    const { id } = req.params as { id: string };
+    const order = await db.order.findUnique({
+      where: { id },
+      include: {
+        customer: true, showroom: true,
+        lines: { include: { product: true } },
+        payments: {
+          where: { direction: "IN" },
+          orderBy: { occurredOn: "asc" },
+          include: { account: true },
+        },
+      },
+    });
+    if (!order) return reply.code(404).send({ error: "not_found" });
+
+    const user = (req as any).user;
+    // The showroom sees its own branch's invoices, as it does everywhere else.
+    if (["SHOWROOM_MANAGER", "SALES_REP"].includes(user.role.key) &&
+        user.locationId && order.showroomId !== user.locationId) {
+      return reply.code(404).send({ error: "not_found" });
+    }
+
+    const s = await allSettings();
+    const num = (d: unknown) => Number(d ?? 0);
+    const paid = num(order.paidTotal);
+    return {
+      company: {
+        nameAr: s["company.name"], nameEn: s["company.nameEn"],
+        address: s["company.address"], phone: s["company.phone"],
+        email: s["company.email"], vatNumber: s["vat.number"],
+      },
+      order: {
+        id: order.id, code: order.code, date: order.createdAt,
+        status: order.status, promisedDate: order.promisedDate,
+        showroom: order.showroom?.nameAr ?? null,
+        currency: order.currency,
+      },
+      customer: {
+        name: order.customer.name, phone: order.customer.phone,
+      },
+      lines: order.lines.map((l) => ({
+        nameAr: l.product.nameAr, nameEn: l.product.nameEn, sku: l.product.sku,
+        qty: l.qty, unitPrice: num(l.unitPrice), lineTotal: num(l.unitPrice) * l.qty,
+        specNotes: l.specNotes,
+      })),
+      totals: {
+        subtotal: num(order.subtotal) || num(order.total),
+        taxRate: num(order.taxRate),
+        taxTotal: num(order.taxTotal),
+        total: num(order.total),
+        paid,
+        outstanding: Math.max(0, num(order.total) - paid),
+      },
+      payments: order.payments.map((p) => ({
+        date: p.occurredOn, amount: num(p.amount), method: p.method,
+        account: p.account.nameAr, reference: p.reference,
+      })),
+    };
+  });
+
   app.post("/orders/:id/cancel", { preHandler: guard(SETUP) }, async (req, reply) => {
     const { id } = req.params as { id: string };
     const { reason } = z.object({ reason: z.string().min(3).max(300) }).parse(req.body ?? {});

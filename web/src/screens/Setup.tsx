@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useApp } from "../app-context";
 import { api, type GroupRow, type LocationRow, type PersonRow, type ProductPhoto, type ProductRow, type Station } from "../api";
 
-type Tab = "crews" | "staff" | "products";
+type Tab = "crews" | "staff" | "products" | "company";
 
 /**
  * Where the business puts its own people and catalogue in.
@@ -17,6 +17,8 @@ export default function Setup() {
   // staff to whoever runs the factory, the catalogue to whoever sells from it.
   const catalogue = ["OWNER", "SHOWROOM_MANAGER", "SALES_REP"].includes(me?.role ?? "");
   const factory = ["OWNER", "FACTORY_MANAGER"].includes(me?.role ?? "");
+  // A tax rate and the name on the invoice are the owner's alone.
+  const owner = me?.role === "OWNER";
   const [tab, setTab] = useState<Tab>(factory ? "crews" : "products");
   const [stations, setStations] = useState<Station[]>([]);
   const [groups, setGroups] = useState<GroupRow[]>([]);
@@ -69,6 +71,10 @@ export default function Setup() {
           <button className={`btn sm ${tab === "products" ? "pri" : "sec"}`}
                   onClick={() => setTab("products")}>{t("productsTab")}</button>
         )}
+        {owner && (
+          <button className={`btn sm ${tab === "company" ? "pri" : "sec"}`}
+                  onClick={() => setTab("company")}>{t("companyTab")}</button>
+        )}
       </div>
 
       {tab === "crews" && factory && <Crews stations={stations} groups={groups} people={people}
@@ -76,6 +82,7 @@ export default function Setup() {
       {tab === "staff" && factory && <Staff people={people} locations={locations} stations={stations}
                                  roles={roles} busy={busy} run={run} nm={nm} />}
       {tab === "products" && catalogue && <Products products={products} cats={cats} busy={busy} run={run} nm={nm} />}
+      {tab === "company" && owner && <Company />}
     </>
   );
 }
@@ -270,7 +277,10 @@ function Staff({ people, locations, stations, roles, busy, run, nm }: any) {
   // cannot present a role that comes back refused.
   const offer: string[] = roles.length ? roles : [];
   const blank = { nameAr: "", email: "", phone: "", password: "", role: offer[0] ?? "",
-                  locationId: "", stationId: "" };
+                  locationId: "", stationId: "", salary: "" };
+  // Wages are the books' business. The factory manager may hire without ever
+  // being told what the showroom manager earns.
+  const setsPay = ["OWNER", "ACCOUNTANT"].includes(me?.role ?? "");
   const [p, setP] = useState(blank);
   const showrooms = locations.filter((l: LocationRow) => l.type === "SHOWROOM");
   const [room, setRoom] = useState({ nameAr: "", address: "" });
@@ -314,6 +324,10 @@ function Staff({ people, locations, stations, roles, busy, run, nm }: any) {
                onChange={(e) => setP({ ...p, phone: e.target.value })} style={{ marginTop: 8 }} />
         <input placeholder={t("password")} value={p.password}
                onChange={(e) => setP({ ...p, password: e.target.value })} style={{ marginTop: 8 }} />
+        {setsPay && (
+          <input className="mono" inputMode="decimal" placeholder={t("salary")} value={p.salary}
+                 onChange={(e) => setP({ ...p, salary: e.target.value })} style={{ marginTop: 8 }} />
+        )}
         <button className="btn pri sm" style={{ marginTop: 10 }}
           disabled={busy || !p.nameAr || (!p.email && !p.phone) || p.password.length < 6
                     || (needsStation && !p.stationId)}
@@ -323,6 +337,8 @@ function Staff({ people, locations, stations, roles, busy, run, nm }: any) {
             ...(p.phone ? { phone: p.phone } : {}),
             ...(p.locationId ? { locationId: p.locationId } : {}),
             ...(p.stationId ? { stationId: p.stationId } : {}),
+            // Blank means "not on the payroll", which is not the same as zero.
+            ...(setsPay && p.salary.trim() ? { salary: Number(p.salary) } : {}),
           }), t("saved")).then(() => setP(blank))}>
           {t("add")}
         </button>
@@ -357,8 +373,12 @@ function Staff({ people, locations, stations, roles, busy, run, nm }: any) {
                 <span className="muted"> · {t(x.role as any)}</span>
                 {x.locationName && <span className="muted"> · {x.locationName}</span>}
                 {x.stationName && <span className="muted"> · {x.stationName}</span>}
+                {setsPay && x.salary != null && (
+                  <span className="sub mono">{t("salary")}: {x.salary.toLocaleString()}</span>
+                )}
               </span>
               <span className="mono muted">{x.email ?? x.phone}</span>
+              {setsPay && <SalaryEditor person={x} busy={busy} run={run} />}
               {x.id !== me?.id && <ResetPassword person={x} busy={busy} run={run} />}
               {x.id !== me?.id && <RemoveButton person={x} busy={busy} run={run} />}
             </div>
@@ -376,13 +396,18 @@ function Staff({ people, locations, stations, roles, busy, run, nm }: any) {
  * was write-once, so there was no way to finish one.
  */
 function ProductRowEditor({ product, cats, busy, run }: any) {
-  const { t } = useApp();
+  const { t, me } = useApp();
   const [open, setOpen] = useState(false);
+  // Cost only comes back for roles that keep the books, and only they may set
+  // it — a rep who knows the margin can be argued down to it.
+  const seesCost = ["OWNER", "ACCOUNTANT"].includes(me?.role ?? "");
   const [f, setF] = useState({
     nameAr: product.nameAr, sku: product.sku,
-    basePrice: String(product.basePrice), categoryId: product.categoryId,
+    basePrice: String(product.basePrice), cost: String(product.cost ?? 0),
+    categoryId: product.categoryId,
   });
   const price = Number(f.basePrice) || 0;
+  const cost = Number(f.cost) || 0;
 
   if (!open) {
     return (
@@ -411,6 +436,14 @@ function ProductRowEditor({ product, cats, busy, run }: any) {
       <input className="mono" inputMode="numeric" value={f.basePrice}
              onChange={(e) => setF({ ...f, basePrice: e.target.value })} placeholder={t("price")}
              style={{ marginTop: 8 }} />
+      {seesCost && (
+        <>
+          <input className="mono" inputMode="numeric" value={f.cost}
+                 onChange={(e) => setF({ ...f, cost: e.target.value })} placeholder={t("cost")}
+                 style={{ marginTop: 8 }} />
+          <p className="note">{t("costHint")}</p>
+        </>
+      )}
       <select value={f.categoryId} onChange={(e) => setF({ ...f, categoryId: e.target.value })} style={{ marginTop: 8 }}>
         {cats.map((c: any) => <option key={c.id} value={c.id}>{c.nameAr}</option>)}
       </select>
@@ -420,6 +453,7 @@ function ProductRowEditor({ product, cats, busy, run }: any) {
           onClick={() => run(() => api.updateProduct(product.id, {
             nameAr: f.nameAr.trim(), sku: f.sku.trim(),
             basePrice: price, categoryId: f.categoryId,
+            ...(seesCost ? { cost } : {}),
           }), t("saved")).then(() => setOpen(false))}>
           {t("saveAccount")}
         </button>
@@ -576,5 +610,109 @@ function Products({ products, cats, busy, run, nm }: any) {
         </button>
       </div>
     </>
+  );
+}
+
+
+/**
+ * The letterhead and the tax rate.
+ *
+ * VAT ships off, and turning it on affects new orders only: an order already
+ * written keeps the total it was written at, because reissuing last month's
+ * invoices at a rate the customer never agreed to is not a feature.
+ */
+function Company() {
+  const { t, toast } = useApp();
+  const [f, setF] = useState<Record<string, string> | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => { api.settings().then(setF).catch(() => setF(null)); }, []);
+  if (!f) return <div className="empty">{t("loading")}</div>;
+
+  const set = (k: string, v: string) => setF({ ...f, [k]: v });
+  const field = (k: string, label: string, extra: Record<string, unknown> = {}) => (
+    <>
+      <span className="k" style={{ marginTop: 10, display: "block" }}>{label}</span>
+      <input value={f[k] ?? ""} onChange={(e) => set(k, e.target.value)}
+             style={{ marginTop: 6 }} {...extra} />
+    </>
+  );
+
+  return (
+    <div className="card">
+      <span className="k">{t("companyTab")}</span>
+      {field("company.name", t("companyName"))}
+      {field("company.nameEn", `${t("companyName")} (EN)`)}
+      {field("company.address", t("companyAddress"))}
+      {field("company.phone", t("companyPhone"), { inputMode: "tel" })}
+      {field("company.email", t("companyEmail"), { inputMode: "email" })}
+
+      <div className="evt" style={{ marginTop: 16 }}>
+        <span style={{ flex: 1 }}><b>{t("vatEnabled")}</b></span>
+        <button className={`btn sm toggle ${f["vat.enabled"] === "1" ? "pri" : "sec"}`}
+                onClick={() => set("vat.enabled", f["vat.enabled"] === "1" ? "0" : "1")}>
+          {f["vat.enabled"] === "1" ? "✓" : "—"}
+        </button>
+      </div>
+
+      {f["vat.enabled"] === "1" && (
+        <>
+          {field("vat.rate", t("vatRate"), { inputMode: "decimal", className: "mono" })}
+          {field("vat.number", t("vatNumber"), { className: "mono" })}
+          <div className="evt" style={{ marginTop: 12 }}>
+            <span style={{ flex: 1 }}>
+              <b>{t("vatInclusive")}</b>
+              <span className="sub">{t("vatInclusiveHint")}</span>
+            </span>
+            <button className={`btn sm toggle ${f["vat.inclusive"] === "1" ? "pri" : "sec"}`}
+                    onClick={() => set("vat.inclusive", f["vat.inclusive"] === "1" ? "0" : "1")}>
+              {f["vat.inclusive"] === "1" ? "✓" : "—"}
+            </button>
+          </div>
+          <p className="note">{t("vatHint")}</p>
+        </>
+      )}
+
+      <button className="btn pri" style={{ marginTop: 14 }} disabled={busy}
+              onClick={async () => {
+                setBusy(true);
+                try { setF(await api.saveSettings(f)); toast(t("saved")); }
+                catch (e: any) { toast(e?.code ? t(e.code) : t("signInFailed")); }
+                finally { setBusy(false); }
+              }}>
+        {t("save")}
+      </button>
+    </div>
+  );
+}
+
+
+/**
+ * A wage, set or cleared after the fact.
+ *
+ * Clearing takes the person off the payroll rather than paying them nothing —
+ * a zero would look like a decision, and next month's run would quietly post a
+ * zero payslip for someone who should never have been on the list.
+ */
+function SalaryEditor({ person, busy, run }: any) {
+  const { t } = useApp();
+  const [open, setOpen] = useState(false);
+  const [v, setV] = useState(person.salary == null ? "" : String(person.salary));
+
+  if (!open) {
+    return <button className="chip" onClick={() => setOpen(true)}>{t("salary")}</button>;
+  }
+  return (
+    <span style={{ display: "flex", gap: 7, alignItems: "center", flexWrap: "wrap" }}>
+      <input className="mono" inputMode="decimal" value={v} placeholder={t("salary")}
+             onChange={(e) => setV(e.target.value)} style={{ width: 110 }} />
+      <button className="btn pri sm" disabled={busy}
+              onClick={() => run(() => api.updatePerson(person.id, {
+                salary: v.trim() === "" ? null : Number(v),
+              }), t("saved")).then(() => setOpen(false))}>
+        {t("save")}
+      </button>
+      <button className="btn sec sm" onClick={() => setOpen(false)}>{t("cancel")}</button>
+    </span>
   );
 }

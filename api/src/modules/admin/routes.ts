@@ -4,8 +4,9 @@ import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import { db } from "../../db.js";
 import { guard } from "../../auth/jwt.js";
-import { CATALOGUE, SELL, SETUP, STAFF_ADMIN, canGrant, grantableBy } from "../../auth/scopes.js";
+import { BOOKS, CATALOGUE, SELL, SETUP, STAFF_ADMIN, canGrant, grantableBy } from "../../auth/scopes.js";
 import { record } from "../../lib/events.js";
+import { applyVat, vatPolicy } from "../../lib/settings.js";
 import { discard, isAllowed, readUpload, storeFile } from "../../lib/uploads.js";
 
 /**
@@ -61,7 +62,8 @@ export default async function adminRoutes(app: FastifyInstance) {
   });
 
   // ---------------------------------------------------------------- people
-  app.get("/admin/people", { preHandler: guard(STAFF_ADMIN) }, async () => {
+  app.get("/admin/people", { preHandler: guard(STAFF_ADMIN) }, async (req) => {
+    const showPay = BOOKS.includes((req as any).user.role.key);
     const people = await db.user.findMany({
       orderBy: [{ isActive: "desc" }, { nameAr: "asc" }],
       include: { role: true, group: true, station: true, location: true },
@@ -73,6 +75,9 @@ export default async function adminRoutes(app: FastifyInstance) {
       groupId: u.groupId, groupName: u.group?.nameAr ?? null,
       stationId: u.stationId, stationName: u.station?.nameAr ?? null,
       locationId: u.locationId, locationName: u.location?.nameAr ?? null,
+      // A factory manager may add staff but has no business knowing what the
+      // showroom manager is paid.
+      ...(showPay ? { salary: u.salary === null ? null : Number(u.salary) } : {}),
     }));
   });
 
@@ -90,6 +95,8 @@ export default async function adminRoutes(app: FastifyInstance) {
       locationId: z.string().optional(),
       /** Roster workers are tracked, not authenticated. */
       canLogin: z.boolean().default(true),
+      /** Monthly wage. Omitted means "not on the payroll", which is not zero. */
+      salary: z.number().nonnegative().nullable().optional(),
     }).parse(req.body);
 
     if (b.canLogin && !b.phone && !b.email) {
@@ -111,6 +118,9 @@ export default async function adminRoutes(app: FastifyInstance) {
     }
     const role = await db.role.findUnique({ where: { key: b.role } });
     if (!role) return reply.code(400).send({ error: "unknown_role" });
+    // A factory manager may hire, but setting wages is the owner's and the
+    // accountant's; silently dropping it is safer than a confusing refusal.
+    const payAllowed = BOOKS.includes(actor.role.key);
 
     return db.user.create({
       data: {
@@ -120,6 +130,7 @@ export default async function adminRoutes(app: FastifyInstance) {
         canLogin: b.canLogin, roleId: role.id,
         groupId: b.groupId ?? null, stationId: b.stationId ?? null,
         locationId: b.locationId ?? null,
+        salary: payAllowed && b.salary != null ? String(b.salary) : null,
       },
     });
   });
@@ -134,6 +145,7 @@ export default async function adminRoutes(app: FastifyInstance) {
       groupId: z.string().nullable().optional(),
       stationId: z.string().nullable().optional(),
       locationId: z.string().nullable().optional(),
+      salary: z.number().nonnegative().nullable().optional(),
       isActive: z.boolean().optional(),
     }).parse(req.body);
     const exists = await db.user.findUnique({ where: { id }, include: { role: true } });
@@ -163,6 +175,8 @@ export default async function adminRoutes(app: FastifyInstance) {
         ...(b.groupId !== undefined ? { groupId: b.groupId } : {}),
         ...(b.stationId !== undefined ? { stationId: b.stationId } : {}),
         ...(b.locationId !== undefined ? { locationId: b.locationId } : {}),
+        ...(b.salary !== undefined && BOOKS.includes(actor.role.key)
+            ? { salary: b.salary === null ? null : String(b.salary) } : {}),
         ...(b.isActive !== undefined ? { isActive: b.isActive } : {}),
       },
     });
@@ -279,7 +293,8 @@ export default async function adminRoutes(app: FastifyInstance) {
     return db.productCategory.create({ data: { nameAr: b.nameAr, nameEn: b.nameEn ?? b.nameAr } });
   });
 
-  app.get("/admin/products", { preHandler: guard(CATALOGUE) }, async () => {
+  app.get("/admin/products", { preHandler: guard(CATALOGUE) }, async (req) => {
+    const showCost = BOOKS.includes((req as any).user.role.key);
     const rows = await db.product.findMany({
       orderBy: { nameAr: "asc" },
       include: { category: true, photos: { orderBy: [{ sortOrder: "asc" }, { uploadedAt: "asc" }] } },
@@ -287,6 +302,9 @@ export default async function adminRoutes(app: FastifyInstance) {
     return rows.map((p) => ({
       id: p.id, sku: p.sku, nameAr: p.nameAr, nameEn: p.nameEn, kind: p.kind,
       basePrice: Number(p.basePrice), baseLeadDays: p.baseLeadDays, isActive: p.isActive,
+      // What it costs to make is not the showroom's business — a rep who
+      // knows the margin is a rep who can be argued down to it.
+      ...(showCost ? { cost: Number(p.cost) } : {}),
       description: p.description,
       categoryId: p.categoryId, categoryAr: p.category.nameAr,
       photos: p.photos.map((ph) => ({ id: ph.id, path: ph.path, filename: ph.filename })),
@@ -376,6 +394,7 @@ export default async function adminRoutes(app: FastifyInstance) {
     const b = z.object({
       sku: z.string().min(1), nameAr: z.string().min(1), nameEn: z.string().min(1).optional(),
       categoryId: z.string(), basePrice: z.number().nonnegative(),
+      cost: z.number().nonnegative().default(0),
       baseLeadDays: z.number().int().positive().default(14),
       kind: z.enum(["STANDARD", "CUSTOMIZABLE"]).default("STANDARD"),
       description: z.string().max(500).optional(),
@@ -384,7 +403,8 @@ export default async function adminRoutes(app: FastifyInstance) {
       return reply.code(409).send({ error: "sku_taken" });
     }
     return db.product.create({
-      data: { ...b, nameEn: b.nameEn ?? b.nameAr, basePrice: String(b.basePrice) },
+      data: { ...b, nameEn: b.nameEn ?? b.nameAr,
+              basePrice: String(b.basePrice), cost: String(b.cost) },
     });
   });
 
@@ -401,6 +421,7 @@ export default async function adminRoutes(app: FastifyInstance) {
       nameEn: z.string().min(1).optional(),
       categoryId: z.string().optional(),
       basePrice: z.number().nonnegative().optional(),
+      cost: z.number().nonnegative().optional(),
       baseLeadDays: z.number().int().positive().optional(),
       kind: z.enum(["STANDARD", "CUSTOMIZABLE"]).optional(),
       description: z.string().max(500).nullable().optional(),
@@ -426,6 +447,7 @@ export default async function adminRoutes(app: FastifyInstance) {
         ...(b.nameEn ? { nameEn: b.nameEn } : {}),
         ...(b.categoryId ? { categoryId: b.categoryId } : {}),
         ...(b.basePrice !== undefined ? { basePrice: String(b.basePrice) } : {}),
+        ...(b.cost !== undefined ? { cost: String(b.cost) } : {}),
         ...(b.baseLeadDays !== undefined ? { baseLeadDays: b.baseLeadDays } : {}),
         ...(b.kind ? { kind: b.kind } : {}),
         ...(b.description !== undefined ? { description: b.description } : {}),
@@ -492,11 +514,14 @@ export default async function adminRoutes(app: FastifyInstance) {
     const off = products.find((p) => !p.isActive);
     if (off) return reply.code(400).send({ error: "product_not_active", sku: off.sku });
     const priceOf = (id: string) => Number(products.find((p) => p.id === id)!.basePrice);
+    const costOf = (id: string) => Number(products.find((p) => p.id === id)!.cost);
 
     const seq = (await db.order.count()) + 1;
     const year = new Date().getFullYear();
     const promised = b.promisedDate ? new Date(b.promisedDate) : null;
-    const total = b.lines.reduce((sum, l) => sum + (l.unitPrice ?? priceOf(l.productId)) * l.qty, 0);
+    const lineTotal = b.lines.reduce((sum, l) => sum + (l.unitPrice ?? priceOf(l.productId)) * l.qty, 0);
+    // Resolved once, here, so the order carries the rate it was written at.
+    const tax = applyVat(lineTotal, await vatPolicy());
     const anyCustom = b.lines.some((l) => l.lineKind === "CUSTOM");
 
     const order = await db.order.create({
@@ -509,7 +534,9 @@ export default async function adminRoutes(app: FastifyInstance) {
         // to it means nobody has to pick, and the showroom board is never empty
         // because an order was filed against no branch.
         showroomId: b.showroomId ?? (await defaultShowroomId()),
-        total: String(total), trackingToken: randomUUID(),
+        subtotal: String(tax.subtotal), taxTotal: String(tax.taxTotal),
+        taxRate: String(tax.rate), total: String(tax.total),
+        trackingToken: randomUUID(),
       },
     });
 
@@ -519,6 +546,8 @@ export default async function adminRoutes(app: FastifyInstance) {
         data: {
           orderId: order.id, productId: l.productId, qty: l.qty,
           unitPrice: String(l.unitPrice ?? priceOf(l.productId)),
+          // Copied, not looked up later: this is what it cost to make today.
+          unitCost: String(costOf(l.productId)),
           lineKind: l.lineKind, status: "QUEUED",
           promisedDate: promised, specNotes: l.specNotes ?? null,
         },
@@ -551,8 +580,11 @@ export default async function adminRoutes(app: FastifyInstance) {
     await record({
       code: "ORDER_CONFIRMED", entityType: "order", entityId: order.id, orderId: order.id,
       actorId: (req as any).user.id, isCustomerVisible: true,
-      payload: { code: order.code, total },
+      payload: { code: order.code, total: tax.total },
     });
-    return { id: order.id, code: order.code, total };
+    return {
+      id: order.id, code: order.code,
+      subtotal: tax.subtotal, taxTotal: tax.taxTotal, total: tax.total,
+    };
   });
 }

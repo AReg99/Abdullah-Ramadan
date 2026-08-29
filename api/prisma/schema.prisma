@@ -50,6 +50,15 @@ model Role {
 /// app, and the workers in their group do not sign in at all. Workers still
 /// exist as records so output and rework stay attributable to the people who
 /// did the work — losing that would cost the productivity and quality reports.
+/// Company-wide configuration: VAT, the letterhead, anything an owner changes
+/// without a deploy. Key/value because the alternative is a migration every
+/// time the tax rate moves.
+model Setting {
+  key       String   @id
+  value     String
+  updatedAt DateTime @updatedAt
+}
+
 model User {
   id           String    @id @default(uuid())
   nameAr       String
@@ -62,6 +71,9 @@ model User {
   canLogin     Boolean   @default(true)
   locale       Locale    @default(ar)
   isActive     Boolean   @default(true)
+  /// Monthly wage. Null means "not on the payroll" — most roster workers are
+  /// paid by the crew, and a zero would look like a decision rather than a gap.
+  salary       Decimal?  @db.Decimal(14, 2)
   roleId       String
   role         Role      @relation(fields: [roleId], references: [id])
   stationId    String?
@@ -84,6 +96,8 @@ model User {
   productPhotos ProductPhoto[]    @relation("ProductPhotoAuthor")
   cashEntries   CashEntry[]       @relation("CashEntryAuthor")
   purchases     PurchaseInvoice[] @relation("PurchaseAuthor")
+  payslips      PayrollLine[]
+  payrollRuns   PayrollRun[]      @relation("PayrollAuthor")
 }
 
 /// A crew working one station under one leader.
@@ -184,6 +198,8 @@ model Product {
   nameEn         String
   kind           ProductKind     @default(STANDARD)
   basePrice      Decimal         @db.Decimal(14, 2)
+  /// What the piece costs to make. Margin is a lie without it.
+  cost           Decimal         @default(0) @db.Decimal(14, 2)
   baseLeadDays   Int             @default(14)
   /// The line the showroom reads to the customer. Marketing copy, not a spec.
   description    String?
@@ -268,6 +284,12 @@ model Order {
   showroomId    String?
   showroom      Location?    @relation(fields: [showroomId], references: [id])
   promisedDate  DateTime?
+  /// The lines before tax. total is what the customer actually pays.
+  subtotal      Decimal      @default(0) @db.Decimal(14, 2)
+  taxTotal      Decimal      @default(0) @db.Decimal(14, 2)
+  /// The rate this order was written at, kept so an old invoice reprints as it
+  /// was issued rather than at today's rate.
+  taxRate       Decimal      @default(0) @db.Decimal(5, 2)
   total         Decimal      @default(0) @db.Decimal(14, 2)
   paidTotal     Decimal      @default(0) @db.Decimal(14, 2)
   currency      String       @default("EGP")
@@ -335,6 +357,9 @@ model OrderLine {
   product      Product    @relation(fields: [productId], references: [id])
   qty          Int        @default(1)
   unitPrice    Decimal    @db.Decimal(14, 2)
+  /// The cost on the day it was sold. Copied, not looked up, so last year's
+  /// margin does not move when this year's timber does.
+  unitCost     Decimal    @default(0) @db.Decimal(14, 2)
   lineKind     LineKind   @default(STANDARD)
   status       LineStatus @default(PENDING)
   promisedDate DateTime?
@@ -567,7 +592,8 @@ model CashAccount {
   isActive       Boolean         @default(true)
   createdAt      DateTime        @default(now())
 
-  entries CashEntry[]
+  entries     CashEntry[]
+  payrollRuns PayrollRun[]
 }
 
 enum CashDirection {
@@ -584,6 +610,9 @@ enum PaymentMethod {
 }
 
 /// What money out of the drawer was for, when it was not a supplier invoice.
+/// What a movement was for, in or out. The name is historical — it started as
+/// expenses only — and is left alone because renaming a live enum is a
+/// migration nobody needs.
 enum ExpenseCategory {
   MATERIALS
   SALARIES
@@ -593,6 +622,12 @@ enum ExpenseCategory {
   MAINTENANCE
   MARKETING
   OTHER
+  // Money in that is not a customer paying for an order.
+  CAPITAL
+  REFUND
+  OTHER_INCOME
+  // Both halves of a move between two of your own accounts.
+  TRANSFER
 }
 
 /// One movement of money. Never edited — a mistake is corrected by its reverse,
@@ -616,6 +651,9 @@ model CashEntry {
   category          ExpenseCategory?
   reference         String?
   note              String?
+  /// Both halves of a transfer share one id, so the pair can be shown as the
+  /// single movement it actually is.
+  transferId        String?
   /// Set when this entry exists only to undo another.
   reversesId        String?          @unique
   reverses          CashEntry?       @relation("Reversal", fields: [reversesId], references: [id])
@@ -624,9 +662,42 @@ model CashEntry {
   actor             User?            @relation("CashEntryAuthor", fields: [actorId], references: [id])
   createdAt         DateTime         @default(now())
 
+  payrollLine PayrollLine?
+
   @@index([occurredOn])
   @@index([orderId])
   @@index([accountId, occurredOn])
+  @@index([transferId])
+}
+
+/// A month's wages, posted in one go. Unique on the month because paying
+/// August twice is the mistake this exists to prevent.
+model PayrollRun {
+  id        String        @id @default(uuid())
+  /// "2026-08" — the month being paid, not the day it was posted.
+  month     String        @unique
+  accountId String
+  account   CashAccount   @relation(fields: [accountId], references: [id])
+  postedAt  DateTime      @default(now())
+  actorId   String?
+  actor     User?         @relation("PayrollAuthor", fields: [actorId], references: [id])
+  note      String?
+
+  lines PayrollLine[]
+}
+
+model PayrollLine {
+  id      String     @id @default(uuid())
+  runId   String
+  run     PayrollRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+  userId  String
+  user    User       @relation(fields: [userId], references: [id])
+  amount  Decimal    @db.Decimal(14, 2)
+  /// The cash movement this payslip caused.
+  entryId String?    @unique
+  entry   CashEntry? @relation(fields: [entryId], references: [id])
+
+  @@unique([runId, userId])
 }
 
 model Supplier {

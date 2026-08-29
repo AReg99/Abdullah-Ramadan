@@ -161,6 +161,21 @@ export const api = {
     req<any>("/money/suppliers", { method: "POST", body: JSON.stringify(b) }),
   addPurchase: (b: { supplierId: string; number: string; issuedOn: string; amount: number; note?: string }) =>
     req<any>("/money/purchases", { method: "POST", body: JSON.stringify(b) }),
+  receive: (b: { accountId: string; amount: number; category?: string; method?: string;
+                 reference?: string; note?: string }) =>
+    req<any>("/money/receive", { method: "POST", body: JSON.stringify(b) }),
+  transfer: (b: { fromAccountId: string; toAccountId: string; amount: number; note?: string }) =>
+    req<any>("/money/transfer", { method: "POST", body: JSON.stringify(b) }),
+  patchCashAccount: (id: string, b: { nameAr?: string; openingBalance?: number; isActive?: boolean }) =>
+    req<CashAccount>(`/money/accounts/${id}`, { method: "PATCH", body: JSON.stringify(b) }),
+  payroll: (month: string) => req<Payroll>(`/money/payroll/${month}`),
+  postPayroll: (month: string, b: { accountId: string; skip?: string[]; note?: string }) =>
+    req<{ month: string; paid: number; total: number }>(`/money/payroll/${month}`,
+      { method: "POST", body: JSON.stringify(b) }),
+  settings: () => req<Record<string, string>>("/settings"),
+  saveSettings: (b: Record<string, string>) =>
+    req<Record<string, string>>("/settings", { method: "PUT", body: JSON.stringify(b) }),
+  invoice: (id: string) => req<Invoice>(`/orders/${id}/invoice`),
   report: (name: string, from?: string, to?: string) => {
     const q = new URLSearchParams();
     if (from) q.set("from", from);
@@ -212,11 +227,11 @@ export type FlowLine = {
            showroomAr: string | null; showroomEn: string | null };
   serials: string[];
 };
-export type PersonRow = { id: string; nameAr: string; nameEn: string; phone: string | null;
+export type PersonRow = { salary?: number | null; id: string; nameAr: string; nameEn: string; phone: string | null;
   email: string | null; role: string; canLogin: boolean; isActive: boolean; hasPassword: boolean;
   groupId: string | null; groupName: string | null; stationId: string | null; stationName: string | null;
   locationId: string | null; locationName: string | null };
-export type NewPerson = { nameAr: string; nameEn?: string; role: string; phone?: string;
+export type NewPerson = { salary?: number | null; nameAr: string; nameEn?: string; role: string; phone?: string;
   email?: string; password?: string; groupId?: string; stationId?: string; locationId?: string;
   canLogin?: boolean };
 export type GroupRow = { id: string; nameAr: string; nameEn: string; isActive: boolean;
@@ -224,10 +239,10 @@ export type GroupRow = { id: string; nameAr: string; nameEn: string; isActive: b
   leader: { id: string; nameAr: string; phone: string | null } | null;
   memberCount: number; members: { id: string; nameAr: string }[] };
 export type ProductPhoto = { id: string; path: string; filename: string };
-export type ProductRow = { id: string; sku: string; nameAr: string; nameEn: string; kind: string;
+export type ProductRow = { cost?: number; id: string; sku: string; nameAr: string; nameEn: string; kind: string;
   basePrice: number; baseLeadDays: number; isActive: boolean; categoryId: string; categoryAr: string;
   description: string | null; photos: ProductPhoto[] };
-export type NewProduct = { sku: string; nameAr: string; nameEn?: string; categoryId: string;
+export type NewProduct = { cost?: number; sku: string; nameAr: string; nameEn?: string; categoryId: string;
   basePrice: number; baseLeadDays?: number; kind?: string; description?: string };
 export type NewOrder = { customerId?: string; customerName?: string; customerPhone?: string;
   promisedDate?: string; lines: { productId: string; qty: number; unitPrice?: number; specNotes?: string; lineKind?: string }[] };
@@ -264,6 +279,23 @@ export type OrderRow = { id: string; code: string; status: string; kind: string;
 export type CashAccount = { id: string; code: string; nameAr: string; nameEn: string;
   kind: "CASH" | "BANK"; isActive: boolean; openingBalance: number;
   totalIn: number; totalOut: number; balance: number };
+export type Payroll = {
+  month: string; posted: boolean; postedAt?: string; total: number;
+  account?: { id: string; nameAr: string; nameEn: string };
+  lines: { userId: string; nameAr: string; nameEn: string; role?: string; amount: number }[];
+};
+export type Invoice = {
+  company: { nameAr: string; nameEn: string; address: string; phone: string;
+             email: string; vatNumber: string };
+  order: { id: string; code: string; date: string; status: string; promisedDate: string | null;
+           showroom: string | null; currency: string };
+  customer: { name: string; phone: string | null };
+  lines: { nameAr: string; nameEn: string; sku: string; qty: number;
+           unitPrice: number; lineTotal: number; specNotes: string | null }[];
+  totals: { subtotal: number; taxRate: number; taxTotal: number;
+            total: number; paid: number; outstanding: number };
+  payments: { date: string; amount: number; method: string; account: string; reference: string | null }[];
+};
 export type Report = {
   from?: string; to?: string;
   totals: Record<string, number>;

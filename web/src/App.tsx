@@ -18,6 +18,8 @@ import Dispatch from "./screens/Dispatch";
 import Showroom from "./screens/Showroom";
 import Account from "./screens/Account";
 import Track from "./screens/Track";
+import Invoice from "./screens/Invoice";
+import Payroll from "./screens/Payroll";
 import Money from "./screens/Money";
 import { onSyncChange, queued } from "./outbox";
 import { startSyncLoop } from "./sync";
@@ -36,7 +38,8 @@ const NAVS: Record<string, Tab[]> = {
   OWNER: [
     ["/today", "◧", "today"], ["/floor", "▦", "floor"], ["/dispatch", "⇥", "dispatch"],
     ["/showroom", "⌂", "showroom"], ["/orders", "▤", "orders"], ["/new-order", "✎", "newOrder"],
-    ["/labels", "⌗", "labels"], ["/money", "₤", "money"], ["/setup", "⚙", "setup"],
+    ["/labels", "⌗", "labels"], ["/money", "₤", "money"], ["/payroll", "☰", "payroll"],
+    ["/setup", "⚙", "setup"],
   ],
   // Runs the factory. Not the business: setup and order entry are the owner's,
   // and the showroom's, and money never appears on these screens.
@@ -59,7 +62,7 @@ const NAVS: Record<string, Tab[]> = {
   // Not the ops dashboard — that is guarded to production roles, and pointing
   // the accountant at it landed them on a 403 the moment they signed in.
   // The books are the whole job: the cash box, the invoices, what is owed.
-  ACCOUNTANT: [["/money", "₤", "money"], ["/orders", "▤", "orders"]],
+  ACCOUNTANT: [["/money", "₤", "money"], ["/payroll", "☰", "payroll"], ["/orders", "▤", "orders"]],
   // QC stands at a station like a leader does, so they get the floor tabs.
   QC: [["/work", "▤", "work"], ["/scan", "⌗", "scan"], ["/myday", "◔", "myday"]],
 };
@@ -117,6 +120,8 @@ export default function App() {
           {/* What the showroom reads to the customer, as opposed to the
               factory's own record of the same order. */}
           <Route path="/track/:id" element={<Track />} />
+          <Route path="/invoice/:id" element={<Invoice />} />
+          <Route path="/payroll" element={<Payroll />} />
           <Route path="/money" element={<Money />} />
           <Route path="/dispatch" element={<Dispatch />} />
           <Route path="/showroom" element={<Showroom />} />

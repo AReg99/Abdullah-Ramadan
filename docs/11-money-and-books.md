@@ -101,6 +101,105 @@ person looking at what is owed to suppliers is the person about to record
 another one. Expenses that are not a supplier bill — wages, rent, electricity —
 go through **Record an expense** at the bottom of every tab.
 
+## VAT
+
+VAT ships **off**. Turning it on is a decision with a switch, in Setup →
+Company & VAT, because half-done VAT changes every total on every screen at
+once.
+
+Three things are configured, and all three are stored rather than assumed:
+
+- **The rate.** Egypt's standard rate is 14%, and that is the default, but the
+  number is yours to set. Anything outside 0–100 is refused — a typo here
+  reprices the business.
+- **Whether your prices already include it.** This is the decision that changes
+  every total, so it is asked rather than guessed. Egyptian retail prices are
+  usually quoted inclusive — the customer is told one number and pays it — so
+  that is the default. With it on, the tax is carved out of the price you type.
+  With it off, the tax is added on top.
+- **The registration number**, which is what makes the printed document a tax
+  invoice rather than a receipt.
+
+**Turning it on affects new orders only.** Every order stores the rate it was
+written at, so an invoice reprinted next year is the invoice that was issued —
+not last year's sale repriced at today's rate. An order written before VAT was
+switched on keeps its total exactly as typed.
+
+The **VAT report** (الضريبة) gives the return in one place: what was charged in
+the period, the invoices behind it, and each one's rate.
+
+## The printed invoice
+
+Any order opens to a printable invoice. It is laid out in the browser rather
+than rendered on a server, which is what gives a phone a PDF with nothing extra
+installed: **Print → Save as PDF**, then send it on WhatsApp. The same page is
+what comes out of a shop printer.
+
+It carries the letterhead, the customer, the lines, the tax when there is any,
+what has been paid and what is left, and every payment received against it.
+When the order has no tax it prints as an invoice; when it has, it prints as a
+tax invoice with the registration number.
+
+## Cost and profit
+
+Margin is a lie without cost, so cost lives on the product — and is **copied
+onto the order line on the day of sale**. Last year's margin does not move when
+this year's timber does.
+
+The **Profit report** answers in the order the question is actually asked:
+
+```
+net sales  −  cost of goods  =  gross profit
+gross profit  −  expenses    =  net profit
+```
+
+Two things it deliberately does not do, because either would flatter the figure:
+
+- **Revenue is net of tax.** VAT collected is the government's money passing
+  through. Counting it as income overstates every margin on the page.
+- **Expenses exclude materials and transfers.** A supplier bill for timber is
+  already inside the cost of the piece it became; counting it again would
+  double-count it. A transfer between your own accounts is not a cost at all.
+
+Cost is visible only to the owner and the accountant. A sales rep who knows the
+margin is a sales rep who can be argued down to it.
+
+## Payroll
+
+A wage lives on the person, set in Setup → Staff, and only by the owner or the
+accountant — the factory manager may hire without ever being told what the
+showroom manager earns. Someone with no salary set is simply not on the
+payroll, which is not the same as being paid zero.
+
+The payroll screen shows a month, who is owed what, and pays it in one go.
+Three things it is careful about:
+
+- **A month can only be paid once.** Paying August twice is the mistake the
+  whole record exists to prevent.
+- **Each person is their own entry**, so one payslip can be reversed without
+  unpicking the rest.
+- **Somebody can be skipped for a month** without touching their salary — they
+  were away, not demoted.
+- **Wages belong to the month worked**, not the day the transfer cleared, so a
+  posted month lands on that month's last day.
+
+Once posted, the month stops being a view of today's salaries and becomes the
+record: an old month reads back as it was paid.
+
+## Putting money into the cash box
+
+A drawer that can only be filled by customers paying invoices is a drawer that
+is always wrong. Three things are on the cash box tab:
+
+- **Money in** — capital the owner puts in, a supplier refund, scrap sold.
+- **Transfer between accounts** — cash banked, cash drawn out. It posts as two
+  entries sharing one id, because a transfer is not income to one drawer and an
+  expense from another; recorded as two unrelated movements it inflates both
+  figures and every report built on them is then wrong.
+- **Opening balance** — what was in the account the day you started using the
+  system. It is the one figure nothing else can derive, because the business
+  existed before the software did.
+
 ## Who may do what
 
 Two scopes, in `api/src/auth/scopes.ts`:
@@ -119,15 +218,14 @@ A sales rep collecting is branch-scoped like everything else they touch: an orde
 belonging to another showroom is not found, rather than refused, so branch
 structure is not leaked by the error message.
 
-## Deliberately not built yet
+## Still not built
 
-Stated plainly because a half-built one of these is worse than none:
-
-- **VAT / الضريبة.** Adding it changes every order total, every report and the
-  printed invoice at once. It needs to be done in one deliberate pass with the
-  real registration details, not bolted on.
-- **A printable / PDF sales invoice.** The data is all there; the layout,
-  numbering series and Arabic typesetting are a piece of work in themselves.
-- **Cost and profit.** Requires per-product cost, which the catalogue does not
-  carry yet. Revenue is honest today; margin would not be.
-- **Payroll.** Wages currently go through as ordinary expenses.
+- **Input VAT on purchases.** The sales side is complete. Reclaiming the tax on
+  what you buy needs the tax to be recorded on each supplier bill, which means
+  the purchase invoice needs its own rate field.
+- **An invoice numbering series separate from the order code.** Today the order
+  code is the invoice number. Egyptian e-invoicing has its own rules about
+  sequence, and inventing one before reading them would be worse than using the
+  code you already recognise.
+- **Payroll beyond a flat monthly wage** — overtime, advances, deductions,
+  social insurance. What is there pays a fixed salary correctly.

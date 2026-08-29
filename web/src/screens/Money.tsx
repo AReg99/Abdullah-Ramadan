@@ -2,8 +2,8 @@ import { useEffect, useState } from "react";
 import { useApp } from "../app-context";
 import { api, type CashAccount, type Report } from "../api";
 
-type Tab = "cashbox" | "sales" | "purchases" | "collections" | "receivables";
-const TABS: Tab[] = ["cashbox", "sales", "purchases", "collections", "receivables"];
+type Tab = "cashbox" | "sales" | "purchases" | "collections" | "receivables" | "profit" | "vat";
+const TABS: Tab[] = ["cashbox", "sales", "purchases", "collections", "receivables", "profit", "vat"];
 
 type Row = Record<string, any>;
 /** What can be done to the row in front of you, if anything. */
@@ -84,6 +84,7 @@ export default function Money() {
       {act?.kind === "reverse" && <ReversePanel row={act.row} onDone={done} onClose={() => setAct(null)} />}
 
       {tab === "purchases" && <PurchaseDesk onDone={load} />}
+      {tab === "cashbox" && <CashBoxDesk onDone={load} />}
 
       {loading && <div className="empty">{t("loading")}</div>}
 
@@ -471,6 +472,161 @@ function PurchaseDesk({ onDone }: { onDone: () => void }) {
                 }}>
           {t("save")}
         </button>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Putting money into the drawer, moving it between drawers, and saying what was
+ * in it to begin with.
+ *
+ * A cash box that can only be filled by customers paying invoices is a cash box
+ * that is always wrong: the owner puts money in, the bank takes it, a supplier
+ * refunds. Each of those is a real movement and the books have to hold it.
+ */
+function CashBoxDesk({ onDone }: { onDone: () => void }) {
+  const { t, lang, toast } = useApp();
+  const ar = lang === "ar";
+  const [open, setOpen] = useState<"" | "in" | "move" | "opening">("");
+  const [accounts, setAccounts] = useState<CashAccount[]>([]);
+  const [inn, setIn] = useState({ accountId: "", amount: "", category: "CAPITAL", method: "CASH", note: "" });
+  const [mv, setMv] = useState({ fromAccountId: "", toAccountId: "", amount: "", note: "" });
+  const [op, setOp] = useState({ accountId: "", openingBalance: "" });
+  const [busy, setBusy] = useState(false);
+
+  const refresh = () => api.cashAccounts().then(setAccounts).catch(() => setAccounts([]));
+  useEffect(() => { refresh(); }, []);
+  const after = () => { setOpen(""); setBusy(false); refresh(); onDone(); };
+  const fail = (e: any) => { toast(e?.code ? t(e.code) : t("signInFailed")); setBusy(false); };
+  const opts = accounts.map((a) => (
+    <option key={a.id} value={a.id}>{ar ? a.nameAr : a.nameEn}</option>
+  ));
+
+  if (!open) {
+    return (
+      <div className="row scroll-x" style={{ marginBottom: 11 }}>
+        <button className="btn sec sm" style={{ whiteSpace: "nowrap" }} onClick={() => setOpen("in")}>
+          {t("cashIn")}
+        </button>
+        <button className="btn sec sm" style={{ whiteSpace: "nowrap" }} onClick={() => setOpen("move")}>
+          {t("transfer")}
+        </button>
+        <button className="btn sec sm" style={{ whiteSpace: "nowrap" }} onClick={() => setOpen("opening")}>
+          {t("openingBalance")}
+        </button>
+      </div>
+    );
+  }
+
+  if (open === "in") {
+    return (
+      <div className="card" style={{ marginBottom: 11 }}>
+        <span className="k">{t("cashIn")}</span>
+        <select value={inn.accountId} onChange={(e) => setIn({ ...inn, accountId: e.target.value })}
+                style={{ marginTop: 8 }}>
+          <option value="">{t("pickAccount")}</option>{opts}
+        </select>
+        <input className="mono" inputMode="decimal" placeholder={t("amount")} value={inn.amount}
+               onChange={(e) => setIn({ ...inn, amount: e.target.value })} style={{ marginTop: 8 }} />
+        <select value={inn.category} onChange={(e) => setIn({ ...inn, category: e.target.value })}
+                style={{ marginTop: 8 }}>
+          {["CAPITAL", "REFUND", "OTHER_INCOME"].map((c) => (
+            <option key={c} value={c}>{t(`cat_${c}` as any)}</option>
+          ))}
+        </select>
+        <MethodPicker value={inn.method} onChange={(v) => setIn({ ...inn, method: v })} />
+        <input placeholder={t("note")} value={inn.note}
+               onChange={(e) => setIn({ ...inn, note: e.target.value })} style={{ marginTop: 8 }} />
+        <p className="note">{t("cashInHint")}</p>
+        <div className="row" style={{ marginTop: 10 }}>
+          <button className="btn sec sm" onClick={() => setOpen("")}>{t("cancel")}</button>
+          <button className="btn pri sm" disabled={busy || !inn.accountId || !(Number(inn.amount) > 0)}
+                  onClick={async () => {
+                    setBusy(true);
+                    try {
+                      await api.receive({ accountId: inn.accountId, amount: Number(inn.amount),
+                                          category: inn.category, method: inn.method,
+                                          note: inn.note.trim() || undefined });
+                      toast(t("saved"));
+                      setIn({ accountId: "", amount: "", category: "CAPITAL", method: "CASH", note: "" });
+                      after();
+                    } catch (e) { fail(e); }
+                  }}>{t("save")}</button>
+        </div>
+      </div>
+    );
+  }
+
+  if (open === "move") {
+    return (
+      <div className="card" style={{ marginBottom: 11 }}>
+        <span className="k">{t("transfer")}</span>
+        <select value={mv.fromAccountId} onChange={(e) => setMv({ ...mv, fromAccountId: e.target.value })}
+                style={{ marginTop: 8 }}>
+          <option value="">{t("transferFrom")}</option>{opts}
+        </select>
+        <select value={mv.toAccountId} onChange={(e) => setMv({ ...mv, toAccountId: e.target.value })}
+                style={{ marginTop: 8 }}>
+          <option value="">{t("transferTo")}</option>{opts}
+        </select>
+        <input className="mono" inputMode="decimal" placeholder={t("amount")} value={mv.amount}
+               onChange={(e) => setMv({ ...mv, amount: e.target.value })} style={{ marginTop: 8 }} />
+        <input placeholder={t("note")} value={mv.note}
+               onChange={(e) => setMv({ ...mv, note: e.target.value })} style={{ marginTop: 8 }} />
+        <p className="note">{t("transferHint")}</p>
+        <div className="row" style={{ marginTop: 10 }}>
+          <button className="btn sec sm" onClick={() => setOpen("")}>{t("cancel")}</button>
+          <button className="btn pri sm"
+                  disabled={busy || !mv.fromAccountId || !mv.toAccountId
+                            || mv.fromAccountId === mv.toAccountId || !(Number(mv.amount) > 0)}
+                  onClick={async () => {
+                    setBusy(true);
+                    try {
+                      await api.transfer({ fromAccountId: mv.fromAccountId, toAccountId: mv.toAccountId,
+                                           amount: Number(mv.amount), note: mv.note.trim() || undefined });
+                      toast(t("saved"));
+                      setMv({ fromAccountId: "", toAccountId: "", amount: "", note: "" });
+                      after();
+                    } catch (e) { fail(e); }
+                  }}>{t("save")}</button>
+        </div>
+      </div>
+    );
+  }
+
+  const picked = accounts.find((a) => a.id === op.accountId);
+  return (
+    <div className="card" style={{ marginBottom: 11 }}>
+      <span className="k">{t("openingBalance")}</span>
+      <select value={op.accountId}
+              onChange={(e) => {
+                const a = accounts.find((x) => x.id === e.target.value);
+                setOp({ accountId: e.target.value, openingBalance: a ? String(a.openingBalance) : "" });
+              }}
+              style={{ marginTop: 8 }}>
+        <option value="">{t("pickAccount")}</option>{opts}
+      </select>
+      <input className="mono" inputMode="decimal" placeholder={t("openingBalance")}
+             value={op.openingBalance}
+             onChange={(e) => setOp({ ...op, openingBalance: e.target.value })}
+             style={{ marginTop: 8 }} />
+      <p className="note">{t("openingHint")}</p>
+      <div className="row" style={{ marginTop: 10 }}>
+        <button className="btn sec sm" onClick={() => setOpen("")}>{t("cancel")}</button>
+        <button className="btn pri sm"
+                disabled={busy || !picked || !Number.isFinite(Number(op.openingBalance))
+                          || op.openingBalance === ""}
+                onClick={async () => {
+                  setBusy(true);
+                  try {
+                    await api.patchCashAccount(op.accountId,
+                      { openingBalance: Number(op.openingBalance) });
+                    toast(t("saved"));
+                    setOp({ accountId: "", openingBalance: "" });
+                    after();
+                  } catch (e) { fail(e); }
+                }}>{t("save")}</button>
       </div>
     </div>
   );
