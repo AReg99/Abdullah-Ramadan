@@ -47,11 +47,37 @@ const ROUTE: [string, string, string, string, number, boolean, PhotoRule, PhotoR
   ["PACKING",    "التغليف",        "Packing",     "PCK",  15, true,  "REQUIRED", "OFF"],
 ];
 
+/**
+ * Things a running system cannot work without, added if they are missing.
+ *
+ * This runs even on an already-seeded database, because a server that has been
+ * live for months still needs whatever a new release introduced. It only ever
+ * creates what is absent — it never edits or removes anything already there.
+ */
+async function ensureBaseline() {
+  // The books need somewhere for money to land; without an account the first
+  // deposit anyone tries to take has nowhere to go.
+  const accounts = [
+    { code: "CASH", nameAr: "الخزنة الرئيسية", nameEn: "Main cash box", kind: "CASH" as const },
+    { code: "BANK", nameAr: "الحساب البنكي", nameEn: "Bank account", kind: "BANK" as const },
+  ];
+  for (const a of accounts) {
+    const existing = await db.cashAccount.findUnique({ where: { code: a.code } });
+    if (!existing) {
+      await db.cashAccount.create({ data: a });
+      console.log(`  added missing cash account ${a.code}`);
+    }
+  }
+}
+
 async function main() {
   // Containers run this on every start. Re-seeding would wipe a real trial, so
-  // SEED_IF_EMPTY makes it a no-op once there is anything in the database.
+  // SEED_IF_EMPTY makes it a no-op once there is anything in the database —
+  // but the baseline still has to be checked, or an upgraded server never gets
+  // what the new release needs.
   if (process.env.SEED_IF_EMPTY === "1" && (await db.role.count()) > 0) {
-    console.log("database already seeded — skipping");
+    console.log("database already seeded — checking baseline only");
+    await ensureBaseline();
     return;
   }
 
@@ -102,14 +128,7 @@ async function main() {
             address: "In front of Mecca Center" },
   });
 
-  // The books need somewhere for money to land on day one; without an account
-  // the first deposit anyone tries to take has nowhere to go.
-  await db.cashAccount.createMany({
-    data: [
-      { code: "CASH", nameAr: "الخزنة الرئيسية", nameEn: "Main cash box", kind: "CASH" },
-      { code: "BANK", nameAr: "الحساب البنكي", nameEn: "Bank account", kind: "BANK" },
-    ],
-  });
+  await ensureBaseline();
 
   const stations = Object.fromEntries(
     await Promise.all(ROUTE.map(async ([, ar, en, code]) =>
