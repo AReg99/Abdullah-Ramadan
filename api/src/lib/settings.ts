@@ -35,6 +35,12 @@ export const DEFAULTS = {
   "series.invoice": "INV",
   "series.receipt": "RV",
   "series.payment": "PV",
+  /**
+   * How stock is valued: CURRENT (today's cost), AVERAGE (weighted average of
+   * what was actually paid), or FIFO (what remains is the newest receipts).
+   * Businesses genuinely disagree about which is honest, so it is a choice.
+   */
+  "stock.valuation": "CURRENT",
 } as const;
 
 export type SettingKey = keyof typeof DEFAULTS;

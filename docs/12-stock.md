@@ -114,14 +114,48 @@ The same rule as everywhere else in this system: an item nothing has ever
 happened to is **deleted**; one with movements is **retired**, because deleting
 it would leave its history describing a thing that does not exist.
 
+## قائمة المكونات — what a piece is made of
+
+A recipe per product: which materials, and how much of each per piece. Written
+once and then forgotten about, because **when the piece is finished on the
+floor, the materials come off the shelf by themselves**.
+
+Two things it is careful about:
+
+- **A shelf that is short does not stop the floor.** It takes what is there
+  rather than nothing, and reports what it could not cover. A missing metre of
+  timber must never prevent the factory from recording that the work is done.
+- **Building the same work order twice consumes nothing twice.**
+
+Materials come out of the factory store — a showroom does not hold timber.
+
+## Batches
+
+Any movement can carry a lot number: a timber shipment, a dye batch. It is
+**optional on purpose** — most of what a factory holds is not worth tracking to
+a lot, and forcing one would just get "1" typed into every movement.
+
+When a lot is named on the way out, it is checked against **that lot**: taking
+25 from a lot of 20 is refused even when the shelf holds 50 across two lots.
+
+## What the stock is worth
+
+Three methods, because businesses genuinely disagree about which is honest.
+Chosen once in Setup → Company:
+
+| Method | What it does |
+| --- | --- |
+| **At current cost** | Everything at today's figure. Simple, and right where prices are stable. |
+| **Weighted average** | At the average of what was actually paid across every receipt. Smooths a jumpy market. |
+| **FIFO** | The oldest stock is assumed sold first, so what remains is valued at your newest purchases. Closest to replacement cost. |
+
+Ten metres bought at 100 and ten at 200: current says 4,000, average says
+3,000, FIFO says 3,000. Sell ten and FIFO says 2,000 while average says 1,500 —
+which is the whole reason the choice exists.
+
 ## Not built
 
-- **Materials consumed automatically by production.** A work order knows what it
-  is building but not what goes into it — that needs a bill of materials per
-  product, which is its own piece of work. Materials come off with a
-  `PRODUCTION` movement by hand today.
-- **Batch or serial tracking within an item.** Unit labels exist for finished
-  pieces; stock is counted, not tracked per unit.
-- **Stock valuation methods** (FIFO, weighted average). Valuation is at the
-  item's current cost, which is honest for a business buying at stable prices
-  and would need to be revisited for one that is not.
+- **Serial tracking per unit within an item.** Unit labels exist for finished
+  pieces; stock is counted, not tracked one by one.
+- **Materials reserved when an order is taken.** They are consumed when the
+  piece is built, not held aside when it is sold.

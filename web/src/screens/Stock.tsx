@@ -3,8 +3,8 @@ import { useApp } from "../app-context";
 import { api, type LocationRow, type ProductRow, type StockItem,
          type StockMovement, type Stocktake } from "../api";
 
-type Tab = "onHand" | "movements" | "stocktake";
-const TABS: Tab[] = ["onHand", "movements", "stocktake"];
+type Tab = "onHand" | "movements" | "stocktake" | "bom";
+const TABS: Tab[] = ["onHand", "movements", "stocktake", "bom"];
 
 const REASONS = ["OPENING", "PURCHASE", "PRODUCTION", "SALE", "RETURN", "ADJUSTMENT", "DAMAGE"];
 
@@ -100,6 +100,7 @@ export default function Stock() {
 
       {tab === "movements" && <Movements items={items} stores={stores} admin={admin} />}
       {tab === "stocktake" && <Stocktakes stores={stores} admin={admin} onDone={load} />}
+      {tab === "bom" && <Bom items={items} admin={admin} />}
     </>
   );
 }
@@ -192,7 +193,7 @@ function MoveDesk({ items, stores, onDone }: { items: StockItem[]; stores: Locat
   const ar = lang === "ar";
   const [open, setOpen] = useState<"" | "in" | "out" | "move">("");
   const [f, setF] = useState({ itemId: "", warehouseId: "", toWarehouseId: "",
-                               qty: "", reason: "PURCHASE", note: "" });
+                               qty: "", reason: "PURCHASE", batch: "", note: "" });
   const [busy, setBusy] = useState(false);
 
   const item = items.find((i) => i.id === f.itemId);
@@ -251,8 +252,13 @@ function MoveDesk({ items, stores, onDone }: { items: StockItem[]; stores: Locat
           {REASONS.map((r) => <option key={r} value={r}>{t(`why_${r}` as any)}</option>)}
         </select>
       )}
+      {!transfer && (
+        <input className="mono" placeholder={t("batch")} value={f.batch}
+               onChange={(e) => setF({ ...f, batch: e.target.value })} style={{ marginTop: 8 }} />
+      )}
       <input placeholder={t("note")} value={f.note}
              onChange={(e) => setF({ ...f, note: e.target.value })} style={{ marginTop: 8 }} />
+      {!transfer && <p className="note">{t("batchHint")}</p>}
 
       {/* What is actually there, so nobody has to remember it. */}
       {item && f.warehouseId && (
@@ -281,12 +287,13 @@ function MoveDesk({ items, stores, onDone }: { items: StockItem[]; stores: Locat
                         itemId: f.itemId, warehouseId: f.warehouseId,
                         direction: open === "in" ? "IN" : "OUT",
                         qty: Number(f.qty), reason: f.reason,
+                        batch: f.batch.trim() || undefined,
                         note: f.note.trim() || undefined,
                       });
                     }
                     toast(t("saved"));
                     setF({ itemId: "", warehouseId: "", toWarehouseId: "", qty: "",
-                           reason: "PURCHASE", note: "" });
+                           reason: "PURCHASE", batch: "", note: "" });
                     setOpen(""); onDone();
                   } catch (e: any) { toast(e?.code ? t(e.code) : t("signInFailed")); }
                   finally { setBusy(false); }
@@ -599,6 +606,127 @@ function Stocktakes({ stores, admin, onDone }: { stores: LocationRow[]; admin: b
         </div>
       ))}
       {list.length === 0 && <p className="note">{t("noStocktakes")}</p>}
+    </>
+  );
+}
+
+
+/**
+ * قائمة المكونات — what a piece is made of.
+ *
+ * Written once per product and then forgotten about: when the piece is finished
+ * on the floor, these come off the shelf by themselves. Without it a work order
+ * knows what it is building but not what goes into it, and the timber figure
+ * quietly drifts until a stocktake finds it.
+ */
+function Bom({ items, admin }: { items: StockItem[]; admin: boolean }) {
+  const { t, lang, toast } = useApp();
+  const ar = lang === "ar";
+  const [products, setProducts] = useState<ProductRow[]>([]);
+  const [productId, setProductId] = useState("");
+  const [lines, setLines] = useState<{ stockItemId: string; qty: string }[]>([]);
+  const [busy, setBusy] = useState(false);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => { api.products().then(setProducts).catch(() => setProducts([])); }, []);
+  useEffect(() => {
+    if (!productId) { setLines([]); return; }
+    setLoading(true);
+    api.bom(productId)
+      .then((b) => setLines(b.map((x) => ({ stockItemId: x.stockItemId, qty: String(x.qty) }))))
+      .catch(() => setLines([]))
+      .finally(() => setLoading(false));
+  }, [productId]);
+
+  const costOf = (id: string) => items.find((i) => i.id === id)?.unitCost ?? 0;
+  const unitOf = (id: string) => items.find((i) => i.id === id)?.unit ?? "";
+  const total = lines.reduce((s, l) => s + (Number(l.qty) || 0) * costOf(l.stockItemId), 0);
+  // The same material twice would be refused by the server, so it is not
+  // offered here either.
+  const taken = new Set(lines.map((l) => l.stockItemId));
+
+  return (
+    <>
+      <div className="card">
+        <span className="k">{t("bom")}</span>
+        <select value={productId} onChange={(e) => setProductId(e.target.value)}
+                style={{ marginTop: 8 }}>
+          <option value="">{t("pickProduct")}</option>
+          {products.map((p) => (
+            <option key={p.id} value={p.id}>{ar ? p.nameAr : p.nameEn} · {p.sku}</option>
+          ))}
+        </select>
+        <p className="note">{t("bomHint")}</p>
+      </div>
+
+      {loading && <div className="empty">{t("loading")}</div>}
+
+      {productId && !loading && (
+        <>
+          {lines.map((l, i) => (
+            <div className="card" key={i}>
+              <select value={l.stockItemId}
+                      onChange={(e) => setLines(lines.map((x, k) =>
+                        k === i ? { ...x, stockItemId: e.target.value } : x))}
+                      disabled={!admin}>
+                <option value="">{t("pickItem")}</option>
+                {items
+                  .filter((it) => it.id === l.stockItemId || !taken.has(it.id))
+                  .map((it) => (
+                    <option key={it.id} value={it.id}>{ar ? it.nameAr : it.nameEn}</option>
+                  ))}
+              </select>
+              <div className="row" style={{ marginTop: 8 }}>
+                <input className="mono" inputMode="decimal" placeholder={t("materialQty")}
+                       value={l.qty} disabled={!admin}
+                       onChange={(e) => setLines(lines.map((x, k) =>
+                         k === i ? { ...x, qty: e.target.value } : x))}
+                       style={{ flex: 1 }} />
+                {admin && (
+                  <button className="btn sec sm"
+                          onClick={() => setLines(lines.filter((_, k) => k !== i))}>
+                    {t("remove")}
+                  </button>
+                )}
+              </div>
+              {l.stockItemId && (
+                <p className="note">
+                  {unitOf(l.stockItemId)} · {((Number(l.qty) || 0) * costOf(l.stockItemId)).toLocaleString()}
+                </p>
+              )}
+            </div>
+          ))}
+
+          {admin && (
+            <button className="btn sec sm"
+                    onClick={() => setLines([...lines, { stockItemId: "", qty: "" }])}>
+              {t("addMaterial")}
+            </button>
+          )}
+
+          <div className="card" style={{ marginTop: 11 }}>
+            <div className="evt">
+              <span style={{ flex: 1 }}><b>{t("bomCost")}</b></span>
+              <b className="mono">{total.toLocaleString()}</b>
+            </div>
+            {admin && (
+              <button className="btn pri" style={{ marginTop: 10 }} disabled={busy}
+                      onClick={async () => {
+                        setBusy(true);
+                        try {
+                          await api.saveBom(productId, lines
+                            .filter((l) => l.stockItemId && Number(l.qty) > 0)
+                            .map((l) => ({ stockItemId: l.stockItemId, qty: Number(l.qty) })));
+                          toast(t("saved"));
+                        } catch (e: any) { toast(e?.code ? t(e.code) : t("signInFailed")); }
+                        finally { setBusy(false); }
+                      }}>
+                {t("save")}
+              </button>
+            )}
+          </div>
+        </>
+      )}
     </>
   );
 }

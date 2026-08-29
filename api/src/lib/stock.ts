@@ -89,3 +89,70 @@ export async function receiveOnPurchase(purchaseInvoiceId: string, actorId?: str
   }
   return { moved };
 }
+
+
+/**
+ * Building a piece consumes what it is made of.
+ *
+ * Called when a work order finishes. Without this a work order knows what it
+ * is building but not what goes into it, and materials only ever come off the
+ * shelf by hand — which means mostly they do not, and the timber figure drifts
+ * until a stocktake finds it months later.
+ *
+ * Best-effort like the rest: the piece was built whether or not the shelf could
+ * be squared, and a missing material must never block the floor. Anything it
+ * could not take is reported so it can be shown rather than silently lost.
+ */
+export async function consumeForWorkOrder(workOrderId: string, actorId?: string) {
+  const wo = await db.workOrder.findUnique({
+    where: { id: workOrderId },
+    include: { orderLine: { include: { order: true } } },
+  });
+  if (!wo) return { consumed: 0, short: [] as string[] };
+
+  // Building the same work order twice must not consume twice.
+  const already = await db.stockMovement.findFirst({
+    where: { workOrderId, reason: "PRODUCTION" },
+  });
+  if (already) return { consumed: 0, short: [] };
+
+  const bom = await db.bomLine.findMany({
+    where: { productId: wo.productId },
+    include: { stockItem: true },
+  });
+  if (bom.length === 0) return { consumed: 0, short: [] };
+
+  // Materials come out of the factory. A showroom does not hold timber.
+  const factory = await db.location.findFirst({ where: { type: "FACTORY" } });
+  if (!factory) return { consumed: 0, short: [] };
+
+  let consumed = 0;
+  const short: string[] = [];
+  for (const b of bom) {
+    const need = Number(b.qty) * wo.qty;
+    if (need <= 0) continue;
+    const sums = await db.stockMovement.groupBy({
+      by: ["direction"], _sum: { qty: true },
+      where: { itemId: b.stockItemId, warehouseId: factory.id },
+    });
+    const onHand =
+      Number(sums.find((g) => g.direction === "IN")?._sum.qty ?? 0)
+      - Number(sums.find((g) => g.direction === "OUT")?._sum.qty ?? 0);
+    // Take what is there rather than nothing: a shelf that is short by a metre
+    // should not leave the whole build unrecorded.
+    const take = Math.min(need, Math.max(0, onHand));
+    if (take < need) short.push(b.stockItem.nameAr);
+    if (take <= 0) continue;
+
+    await db.stockMovement.create({
+      data: {
+        itemId: b.stockItemId, warehouseId: factory.id, direction: "OUT",
+        qty: String(take), reason: "PRODUCTION", unitCost: b.stockItem.unitCost,
+        occurredOn: new Date(), workOrderId, actorId: actorId ?? null,
+        note: wo.code,
+      },
+    });
+    consumed++;
+  }
+  return { consumed, short };
+}

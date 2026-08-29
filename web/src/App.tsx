@@ -24,6 +24,7 @@ import Voucher from "./screens/Voucher";
 import PurchaseDoc from "./screens/PurchaseDoc";
 import Summary from "./screens/Summary";
 import Stock from "./screens/Stock";
+import Attendance from "./screens/Attendance";
 import Money from "./screens/Money";
 import { onSyncChange, queued } from "./outbox";
 import { startSyncLoop } from "./sync";
@@ -44,18 +45,20 @@ const NAVS: Record<string, Tab[]> = {
     ["/today", "◧", "today"], ["/floor", "▦", "floor"], ["/dispatch", "⇥", "dispatch"],
     ["/showroom", "⌂", "showroom"], ["/orders", "▤", "orders"], ["/new-order", "✎", "newOrder"],
     ["/labels", "⌗", "labels"], ["/stock", "▥", "stock"], ["/money", "₤", "money"],
-    ["/payroll", "☰", "payroll"], ["/setup", "⚙", "setup"],
+    ["/attendance", "✓", "attendance"], ["/payroll", "☰", "payroll"],
+    ["/setup", "⚙", "setup"],
   ],
   // Runs the factory. Not the business: setup and order entry are the owner's,
   // and the showroom's, and money never appears on these screens.
   FACTORY_MANAGER: [
     ["/today", "◧", "today"], ["/floor", "▦", "floor"], ["/dispatch", "⇥", "dispatch"],
     ["/orders", "▤", "orders"], ["/labels", "⌗", "labels"], ["/stock", "▥", "stock"],
-    ["/setup", "⚙", "setup"],
+    ["/attendance", "✓", "attendance"], ["/setup", "⚙", "setup"],
   ],
   SUPERVISOR: [
     ["/today", "◧", "today"], ["/floor", "▦", "floor"], ["/dispatch", "⇥", "dispatch"],
     ["/orders", "▤", "orders"], ["/labels", "⌗", "labels"],
+    ["/attendance", "✓", "attendance"],
   ],
   STOREKEEPER: [["/dispatch", "⇥", "dispatch"], ["/stock", "▥", "stock"],
                 ["/labels", "⌗", "labels"], ["/orders", "▤", "orders"]],
@@ -71,8 +74,8 @@ const NAVS: Record<string, Tab[]> = {
   // the accountant at it landed them on a 403 the moment they signed in.
   // The books are the whole job: the cash box, the invoices, what is owed.
   ACCOUNTANT: [["/summary", "◈", "summary"], ["/money", "₤", "money"],
-               ["/payroll", "☰", "payroll"], ["/stock", "▥", "stock"],
-               ["/orders", "▤", "orders"]],
+               ["/payroll", "☰", "payroll"], ["/attendance", "✓", "attendance"],
+               ["/stock", "▥", "stock"], ["/orders", "▤", "orders"]],
   // QC stands at a station like a leader does, so they get the floor tabs.
   QC: [["/work", "▤", "work"], ["/scan", "⌗", "scan"], ["/myday", "◔", "myday"]],
 };
@@ -136,6 +139,7 @@ export default function App() {
           <Route path="/purchase/:id" element={<PurchaseDoc />} />
           <Route path="/summary" element={<Summary />} />
           <Route path="/stock" element={<Stock />} />
+          <Route path="/attendance" element={<Attendance />} />
           <Route path="/money" element={<Money />} />
           <Route path="/dispatch" element={<Dispatch />} />
           <Route path="/showroom" element={<Showroom />} />

@@ -92,4 +92,12 @@ export const STOCK = ["OWNER", "FACTORY_MANAGER", "SUPERVISOR", "STOREKEEPER",
  */
 export const STOCK_ADMIN = ["OWNER", "FACTORY_MANAGER", "ACCOUNTANT"];
 
+/**
+ * Taking the register. Whoever is on the floor at seven in the morning has to
+ * be able to mark who turned up — the supervisor and the factory manager are
+ * there, the accountant is not. They see the day rates, though, which is why
+ * this is not wider still.
+ */
+export const ATTENDANCE = ["OWNER", "FACTORY_MANAGER", "SUPERVISOR", "ACCOUNTANT"];
+
 export const seesMoney = (roleKey: string) => MONEY.includes(roleKey);

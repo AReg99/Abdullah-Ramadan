@@ -78,9 +78,14 @@ model User {
   canLogin     Boolean   @default(true)
   locale       Locale    @default(ar)
   isActive     Boolean   @default(true)
+  /// How this person is paid. Most of a furniture factory is on a day rate and
+  /// paid weekly; the office is usually monthly. Both exist in the same payroll.
+  payType      PayType   @default(MONTHLY)
   /// Monthly wage. Null means "not on the payroll" — most roster workers are
   /// paid by the crew, and a zero would look like a decision rather than a gap.
   salary       Decimal?  @db.Decimal(14, 2)
+  /// What one day is worth, for anybody paid by the day.
+  dayRate      Decimal?  @db.Decimal(14, 2)
   roleId       String
   role         Role      @relation(fields: [roleId], references: [id])
   stationId    String?
@@ -108,6 +113,8 @@ model User {
   payrollRuns   PayrollRun[]      @relation("PayrollAuthor")
   stockMoves    StockMovement[]   @relation("StockAuthor")
   stocktakes    Stocktake[]       @relation("StocktakeAuthor")
+  attendance    Attendance[]      @relation("AttendanceOf")
+  attendanceTaken Attendance[]    @relation("AttendanceAuthor")
 }
 
 /// A crew working one station under one leader.
@@ -226,6 +233,7 @@ model Product {
   workOrders WorkOrder[]
   photos     ProductPhoto[]
   stockItem  StockItem?
+  bom        BomLine[]
 }
 
 // ---------------------------------------------------------------- sales
@@ -642,6 +650,26 @@ enum PaymentMethod {
 /// What a movement was for, in or out. The name is historical — it started as
 /// expenses only — and is left alone because renaming a live enum is a
 /// migration nobody needs.
+enum PayType {
+  MONTHLY
+  DAILY
+}
+
+enum PayPeriod {
+  WEEKLY
+  MONTHLY
+}
+
+enum AttendanceStatus {
+  PRESENT
+  /// Half a day worked, half a day paid.
+  HALF
+  /// Away and paid — annual leave, a public holiday.
+  LEAVE
+  /// Away and not paid.
+  ABSENT
+}
+
 enum StockKind {
   /// A catalogue piece sitting in a store.
   PRODUCT
@@ -736,12 +764,42 @@ model CashEntry {
   @@index([transferId])
 }
 
+/// Who was in, on which day.
+///
+/// One row per person per day, because that is how it is actually taken: a
+/// name and a tick each morning. Everything the weekly payroll needs comes
+/// from counting these, so a wage can always be traced back to the days behind
+/// it rather than to somebody's memory.
+model Attendance {
+  id        String           @id @default(uuid())
+  userId    String
+  user      User             @relation("AttendanceOf", fields: [userId], references: [id])
+  /// Midday UTC on the day in question, so a timezone cannot shift it a day.
+  day       DateTime
+  status    AttendanceStatus @default(PRESENT)
+  /// Hours beyond the normal day, paid at the overtime rate on the payslip.
+  overtimeHours Decimal      @default(0) @db.Decimal(6, 2)
+  note      String?
+  actorId   String?
+  actor     User?            @relation("AttendanceAuthor", fields: [actorId], references: [id])
+  createdAt DateTime         @default(now())
+
+  @@unique([userId, day])
+  @@index([day])
+}
+
 /// A month's wages, posted in one go. Unique on the month because paying
 /// August twice is the mistake this exists to prevent.
 model PayrollRun {
   id        String        @id @default(uuid())
-  /// "2026-08" — the month being paid, not the day it was posted.
-  month     String        @unique
+  /// The period key: "2026-08" for a month, "2026-W35" for a week. The column
+  /// is still called month, because renaming it on a live server would throw
+  /// away the runs already posted.
+  period    String        @unique @map("month")
+  kind      PayPeriod     @default(MONTHLY)
+  /// The days the period covers, so a payslip can say which week it was.
+  periodStart DateTime?
+  periodEnd   DateTime?
   accountId String
   account   CashAccount   @relation(fields: [accountId], references: [id])
   postedAt  DateTime      @default(now())
@@ -757,8 +815,8 @@ model PayrollRun {
 /// kept afterwards as part of why the payslip said what it said.
 model PayrollAdjustment {
   id         String  @id @default(uuid())
-  /// "2026-08"
-  month      String
+  /// The period key this belongs to — "2026-08" or "2026-W35".
+  period     String  @map("month")
   userId     String
   user       User    @relation(fields: [userId], references: [id])
   overtime   Decimal @default(0) @db.Decimal(14, 2)
@@ -771,7 +829,7 @@ model PayrollAdjustment {
   insurance  Decimal @default(0) @db.Decimal(14, 2)
   note       String?
 
-  @@unique([month, userId])
+  @@unique([period, userId])
 }
 
 model PayrollLine {
@@ -783,6 +841,9 @@ model PayrollLine {
   /// The wage before anything was added or held back, kept so a posted
   /// payslip can still be explained a year later.
   baseSalary Decimal @default(0) @db.Decimal(14, 2)
+  /// For anybody paid by the day: the rate, and the days that earned it.
+  dayRate    Decimal @default(0) @db.Decimal(14, 2)
+  daysWorked Decimal @default(0) @db.Decimal(6, 2)
   overtime   Decimal @default(0) @db.Decimal(14, 2)
   bonus      Decimal @default(0) @db.Decimal(14, 2)
   advance    Decimal @default(0) @db.Decimal(14, 2)
@@ -816,6 +877,24 @@ model PurchaseInvoiceLine {
   stockItemId String?
 }
 
+/// What one of a product is made of.
+///
+/// Without this a work order knows what it is building but not what goes into
+/// it, and materials can only ever come off the shelf by hand — which means
+/// they mostly do not, and the timber figure drifts until a stocktake finds it.
+model BomLine {
+  id          String    @id @default(uuid())
+  productId   String
+  product     Product   @relation(fields: [productId], references: [id], onDelete: Cascade)
+  stockItemId String
+  stockItem   StockItem @relation(fields: [stockItemId], references: [id])
+  /// How much of it one finished piece takes.
+  qty         Decimal   @db.Decimal(14, 3)
+  note        String?
+
+  @@unique([productId, stockItemId])
+}
+
 /// Something the store holds a quantity of.
 ///
 /// Not the same thing as a catalogue product: a factory stocks timber, foam and
@@ -843,6 +922,7 @@ model StockItem {
 
   movements       StockMovement[]
   stocktakeLines  StocktakeLine[]
+  bomLines        BomLine[]
 }
 
 /// One movement of stock, in or out of one store.
@@ -862,6 +942,10 @@ model StockMovement {
   reason            StockReason
   /// The cost on the day it moved, for valuation.
   unitCost          Decimal           @default(0) @db.Decimal(14, 2)
+  /// Which lot this was — a timber shipment, a dye batch. Optional, because
+  /// most of what a factory holds is not worth tracking to a lot, and forcing
+  /// one would just get "1" typed into every movement.
+  batch             String?
   occurredOn        DateTime
   /// What caused it, where there was a cause.
   orderLineId       String?
@@ -878,7 +962,13 @@ model StockMovement {
   actor             User?             @relation("StockAuthor", fields: [actorId], references: [id])
   createdAt         DateTime          @default(now())
 
+  /// Set on a movement caused by building something, so consuming twice for
+  /// the same work order cannot happen.
+  workOrderId       String?
+
   @@index([itemId, warehouseId])
+  @@index([itemId, batch])
+  @@index([workOrderId])
   @@index([occurredOn])
   @@index([transferId])
 }

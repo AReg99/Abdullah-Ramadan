@@ -244,6 +244,7 @@ const ar = {
   // ── المخزون
   stock: "المخزن",
   stock_onHand: "الأرصدة", stock_movements: "الحركة", stock_stocktake: "الجرد",
+  stock_bom: "قائمة المكونات",
   stockItems: "الأصناف", stockValue: "قيمة المخزون", runningOut: "قرب يخلص",
   reorderAt: "حد الطلب", reorderLevel: "حد إعادة الطلب", unitCost: "تكلفة الوحدة",
   reorderHint: "لما الرصيد يوصل للحد ده أو أقل، الصنف بيتحطله علامة إنه قرب يخلص. صفر يعني ماتنبهنيش.",
@@ -272,6 +273,29 @@ const ar = {
   stocktake_already_open: "فيه جرد مفتوح على المخزن ده",
   stocktake_already_posted: "الجرد ده اترحّل قبل كده",
   back: "رجوع",
+  // ── الحضور والمرتب الأسبوعي
+  attendance: "الحضور", theDay: "اليوم", theWeek: "الأسبوع",
+  weekly: "أسبوعي", monthly: "شهري", payWeek: "أي يوم في الأسبوع",
+  daysWorked: "يوم", saveRegister: "حفظ الحضور",
+  att_PRESENT: "حاضر", att_HALF: "نص يوم", att_LEAVE: "إجازة مدفوعة", att_ABSENT: "غايب",
+  dayRate: "أجر اليوم", payType: "طريقة الصرف",
+  payType_DAILY: "باليومية", payType_MONTHLY: "بالشهر",
+  nobodyOnDayRate: "محدش متسجل باليومية — حط أجر اليوم من الإعدادات ← الموظفين",
+  bad_period: "الفترة دي مش مظبوطة", bad_day: "التاريخ ده مش مظبوط",
+  day_in_the_future: "اليوم ده لسه ماجاش",
+  period_already_paid: "الفترة دي اتصرفت خلاص",
+  dayRateHint: "اللي بياخد أجر يومي بيتصرفله أسبوعي على الأيام اللي حضرها فعلاً.",
+  // ── قائمة المكونات والتشغيلات والتقييم
+  bom: "قائمة المكونات", bomHint:
+    "لما القطعة تخلص في المصنع، الخامات دي بتنزل من المخزن لوحدها.",
+  addMaterial: "ضيف خامة", materialQty: "الكمية للقطعة الواحدة",
+  bomCost: "تكلفة الخامات", duplicate_material: "الخامة دي متكررة",
+  batch: "رقم التشغيلة", batches: "التشغيلات", noBatches: "مفيش تشغيلات مسجلة",
+  batchHint: "اختياري — لو بتتابع الخشب أو الدهان بالتشغيلة اكتب رقمها.",
+  valuation: "طريقة تقييم المخزون",
+  val_CURRENT: "بالتكلفة الحالية", val_AVERAGE: "بالمتوسط المرجح", val_FIFO: "الوارد أولاً صادر أولاً",
+  valuationHint:
+    "الحالية: كل حاجة بسعر النهارده. المتوسط: بمتوسط اللي دفعته فعلاً. الوارد أولاً: الباقي بسعر آخر مشترياتك.",
   // ── تفاصيل المرتب
   overtime: "إضافي", bonus: "مكافأة", advance: "سلفة", deduction: "خصم",
   insurance: "تأمينات", netPay: "الصافي", baseSalary: "الأساسي",
@@ -523,6 +547,7 @@ const en: Record<keyof typeof ar, string> = {
   // ── stock
   stock: "Store",
   stock_onHand: "On hand", stock_movements: "Movements", stock_stocktake: "Stocktake",
+  stock_bom: "Made of",
   stockItems: "Items", stockValue: "Stock value", runningOut: "Running out",
   reorderAt: "Reorder at", reorderLevel: "Reorder level", unitCost: "Unit cost",
   reorderHint: "At or below this, the item is flagged as running out. Zero means never flag it.",
@@ -551,6 +576,29 @@ const en: Record<keyof typeof ar, string> = {
   stocktake_already_open: "There is already an open count for this store",
   stocktake_already_posted: "That count has already been posted",
   back: "Back",
+  // ── attendance and weekly pay
+  attendance: "Register", theDay: "Day", theWeek: "Week",
+  weekly: "Weekly", monthly: "Monthly", payWeek: "Any day in the week",
+  daysWorked: "days", saveRegister: "Save the register",
+  att_PRESENT: "In", att_HALF: "Half day", att_LEAVE: "Paid leave", att_ABSENT: "Away",
+  dayRate: "Day rate", payType: "Paid",
+  payType_DAILY: "By the day", payType_MONTHLY: "Monthly",
+  nobodyOnDayRate: "Nobody is on a day rate — set one in Setup → Staff",
+  bad_period: "That is not a valid period", bad_day: "That is not a valid date",
+  day_in_the_future: "That day has not happened yet",
+  period_already_paid: "That period has already been paid",
+  dayRateHint: "Anyone on a day rate is paid weekly for the days they were actually in.",
+  // ── bill of materials, batches, valuation
+  bom: "Made of", bomHint:
+    "When the piece is finished in the factory, these come off the shelf by themselves.",
+  addMaterial: "Add a material", materialQty: "Quantity per piece",
+  bomCost: "Material cost", duplicate_material: "That material is listed twice",
+  batch: "Batch", batches: "Batches", noBatches: "No batches recorded",
+  batchHint: "Optional — give a lot number if you track timber or dye by shipment.",
+  valuation: "Stock valuation",
+  val_CURRENT: "At current cost", val_AVERAGE: "Weighted average", val_FIFO: "FIFO",
+  valuationHint:
+    "Current: everything at today's cost. Average: at what you actually paid. FIFO: what is left is your newest purchases.",
   // ── payslip detail
   overtime: "Overtime", bonus: "Bonus", advance: "Advance", deduction: "Deduction",
   insurance: "Insurance", netPay: "Net", baseSalary: "Base",

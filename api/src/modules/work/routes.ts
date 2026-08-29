@@ -3,6 +3,7 @@ import { z } from "zod";
 import { db } from "../../db.js";
 import { guard } from "../../auth/jwt.js";
 import { record } from "../../lib/events.js";
+import { consumeForWorkOrder } from "../../lib/stock.js";
 import { syncOrderStatus } from "../../lib/order-status.js";
 
 const REASONS = ["NO_MATERIAL","MACHINE_DOWN","AWAITING_DRAWING","AWAITING_QC","AWAITING_CUSTOMER",
@@ -306,6 +307,10 @@ export default async function workRoutes(app: FastifyInstance) {
         orderId: s.workOrder.orderLine.orderId, actorId: user.id, isCustomerVisible: true,
       });
       await syncOrderStatus(s.workOrder.orderLine.orderId);
+      // The piece is built, so what it is made of has left the shelf.
+      // Best-effort: a material the store is short of must never block the
+      // floor from recording that the work is done.
+      await consumeForWorkOrder(s.workOrderId, user.id).catch(() => {});
     }
     return updated;
   });

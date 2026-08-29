@@ -277,7 +277,7 @@ function Staff({ people, locations, stations, roles, busy, run, nm }: any) {
   // cannot present a role that comes back refused.
   const offer: string[] = roles.length ? roles : [];
   const blank = { nameAr: "", email: "", phone: "", password: "", role: offer[0] ?? "",
-                  locationId: "", stationId: "", salary: "" };
+                  locationId: "", stationId: "", salary: "", dayRate: "" };
   // Wages are the books' business. The factory manager may hire without ever
   // being told what the showroom manager earns.
   const setsPay = ["OWNER", "ACCOUNTANT"].includes(me?.role ?? "");
@@ -325,8 +325,15 @@ function Staff({ people, locations, stations, roles, busy, run, nm }: any) {
         <input placeholder={t("password")} value={p.password}
                onChange={(e) => setP({ ...p, password: e.target.value })} style={{ marginTop: 8 }} />
         {setsPay && (
-          <input className="mono" inputMode="decimal" placeholder={t("salary")} value={p.salary}
-                 onChange={(e) => setP({ ...p, salary: e.target.value })} style={{ marginTop: 8 }} />
+          <>
+            <input className="mono" inputMode="decimal" placeholder={t("salary")} value={p.salary}
+                   onChange={(e) => setP({ ...p, salary: e.target.value })} style={{ marginTop: 8 }} />
+            {/* One or the other: the floor is on a day rate and paid weekly,
+                the office on a salary and paid monthly. */}
+            <input className="mono" inputMode="decimal" placeholder={t("dayRate")} value={p.dayRate}
+                   onChange={(e) => setP({ ...p, dayRate: e.target.value })} style={{ marginTop: 8 }} />
+            <p className="note">{t("dayRateHint")}</p>
+          </>
         )}
         <button className="btn pri sm" style={{ marginTop: 10 }}
           disabled={busy || !p.nameAr || (!p.email && !p.phone) || p.password.length < 6
@@ -339,6 +346,7 @@ function Staff({ people, locations, stations, roles, busy, run, nm }: any) {
             ...(p.stationId ? { stationId: p.stationId } : {}),
             // Blank means "not on the payroll", which is not the same as zero.
             ...(setsPay && p.salary.trim() ? { salary: Number(p.salary) } : {}),
+            ...(setsPay && p.dayRate.trim() ? { dayRate: Number(p.dayRate) } : {}),
           }), t("saved")).then(() => setP(blank))}>
           {t("add")}
         </button>
@@ -373,7 +381,10 @@ function Staff({ people, locations, stations, roles, busy, run, nm }: any) {
                 <span className="muted"> · {t(x.role as any)}</span>
                 {x.locationName && <span className="muted"> · {x.locationName}</span>}
                 {x.stationName && <span className="muted"> · {x.stationName}</span>}
-                {setsPay && x.salary != null && (
+                {setsPay && x.payType === "DAILY" && x.dayRate != null && (
+                  <span className="sub mono">{t("dayRate")}: {x.dayRate.toLocaleString()}</span>
+                )}
+                {setsPay && x.payType !== "DAILY" && x.salary != null && (
                   <span className="sub mono">{t("salary")}: {x.salary.toLocaleString()}</span>
                 )}
               </span>
@@ -673,6 +684,15 @@ function Company() {
         </>
       )}
 
+      <span className="k" style={{ marginTop: 16, display: "block" }}>{t("valuation")}</span>
+      <select value={f["stock.valuation"] ?? "CURRENT"}
+              onChange={(e) => set("stock.valuation", e.target.value)} style={{ marginTop: 6 }}>
+        {["CURRENT", "AVERAGE", "FIFO"].map((v) => (
+          <option key={v} value={v}>{t(`val_${v}` as any)}</option>
+        ))}
+      </select>
+      <p className="note">{t("valuationHint")}</p>
+
       <button className="btn pri" style={{ marginTop: 14 }} disabled={busy}
               onClick={async () => {
                 setBusy(true);
@@ -697,18 +717,32 @@ function Company() {
 function SalaryEditor({ person, busy, run }: any) {
   const { t } = useApp();
   const [open, setOpen] = useState(false);
-  const [v, setV] = useState(person.salary == null ? "" : String(person.salary));
+  const [kind, setKind] = useState<"MONTHLY" | "DAILY">(person.payType ?? "MONTHLY");
+  const [v, setV] = useState(
+    person.payType === "DAILY"
+      ? (person.dayRate == null ? "" : String(person.dayRate))
+      : (person.salary == null ? "" : String(person.salary)));
 
   if (!open) {
     return <button className="chip" onClick={() => setOpen(true)}>{t("salary")}</button>;
   }
   return (
     <span style={{ display: "flex", gap: 7, alignItems: "center", flexWrap: "wrap" }}>
-      <input className="mono" inputMode="decimal" value={v} placeholder={t("salary")}
+      <select value={kind} onChange={(e) => setKind(e.target.value as any)} style={{ width: 130 }}>
+        <option value="MONTHLY">{t("payType_MONTHLY")}</option>
+        <option value="DAILY">{t("payType_DAILY")}</option>
+      </select>
+      <input className="mono" inputMode="decimal" value={v}
+             placeholder={kind === "DAILY" ? t("dayRate") : t("salary")}
              onChange={(e) => setV(e.target.value)} style={{ width: 110 }} />
       <button className="btn pri sm" disabled={busy}
               onClick={() => run(() => api.updatePerson(person.id, {
-                salary: v.trim() === "" ? null : Number(v),
+                payType: kind,
+                // Clearing takes them off the payroll; the other field is
+                // cleared too, so nobody ends up with both and neither
+                // obviously in force.
+                salary: kind === "MONTHLY" && v.trim() !== "" ? Number(v) : null,
+                dayRate: kind === "DAILY" && v.trim() !== "" ? Number(v) : null,
               }), t("saved")).then(() => setOpen(false))}>
         {t("save")}
       </button>

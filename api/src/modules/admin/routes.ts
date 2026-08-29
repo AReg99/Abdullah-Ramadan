@@ -80,7 +80,11 @@ export default async function adminRoutes(app: FastifyInstance) {
       locationId: u.locationId, locationName: u.location?.nameAr ?? null,
       // A factory manager may add staff but has no business knowing what the
       // showroom manager is paid.
-      ...(showPay ? { salary: u.salary === null ? null : Number(u.salary) } : {}),
+      ...(showPay ? {
+        payType: u.payType,
+        salary: u.salary === null ? null : Number(u.salary),
+        dayRate: u.dayRate === null ? null : Number(u.dayRate),
+      } : {}),
     }));
   });
 
@@ -100,6 +104,9 @@ export default async function adminRoutes(app: FastifyInstance) {
       canLogin: z.boolean().default(true),
       /** Monthly wage. Omitted means "not on the payroll", which is not zero. */
       salary: z.number().nonnegative().nullable().optional(),
+      /** What one day is worth, for anybody paid by the day. */
+      dayRate: z.number().nonnegative().nullable().optional(),
+      payType: z.enum(["MONTHLY", "DAILY"]).optional(),
     }).parse(req.body);
 
     if (b.canLogin && !b.phone && !b.email) {
@@ -134,6 +141,10 @@ export default async function adminRoutes(app: FastifyInstance) {
         groupId: b.groupId ?? null, stationId: b.stationId ?? null,
         locationId: b.locationId ?? null,
         salary: payAllowed && b.salary != null ? String(b.salary) : null,
+        dayRate: payAllowed && b.dayRate != null ? String(b.dayRate) : null,
+        // Somebody given a day rate and no monthly salary is plainly on the
+        // floor; saying so explicitly is only needed for the unusual case.
+        payType: b.payType ?? (b.dayRate != null && b.salary == null ? "DAILY" : "MONTHLY"),
       },
     });
   });
@@ -149,6 +160,8 @@ export default async function adminRoutes(app: FastifyInstance) {
       stationId: z.string().nullable().optional(),
       locationId: z.string().nullable().optional(),
       salary: z.number().nonnegative().nullable().optional(),
+      dayRate: z.number().nonnegative().nullable().optional(),
+      payType: z.enum(["MONTHLY", "DAILY"]).optional(),
       isActive: z.boolean().optional(),
     }).parse(req.body);
     const exists = await db.user.findUnique({ where: { id }, include: { role: true } });
@@ -180,6 +193,10 @@ export default async function adminRoutes(app: FastifyInstance) {
         ...(b.locationId !== undefined ? { locationId: b.locationId } : {}),
         ...(b.salary !== undefined && BOOKS.includes(actor.role.key)
             ? { salary: b.salary === null ? null : String(b.salary) } : {}),
+        ...(b.dayRate !== undefined && BOOKS.includes(actor.role.key)
+            ? { dayRate: b.dayRate === null ? null : String(b.dayRate) } : {}),
+        ...(b.payType !== undefined && BOOKS.includes(actor.role.key)
+            ? { payType: b.payType } : {}),
         ...(b.isActive !== undefined ? { isActive: b.isActive } : {}),
       },
     });

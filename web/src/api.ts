@@ -178,10 +178,23 @@ export const api = {
     req<any>("/money/transfer", { method: "POST", body: JSON.stringify(b) }),
   patchCashAccount: (id: string, b: { nameAr?: string; openingBalance?: number; isActive?: boolean }) =>
     req<CashAccount>(`/money/accounts/${id}`, { method: "PATCH", body: JSON.stringify(b) }),
-  payroll: (month: string) => req<Payroll>(`/money/payroll/${month}`),
-  postPayroll: (month: string, b: { accountId: string; skip?: string[]; note?: string }) =>
-    req<{ month: string; paid: number; total: number }>(`/money/payroll/${month}`,
+  payroll: (period: string) => req<Payroll>(`/money/payroll/${period}`),
+  postPayroll: (period: string, b: { accountId: string; skip?: string[]; note?: string }) =>
+    req<{ period: string; kind: string; paid: number; total: number }>(`/money/payroll/${period}`,
       { method: "POST", body: JSON.stringify(b) }),
+  attendanceDay: (day: string) => req<AttendanceDay>(`/money/attendance/${day}`),
+  saveAttendance: (day: string, lines: { userId: string; status: string;
+                                         overtimeHours?: number; note?: string }[]) =>
+    req<{ day: string; saved: number }>(`/money/attendance/${day}`,
+      { method: "PUT", body: JSON.stringify({ lines }) }),
+  attendanceWeek: (period: string) => req<AttendanceWeek>(`/money/attendance/week/${period}`),
+  bom: (productId: string) => req<BomLine[]>(`/stock/bom/${productId}`),
+  saveBom: (productId: string, lines: { stockItemId: string; qty: number; note?: string }[]) =>
+    req<{ lines: number }>(`/stock/bom/${productId}`,
+      { method: "PUT", body: JSON.stringify({ lines }) }),
+  stockBatches: (itemId: string) =>
+    req<{ batch: string; warehouseId: string; warehouse: string; qty: number }[]>(
+      `/stock/items/${itemId}/batches`),
   settings: () => req<Record<string, string>>("/settings"),
   saveSettings: (b: Record<string, string>) =>
     req<Record<string, string>>("/settings", { method: "PUT", body: JSON.stringify(b) }),
@@ -203,7 +216,7 @@ export const api = {
     return req<StockMovement[]>(`/stock/movements${p.toString() ? `?${p}` : ""}`);
   },
   stockMove: (b: { itemId: string; warehouseId: string; direction: "IN" | "OUT";
-                   qty: number; reason?: string; note?: string }) =>
+                   qty: number; reason?: string; batch?: string; note?: string }) =>
     req<any>("/stock/move", { method: "POST", body: JSON.stringify(b) }),
   stockTransfer: (b: { itemId: string; fromWarehouseId: string; toWarehouseId: string;
                        qty: number; note?: string }) =>
@@ -273,11 +286,13 @@ export type FlowLine = {
            showroomAr: string | null; showroomEn: string | null };
   serials: string[];
 };
-export type PersonRow = { salary?: number | null; id: string; nameAr: string; nameEn: string; phone: string | null;
+export type PersonRow = { salary?: number | null; dayRate?: number | null;
+  payType?: "MONTHLY" | "DAILY"; id: string; nameAr: string; nameEn: string; phone: string | null;
   email: string | null; role: string; canLogin: boolean; isActive: boolean; hasPassword: boolean;
   groupId: string | null; groupName: string | null; stationId: string | null; stationName: string | null;
   locationId: string | null; locationName: string | null };
-export type NewPerson = { salary?: number | null; nameAr: string; nameEn?: string; role: string; phone?: string;
+export type NewPerson = { salary?: number | null; dayRate?: number | null;
+  payType?: "MONTHLY" | "DAILY"; nameAr: string; nameEn?: string; role: string; phone?: string;
   email?: string; password?: string; groupId?: string; stationId?: string; locationId?: string;
   canLogin?: boolean };
 export type GroupRow = { id: string; nameAr: string; nameEn: string; isActive: boolean;
@@ -374,6 +389,7 @@ export type StockMovement = {
   note: string | null; by: string | null; reversal: boolean;
 };
 export type StockReport = {
+  valuation?: string;
   totals: { items: number; value: number; low: number; outOfStock: number };
   rows: { id: string; sku: string; name: string; unit: string; kind: string;
           onHand: number; unitCost: number; value: number;
@@ -387,11 +403,29 @@ export type Stocktake = {
            expected: number; counted: number; variance: number; value: number;
            note: string | null }[];
 };
+export type AttendanceDay = {
+  day: string; weekKey: string;
+  lines: { userId: string; nameAr: string; nameEn: string; role: string; dayRate: number;
+           status: string; overtimeHours: number; note: string | null; recorded: boolean }[];
+};
+export type AttendanceWeek = {
+  period: string; start: string; end: string; days: string[];
+  lines: { userId: string; nameAr: string; nameEn: string; dayRate: number;
+           days: number; earned: number;
+           cells: { day: string; status: string; overtimeHours: number }[] }[];
+};
+export type BomLine = {
+  id: string; stockItemId: string; nameAr: string; sku: string; unit: string;
+  qty: number; unitCost: number; cost: number; note: string | null;
+};
 export type Payroll = {
-  month: string; posted: boolean; postedAt?: string; total: number;
+  period: string; kind: "WEEKLY" | "MONTHLY"; posted: boolean; postedAt?: string;
+  start?: string; end?: string; total: number;
   account?: { id: string; nameAr: string; nameEn: string };
   lines: { userId: string; nameAr: string; nameEn: string; role?: string; amount: number;
-           baseSalary?: number; overtime?: number; bonus?: number;
+           payType?: "MONTHLY" | "DAILY";
+           baseSalary?: number; dayRate?: number; daysWorked?: number;
+           overtime?: number; bonus?: number;
            advance?: number; deduction?: number; insurance?: number }[];
 };
 export type Invoice = {

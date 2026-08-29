@@ -5,6 +5,26 @@ import { api, type CashAccount, type Payroll as Pay } from "../api";
 const thisMonth = () => new Date().toISOString().slice(0, 7);
 
 /**
+ * The week a date falls in, counted from the first Saturday on or before the
+ * 1st of January — deliberately not ISO, which starts weeks on Monday and
+ * would split every Egyptian working week across two pay periods.
+ */
+function weekKeyOf(d: Date) {
+  const day = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate(), 12));
+  for (const y of [day.getUTCFullYear(), day.getUTCFullYear() - 1, day.getUTCFullYear() + 1]) {
+    const jan1 = new Date(Date.UTC(y, 0, 1, 12));
+    const first = new Date(jan1.getTime() - ((jan1.getUTCDay() + 1) % 7) * 86_400_000);
+    for (let w = 1; w <= 53; w++) {
+      const st = new Date(first.getTime() + (w - 1) * 7 * 86_400_000);
+      const en = new Date(st.getTime() + 6 * 86_400_000);
+      if (day >= st && day <= en) return `${y}-W${String(w).padStart(2, "0")}`;
+    }
+  }
+  return `${day.getUTCFullYear()}-W01`;
+}
+const thisWeek = () => weekKeyOf(new Date());
+
+/**
  * The month's wages.
  *
  * The list is a view of who is on the payroll and what they are owed, not a
@@ -15,7 +35,12 @@ const thisMonth = () => new Date().toISOString().slice(0, 7);
 export default function Payroll() {
   const { t, lang, toast } = useApp();
   const ar = lang === "ar";
+  // The floor is paid weekly against days worked; the office monthly. The
+  // screen opens on the week, because that is the one done every Thursday.
+  const [kind, setKind] = useState<"WEEKLY" | "MONTHLY">("WEEKLY");
+  const [week, setWeek] = useState(thisWeek());
   const [month, setMonth] = useState(thisMonth());
+  const period = kind === "WEEKLY" ? week : month;
   const [pay, setPay] = useState<Pay | null>(null);
   const [accounts, setAccounts] = useState<CashAccount[]>([]);
   const [accountId, setAccountId] = useState("");
@@ -26,11 +51,11 @@ export default function Payroll() {
 
   const load = async () => {
     setLoading(true);
-    try { setPay(await api.payroll(month)); setSkip([]); }
+    try { setPay(await api.payroll(period)); setSkip([]); }
     catch { setPay(null); }
     finally { setLoading(false); }
   };
-  useEffect(() => { void load(); }, [month]);
+  useEffect(() => { void load(); }, [period]);
   useEffect(() => { api.cashAccounts().then(setAccounts).catch(() => setAccounts([])); }, []);
 
   const num = (v: number) => v.toLocaleString(ar ? "ar-EG" : "en-GB", { maximumFractionDigits: 2 });
@@ -39,10 +64,34 @@ export default function Payroll() {
 
   return (
     <>
+      <div className="row" style={{ marginBottom: 14 }}>
+        <button className={`btn sm ${kind === "WEEKLY" ? "pri" : "sec"}`}
+                onClick={() => setKind("WEEKLY")}>{t("weekly")}</button>
+        <button className={`btn sm ${kind === "MONTHLY" ? "pri" : "sec"}`}
+                onClick={() => setKind("MONTHLY")}>{t("monthly")}</button>
+      </div>
+
       <div className="card">
-        <span className="k">{t("payMonth")}</span>
-        <input type="month" value={month} onChange={(e) => setMonth(e.target.value)}
-               style={{ marginTop: 6 }} />
+        {kind === "WEEKLY" ? (
+          <>
+            <span className="k">{t("payWeek")}</span>
+            {/* A week is picked by naming any day in it, which is how people
+                think about it — nobody knows what week number it is. */}
+            <input type="date" onChange={(e) => e.target.value && setWeek(weekKeyOf(new Date(`${e.target.value}T12:00:00Z`)))}
+                   style={{ marginTop: 6 }} />
+            <p className="note">
+              <span className="mono">{week}</span>
+              {pay?.start && ` · ${new Date(pay.start).toLocaleDateString(ar ? "ar-EG" : "en-GB")}`}
+              {pay?.end && ` — ${new Date(pay.end).toLocaleDateString(ar ? "ar-EG" : "en-GB")}`}
+            </p>
+          </>
+        ) : (
+          <>
+            <span className="k">{t("payMonth")}</span>
+            <input type="month" value={month} onChange={(e) => setMonth(e.target.value)}
+                   style={{ marginTop: 6 }} />
+          </>
+        )}
       </div>
 
       {loading && <div className="empty">{t("loading")}</div>}
@@ -67,7 +116,11 @@ export default function Payroll() {
           )}
 
           <div className="card" style={{ marginTop: 11 }}>
-            {pay.lines.length === 0 && <p className="note">{t("nobodyOnPayroll")}</p>}
+            {pay.lines.length === 0 && (
+              <p className="note">
+                {kind === "WEEKLY" ? t("nobodyOnDayRate") : t("nobodyOnPayroll")}
+              </p>
+            )}
             {pay.lines.map((l) => {
               const off = skip.includes(l.userId);
               // Only worth spelling out when something actually changed it.
@@ -81,9 +134,15 @@ export default function Payroll() {
                     <span style={{ flex: 1 }}>
                       <b>{ar ? l.nameAr : l.nameEn}</b>
                       {l.role && <span className="sub">{t(l.role as any)}</span>}
+                      {l.payType === "DAILY" && (
+                        <span className="sub mono">
+                          {num(l.daysWorked ?? 0)} {t("daysWorked")} × {num(l.dayRate ?? 0)}
+                          {" = "}{num(l.baseSalary ?? 0)}
+                        </span>
+                      )}
                       {parts.length > 0 && (
                         <span className="sub mono">
-                          {t("baseSalary")} {num(l.baseSalary ?? 0)}
+                          {l.payType === "DAILY" ? "" : `${t("baseSalary")} ${num(l.baseSalary ?? 0)}`}
                           {parts.map(([k, v]) =>
                             ` · ${t(k as any)} ${["advance", "deduction", "insurance"].includes(k) ? "−" : "+"}${num(v ?? 0)}`)}
                         </span>
@@ -107,7 +166,7 @@ export default function Payroll() {
                     </div>
                   )}
                   {editing === l.userId && !pay.posted && (
-                    <Adjust month={month} line={l} onDone={async () => { setEditing(""); await load(); }} />
+                    <Adjust period={period} line={l} onDone={async () => { setEditing(""); await load(); }} />
                   )}
                 </div>
               );
@@ -130,7 +189,7 @@ export default function Payroll() {
                       onClick={async () => {
                         setBusy(true);
                         try {
-                          const r = await api.postPayroll(month, { accountId, skip });
+                          const r = await api.postPayroll(period, { accountId, skip });
                           toast(`${t("saved")} · ${num(r.total)}`);
                           await load();
                         } catch (e: any) { toast(e?.code ? t(e.code) : t("signInFailed")); }
@@ -154,7 +213,7 @@ export default function Payroll() {
  * taken in July must not quietly repeat in August, which is exactly what
  * happens when the only place to put it is the wage itself.
  */
-function Adjust({ month, line, onDone }: { month: string; line: any; onDone: () => void }) {
+function Adjust({ period, line, onDone }: { period: string; line: any; onDone: () => void }) {
   const { t, toast } = useApp();
   const [f, setF] = useState({
     overtime: String(line.overtime ?? 0), bonus: String(line.bonus ?? 0),
@@ -189,7 +248,7 @@ function Adjust({ month, line, onDone }: { month: string; line: any; onDone: () 
                 onClick={async () => {
                   setBusy(true);
                   try {
-                    await api.savePayrollAdjustment(month, line.userId, {
+                    await api.savePayrollAdjustment(period, line.userId, {
                       overtime: n(f.overtime), bonus: n(f.bonus), advance: n(f.advance),
                       deduction: n(f.deduction), insurance: n(f.insurance),
                     });

@@ -4,6 +4,7 @@ import { z } from "zod";
 import { db } from "../../db.js";
 import { guard } from "../../auth/jwt.js";
 import { STOCK, STOCK_ADMIN } from "../../auth/scopes.js";
+import { allSettings } from "../../lib/settings.js";
 
 /**
  * The store.
@@ -18,6 +19,60 @@ import { STOCK, STOCK_ADMIN } from "../../auth/scopes.js";
 
 const qty = () => z.number().finite().positive().max(1e9);
 const n = (d: unknown) => Number(d ?? 0);
+
+/** What is left of one lot, in one store. */
+async function batchBalance(itemId: string, warehouseId: string, batch: string) {
+  const rows = await db.stockMovement.groupBy({
+    by: ["direction"], _sum: { qty: true },
+    where: { itemId, warehouseId, batch },
+  });
+  return n(rows.find((r) => r.direction === "IN")?._sum.qty)
+       - n(rows.find((r) => r.direction === "OUT")?._sum.qty);
+}
+
+/**
+ * What the stock is worth.
+ *
+ * Three answers, because businesses genuinely disagree about which is honest:
+ *
+ * - CURRENT — everything at today's cost. Simple, and right for a business
+ *   buying at stable prices.
+ * - AVERAGE — the weighted average of what was actually paid across every
+ *   receipt. Smooths a jumpy market.
+ * - FIFO — the oldest stock is assumed sold first, so what remains is valued
+ *   at the most recent purchases. Closest to replacement cost.
+ */
+async function valueOf(itemId: string, onHand: number, fallbackCost: number, method: string) {
+  if (onHand <= 0) return 0;
+  if (method === "CURRENT") return Math.round(onHand * fallbackCost * 100) / 100;
+
+  const ins = await db.stockMovement.findMany({
+    where: { itemId, direction: "IN" },
+    orderBy: { occurredOn: "asc" },
+    select: { qty: true, unitCost: true },
+  });
+  if (ins.length === 0) return Math.round(onHand * fallbackCost * 100) / 100;
+
+  if (method === "AVERAGE") {
+    const q = ins.reduce((s2, r) => s2 + n(r.qty), 0);
+    const v = ins.reduce((s2, r) => s2 + n(r.qty) * n(r.unitCost), 0);
+    const avg = q > 0 ? v / q : fallbackCost;
+    return Math.round(onHand * avg * 100) / 100;
+  }
+
+  // FIFO: what is left is the tail of the receipts, newest last.
+  let left = onHand;
+  let value = 0;
+  for (let i = ins.length - 1; i >= 0 && left > 0; i--) {
+    const take = Math.min(left, n(ins[i].qty));
+    value += take * n(ins[i].unitCost);
+    left -= take;
+  }
+  // More on the shelf than was ever received — an opening balance with no
+  // cost behind it. The rest is valued at the standing figure.
+  if (left > 0) value += left * fallbackCost;
+  return Math.round(value * 100) / 100;
+}
 
 /** What is on hand, per item per store, from the movements alone. */
 async function balances(where: { itemId?: string; warehouseId?: string } = {}) {
@@ -181,6 +236,8 @@ export default async function stockRoutes(app: FastifyInstance) {
       qty: qty(),
       reason: z.enum(["OPENING", "PURCHASE", "PRODUCTION", "SALE", "RETURN",
                       "ADJUSTMENT", "DAMAGE"]).default("ADJUSTMENT"),
+      /** Which lot — a timber shipment, a dye batch. Optional on purpose. */
+      batch: z.string().max(40).optional(),
       occurredOn: z.string().datetime().optional(),
       note: z.string().max(300).optional(),
     }).parse(req.body);
@@ -194,8 +251,12 @@ export default async function stockRoutes(app: FastifyInstance) {
     // Unlike money, a shelf really cannot hold less than nothing, and letting it
     // makes every later count argue with the system instead of the shelf.
     if (b.direction === "OUT") {
-      const bal = (await balances({ itemId: b.itemId, warehouseId: b.warehouseId }))
-        .get(`${b.itemId}|${b.warehouseId}`) ?? 0;
+      // Taking from a named lot is checked against that lot, not the whole
+      // shelf: three metres of one batch is not three of another.
+      const bal = b.batch
+        ? await batchBalance(b.itemId, b.warehouseId, b.batch)
+        : (await balances({ itemId: b.itemId, warehouseId: b.warehouseId }))
+            .get(`${b.itemId}|${b.warehouseId}`) ?? 0;
       if (b.qty > bal + 0.0005) {
         return reply.code(400).send({ error: "not_enough_stock", onHand: bal });
       }
@@ -204,6 +265,7 @@ export default async function stockRoutes(app: FastifyInstance) {
       data: {
         itemId: b.itemId, warehouseId: b.warehouseId, direction: b.direction,
         qty: String(b.qty), reason: b.reason, unitCost: item.unitCost,
+        batch: b.batch ?? null,
         occurredOn: b.occurredOn ? new Date(b.occurredOn) : new Date(),
         note: b.note ?? null, actorId: (req as any).user.id,
       },
@@ -419,31 +481,110 @@ export default async function stockRoutes(app: FastifyInstance) {
   // ───────────────────────────────────────────────────────────── reports
   /** What is on the shelves, what it is worth, and what is running out. */
   app.get("/stock/report", { preHandler: guard(STOCK) }, async (req) => {
-    const q = z.object({ warehouseId: z.string().optional() }).parse(req.query ?? {});
+    const q = z.object({
+      warehouseId: z.string().optional(),
+      /** Override the configured method, to compare them. */
+      valuation: z.enum(["CURRENT", "AVERAGE", "FIFO"]).optional(),
+    }).parse(req.query ?? {});
+    const method = q.valuation ?? (await allSettings())["stock.valuation"];
     const items = await db.stockItem.findMany({
       where: { isActive: true }, orderBy: { nameAr: "asc" },
     });
     const bal = await balances(q.warehouseId ? { warehouseId: q.warehouseId } : {});
     const stores = await db.location.findMany();
 
-    const rows = items.map((i) => {
-      const onHand = stores.reduce((s, w) => s + (bal.get(`${i.id}|${w.id}`) ?? 0), 0);
+    const rows = await Promise.all(items.map(async (i) => {
+      const onHand = stores.reduce((s2, w) => s2 + (bal.get(`${i.id}|${w.id}`) ?? 0), 0);
       return {
         id: i.id, sku: i.sku, name: i.nameAr, unit: i.unit, kind: i.kind,
         onHand, unitCost: n(i.unitCost),
-        value: Math.round(onHand * n(i.unitCost) * 100) / 100,
+        value: await valueOf(i.id, onHand, n(i.unitCost), method),
         reorderLevel: n(i.reorderLevel),
         low: n(i.reorderLevel) > 0 && onHand <= n(i.reorderLevel),
       };
-    });
+    }));
     return {
+      valuation: method,
       totals: {
         items: rows.length,
-        value: Math.round(rows.reduce((s, r) => s + r.value, 0) * 100) / 100,
+        value: Math.round(rows.reduce((s2, r) => s2 + r.value, 0) * 100) / 100,
         low: rows.filter((r) => r.low).length,
         outOfStock: rows.filter((r) => r.onHand <= 0).length,
       },
       rows,
     };
+  });
+
+  /** What is left of each lot of one item. */
+  app.get("/stock/items/:id/batches", { preHandler: guard(STOCK) }, async (req, reply) => {
+    const { id } = req.params as { id: string };
+    if (!(await db.stockItem.findUnique({ where: { id } }))) {
+      return reply.code(404).send({ error: "item_not_found" });
+    }
+    const rows = await db.stockMovement.groupBy({
+      by: ["batch", "warehouseId", "direction"], _sum: { qty: true },
+      where: { itemId: id, batch: { not: null } },
+    });
+    const stores = await db.location.findMany();
+    const out = new Map<string, { batch: string; warehouseId: string; qty: number }>();
+    for (const r of rows) {
+      const key = `${r.batch}|${r.warehouseId}`;
+      const cur = out.get(key) ?? { batch: r.batch!, warehouseId: r.warehouseId, qty: 0 };
+      cur.qty += r.direction === "IN" ? n(r._sum.qty) : -n(r._sum.qty);
+      out.set(key, cur);
+    }
+    return [...out.values()]
+      .filter((x) => Math.abs(x.qty) > 0.0005)
+      .map((x) => ({ ...x, warehouse: stores.find((w) => w.id === x.warehouseId)?.nameAr ?? "" }))
+      .sort((a, b) => a.batch.localeCompare(b.batch));
+  });
+
+  // ─────────────────────────────────────────── قائمة المكونات (bill of materials)
+
+  /** What one of a product is made of. */
+  app.get("/stock/bom/:productId", { preHandler: guard(STOCK) }, async (req) => {
+    const { productId } = req.params as { productId: string };
+    const rows = await db.bomLine.findMany({
+      where: { productId }, include: { stockItem: true },
+      orderBy: { stockItem: { nameAr: "asc" } },
+    });
+    return rows.map((b) => ({
+      id: b.id, stockItemId: b.stockItemId, nameAr: b.stockItem.nameAr,
+      sku: b.stockItem.sku, unit: b.stockItem.unit, qty: n(b.qty),
+      unitCost: n(b.stockItem.unitCost),
+      cost: Math.round(n(b.qty) * n(b.stockItem.unitCost) * 100) / 100,
+      note: b.note,
+    }));
+  });
+
+  app.put("/stock/bom/:productId", { preHandler: guard(STOCK_ADMIN) }, async (req, reply) => {
+    const { productId } = req.params as { productId: string };
+    if (!(await db.product.findUnique({ where: { id: productId } }))) {
+      return reply.code(404).send({ error: "unknown_product" });
+    }
+    const b = z.object({
+      lines: z.array(z.object({
+        stockItemId: z.string(),
+        qty: z.number().positive(),
+        note: z.string().max(200).optional(),
+      })).default([]),
+    }).parse(req.body ?? {});
+
+    const ids = b.lines.map((l) => l.stockItemId);
+    if (new Set(ids).size !== ids.length) {
+      return reply.code(400).send({ error: "duplicate_material" });
+    }
+    const found = await db.stockItem.findMany({ where: { id: { in: ids } } });
+    if (found.length !== ids.length) return reply.code(404).send({ error: "item_not_found" });
+
+    // Replace wholesale: a recipe is edited as a whole, and diffing it would
+    // leave a removed material behind on a half-failed save.
+    await db.bomLine.deleteMany({ where: { productId } });
+    for (const l of b.lines) {
+      await db.bomLine.create({
+        data: { productId, stockItemId: l.stockItemId, qty: String(l.qty), note: l.note ?? null },
+      });
+    }
+    return { lines: b.lines.length };
   });
 }
