@@ -27,6 +27,14 @@ export const DEFAULTS = {
   "company.address": "٦ أكتوبر، الجيزة",
   "company.phone": "",
   "company.email": "",
+  /**
+   * Document number prefixes. Separate series because they are counted
+   * separately on paper, and a tax authority asks about invoices without
+   * caring how many receipts were written.
+   */
+  "series.invoice": "INV",
+  "series.receipt": "RV",
+  "series.payment": "PV",
 } as const;
 
 export type SettingKey = keyof typeof DEFAULTS;

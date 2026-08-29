@@ -55,6 +55,7 @@ export default function Invoice() {
           </div>
           <div style={{ textAlign: ar ? "left" : "right" }}>
             <div className="inv-title">{inv.totals.taxTotal > 0 ? t("taxInvoice") : t("invoice")}</div>
+            <div className="inv-sub mono">{inv.order.invoiceNo}</div>
             <div className="inv-sub mono">{inv.order.code}</div>
             <div className="inv-sub">{date(inv.order.date)}</div>
           </div>
@@ -71,8 +72,10 @@ export default function Invoice() {
           <thead>
             <tr>
               <th>{t("item")}</th>
+              <th>{t("warehouse")}</th>
               <th className="num">{t("qty")}</th>
               <th className="num">{t("unitPrice")}</th>
+              <th className="num">{t("discount")}</th>
               <th className="num">{t("lineTotal")}</th>
             </tr>
           </thead>
@@ -84,8 +87,10 @@ export default function Invoice() {
                   <span className="inv-sub mono"> {l.sku}</span>
                   {l.specNotes && <div className="inv-sub">{l.specNotes}</div>}
                 </td>
+                <td>{l.warehouse ?? "—"}</td>
                 <td className="num mono">{l.qty}</td>
                 <td className="num mono">{num(l.unitPrice)}</td>
+                <td className="num mono">{l.discount > 0 ? num(l.discount) : "—"}</td>
                 <td className="num mono">{num(l.lineTotal)}</td>
               </tr>
             ))}
@@ -93,6 +98,16 @@ export default function Invoice() {
         </table>
 
         <section className="inv-totals">
+          {inv.totals.discount > 0 && (
+            <>
+              <div className="between">
+                <span>{t("beforeDiscount")}</span><b className="mono">{num(inv.totals.gross)}</b>
+              </div>
+              <div className="between">
+                <span>{t("discount")}</span><b className="mono">− {num(inv.totals.discount)}</b>
+              </div>
+            </>
+          )}
           <div className="between"><span>{t("subtotal")}</span><b className="mono">{num(inv.totals.subtotal)}</b></div>
           {inv.totals.taxTotal > 0 && (
             <div className="between">
@@ -116,7 +131,12 @@ export default function Invoice() {
             <span className="k">{t("payments")}</span>
             {inv.payments.map((p, i) => (
               <div className="between" key={i}>
-                <span>{date(p.date)} · {t(p.method as any)}{p.reference ? ` · ${p.reference}` : ""}</span>
+                <span>
+                  {p.voucherNo && <span className="mono">{p.voucherNo} · </span>}
+                  {date(p.date)} · {t(p.method as any)}
+                  {p.discount > 0 ? ` · ${t("discount")} ${num(p.discount)}` : ""}
+                  {p.reference ? ` · ${p.reference}` : ""}
+                </span>
                 <b className="mono">{num(p.amount)}</b>
               </div>
             ))}

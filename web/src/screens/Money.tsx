@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import { useApp } from "../app-context";
-import { api, type CashAccount, type Report } from "../api";
+import { api, type CashAccount, type LocationRow, type Report } from "../api";
 
 type Tab = "cashbox" | "sales" | "purchases" | "collections" | "receivables" | "profit" | "vat";
 const TABS: Tab[] = ["cashbox", "sales", "purchases", "collections", "receivables", "profit", "vat"];
@@ -111,9 +112,12 @@ export default function Money() {
                       {t("tot_opening")} {num(a.opening)} · +{num(a.in)} · −{num(a.out)}
                     </span>
                   </span>
-                  <b className="mono">{num(a.closing)}</b>
+                  <b className="mono" style={{ color: a.closing < 0 ? "var(--bad)" : undefined }}>
+                    {num(a.closing)}
+                  </b>
                 </div>
               ))}
+              {r.accounts.some((a) => a.closing < 0) && <p className="note">{t("negativeBalance")}</p>}
             </div>
           )}
 
@@ -191,22 +195,49 @@ export default function Money() {
 function RowAction({ tab, row, onPick }: { tab: Tab; row: Row; onPick: (a: Act) => void }) {
   const { t } = useApp();
   const owes = Number(row.outstanding ?? 0) > 0.005;
+  // The printed copy is one tap from the row it belongs to, which is where
+  // somebody standing at the counter actually wants it.
+  const doc = (to: string, label: string) => (
+    <Link to={to} className="chip" style={{ marginInlineEnd: 7 }}>{label}</Link>
+  );
 
-  if ((tab === "receivables" || tab === "sales") && owes) {
-    return <button className="btn pri sm" onClick={() => onPick({ kind: "collect", row })}>
-      {t("act_collect")}
-    </button>;
+  if (tab === "sales" || tab === "receivables") {
+    return (
+      <span style={{ display: "flex", alignItems: "center", whiteSpace: "nowrap" }}>
+        {doc(`/invoice/${row.id}`, t("invoice"))}
+        {owes && (
+          <button className="btn pri sm" onClick={() => onPick({ kind: "collect", row })}>
+            {t("act_collect")}
+          </button>
+        )}
+      </span>
+    );
   }
-  if (tab === "purchases" && owes) {
-    return <button className="btn pri sm" onClick={() => onPick({ kind: "pay", row })}>
-      {t("act_pay")}
-    </button>;
+  if (tab === "purchases") {
+    return (
+      <span style={{ display: "flex", alignItems: "center", whiteSpace: "nowrap" }}>
+        {doc(`/purchase/${row.id}`, t("invoice"))}
+        {owes && (
+          <button className="btn pri sm" onClick={() => onPick({ kind: "pay", row })}>
+            {t("act_pay")}
+          </button>
+        )}
+      </span>
+    );
   }
-  // A reversal cannot itself be reversed, so it is not offered one.
-  if ((tab === "collections" || tab === "cashbox") && !row.reversal) {
-    return <button className="btn sec sm" onClick={() => onPick({ kind: "reverse", row })}>
-      {t("act_reverse")}
-    </button>;
+  if (tab === "collections" || tab === "cashbox") {
+    return (
+      <span style={{ display: "flex", alignItems: "center", whiteSpace: "nowrap" }}>
+        {/* A transfer is a movement, not something anybody signs for. */}
+        {row.category !== "TRANSFER" && doc(`/voucher/${row.id}`, t("voucher"))}
+        {/* A reversal cannot itself be reversed, so it is not offered one. */}
+        {!row.reversal && (
+          <button className="btn sec sm" onClick={() => onPick({ kind: "reverse", row })}>
+            {t("act_reverse")}
+          </button>
+        )}
+      </span>
+    );
   }
   return null;
 }
@@ -266,11 +297,14 @@ function PanelHead({ title, subtitle, due }: { title: string; subtitle?: string;
 /** Money in, against an order that still owes. */
 function CollectPanel({ row, onDone, onClose }: { row: Row; onDone: () => void; onClose: () => void }) {
   const { t, toast } = useApp();
+  const nav = useNavigate();
   const due = Number(row.outstanding ?? 0);
   // Pre-filled with the full amount because settling in full is the common
   // case; a part payment is one edit away.
-  const [f, setF] = useState({ accountId: "", amount: String(due), method: "CASH", reference: "" });
+  const [f, setF] = useState({ accountId: "", amount: String(due), discount: "",
+                              method: "CASH", reference: "", note: "" });
   const [busy, setBusy] = useState(false);
+  const settles = (Number(f.amount) || 0) + (Number(f.discount) || 0);
 
   return (
     <div className="card" style={{ marginBottom: 11 }}>
@@ -278,20 +312,35 @@ function CollectPanel({ row, onDone, onClose }: { row: Row; onDone: () => void; 
       <AccountPicker value={f.accountId} onChange={(v) => setF({ ...f, accountId: v })} />
       <input className="mono" inputMode="decimal" placeholder={t("amount")} value={f.amount}
              onChange={(e) => setF({ ...f, amount: e.target.value })} style={{ marginTop: 8 }} />
+      {/* Money written off to close the balance. Without it the difference
+          sits for ever as a debt nobody intends to chase. */}
+      <input className="mono" inputMode="decimal" placeholder={t("settlementDiscount")}
+             value={f.discount} onChange={(e) => setF({ ...f, discount: e.target.value })}
+             style={{ marginTop: 8 }} />
       <MethodPicker value={f.method} onChange={(v) => setF({ ...f, method: v })} />
       <input placeholder={t("reference")} value={f.reference}
              onChange={(e) => setF({ ...f, reference: e.target.value })} style={{ marginTop: 8 }} />
-      <p className="note">{t("prefillHint")}</p>
+      <input placeholder={t("note")} value={f.note}
+             onChange={(e) => setF({ ...f, note: e.target.value })} style={{ marginTop: 8 }} />
+      <p className="note">
+        {t("prefillHint")}
+        {Number(f.discount) > 0 && ` · ${t("totalSettled")} ${settles.toLocaleString()}`}
+      </p>
       <div className="row" style={{ marginTop: 10 }}>
         <button className="btn sec sm" onClick={onClose}>{t("cancel")}</button>
-        <button className="btn pri sm" disabled={busy || !f.accountId || !(Number(f.amount) > 0)}
+        <button className="btn pri sm"
+                disabled={busy || !f.accountId || !(Number(f.amount) > 0) || settles > due + 0.005}
                 onClick={async () => {
                   setBusy(true);
                   try {
-                    await api.collect({ orderId: row.id, accountId: f.accountId,
-                                        amount: Number(f.amount), method: f.method,
-                                        reference: f.reference.trim() || undefined });
+                    const r = await api.collect({ orderId: row.id, accountId: f.accountId,
+                                        amount: Number(f.amount),
+                                        discount: Number(f.discount) || 0, method: f.method,
+                                        reference: f.reference.trim() || undefined,
+                                        note: f.note.trim() || undefined });
                     toast(t("collected"));
+                    // Straight to the slip the customer signs.
+                    nav(`/voucher/${r.id}`);
                     onDone();
                   } catch (e: any) { toast(e?.code ? t(e.code) : t("signInFailed")); }
                   finally { setBusy(false); }
@@ -306,8 +355,10 @@ function CollectPanel({ row, onDone, onClose }: { row: Row; onDone: () => void; 
 /** Money out, against a supplier's bill. */
 function PayPanel({ row, onDone, onClose }: { row: Row; onDone: () => void; onClose: () => void }) {
   const { t, toast } = useApp();
+  const nav = useNavigate();
   const due = Number(row.outstanding ?? 0);
-  const [f, setF] = useState({ accountId: "", amount: String(due), method: "CASH", reference: "" });
+  const [f, setF] = useState({ accountId: "", amount: String(due), discount: "",
+                              method: "CASH", reference: "", note: "" });
   const [busy, setBusy] = useState(false);
 
   return (
@@ -316,9 +367,14 @@ function PayPanel({ row, onDone, onClose }: { row: Row; onDone: () => void; onCl
       <AccountPicker value={f.accountId} onChange={(v) => setF({ ...f, accountId: v })} />
       <input className="mono" inputMode="decimal" placeholder={t("amount")} value={f.amount}
              onChange={(e) => setF({ ...f, amount: e.target.value })} style={{ marginTop: 8 }} />
+      <input className="mono" inputMode="decimal" placeholder={t("settlementDiscount")}
+             value={f.discount} onChange={(e) => setF({ ...f, discount: e.target.value })}
+             style={{ marginTop: 8 }} />
       <MethodPicker value={f.method} onChange={(v) => setF({ ...f, method: v })} />
       <input placeholder={t("reference")} value={f.reference}
              onChange={(e) => setF({ ...f, reference: e.target.value })} style={{ marginTop: 8 }} />
+      <input placeholder={t("note")} value={f.note}
+             onChange={(e) => setF({ ...f, note: e.target.value })} style={{ marginTop: 8 }} />
       <p className="note">{t("prefillHint")}</p>
       <div className="row" style={{ marginTop: 10 }}>
         <button className="btn sec sm" onClick={onClose}>{t("cancel")}</button>
@@ -328,11 +384,14 @@ function PayPanel({ row, onDone, onClose }: { row: Row; onDone: () => void; onCl
                   try {
                     // Category MATERIALS: a supplier bill is what the factory
                     // buys. It is on the expense form if it was something else.
-                    await api.spend({ accountId: f.accountId, amount: Number(f.amount),
+                    const r = await api.spend({ accountId: f.accountId, amount: Number(f.amount),
+                                      discount: Number(f.discount) || 0,
                                       method: f.method, category: "MATERIALS",
                                       purchaseInvoiceId: row.id,
-                                      reference: f.reference.trim() || undefined });
+                                      reference: f.reference.trim() || undefined,
+                                      note: f.note.trim() || undefined });
                     toast(t("saved"));
+                    nav(`/voucher/${r.id}`);
                     onDone();
                   } catch (e: any) { toast(e?.code ? t(e.code) : t("signInFailed")); }
                   finally { setBusy(false); }
@@ -381,16 +440,31 @@ function ReversePanel({ row, onDone, onClose }: { row: Row; onDone: () => void; 
  * looking at what is owed to suppliers is the person about to record another
  * one.
  */
+type PLine = { description: string; qty: string; unitPrice: string; discount: string };
+const BLANK_LINE: PLine = { description: "", qty: "1", unitPrice: "", discount: "" };
+const BLANK_INVOICE = () => ({
+  supplierId: "", number: "", issuedOn: iso(new Date()), warehouseId: "",
+  amount: "", discount: "", taxRate: "", note: "", lines: [{ ...BLANK_LINE }],
+});
+
 function PurchaseDesk({ onDone }: { onDone: () => void }) {
-  const { t, toast } = useApp();
+  const { t, lang, toast } = useApp();
+  const ar = lang === "ar";
   const [open, setOpen] = useState<"" | "supplier" | "invoice">("");
   const [suppliers, setSuppliers] = useState<{ id: string; name: string }[]>([]);
+  const [stores, setStores] = useState<LocationRow[]>([]);
   const [sup, setSup] = useState({ name: "", phone: "" });
-  const [inv, setInv] = useState({ supplierId: "", number: "", issuedOn: iso(new Date()), amount: "", note: "" });
+  const [inv, setInv] = useState(BLANK_INVOICE());
   const [busy, setBusy] = useState(false);
+  const setLine = (i: number, patch: Partial<PLine>) =>
+    setInv((v) => ({ ...v, lines: v.lines.map((l, k) => (k === i ? { ...l, ...patch } : l)) }));
 
   const refresh = () => api.suppliers().then(setSuppliers).catch(() => setSuppliers([]));
   useEffect(() => { refresh(); }, []);
+  useEffect(() => {
+    api.locations().then((ls) => setStores(ls.filter((l) => l.type !== "FACTORY")))
+      .catch(() => setStores([]));
+  }, []);
 
   if (!open) {
     return (
@@ -430,6 +504,13 @@ function PurchaseDesk({ onDone }: { onDone: () => void }) {
     );
   }
 
+  const lineTotal = (l: PLine) =>
+    (Number(l.unitPrice) || 0) * (Number(l.qty) || 0) - (Number(l.discount) || 0);
+  const fromLines = inv.lines.reduce((s, l) => s + lineTotal(l), 0);
+  const hasLines = inv.lines.some((l) => l.description.trim() && Number(l.unitPrice) > 0);
+  const net = (hasLines ? fromLines : Number(inv.amount) || 0) - (Number(inv.discount) || 0);
+  const tax = Math.round(net * ((Number(inv.taxRate) || 0) / 100) * 100) / 100;
+
   return (
     <div className="card" style={{ marginBottom: 11 }}>
       <span className="k">{t("newPurchase")}</span>
@@ -446,14 +527,67 @@ function PurchaseDesk({ onDone }: { onDone: () => void }) {
              onChange={(e) => setInv({ ...inv, number: e.target.value })} style={{ marginTop: 8 }} />
       <input type="date" value={inv.issuedOn}
              onChange={(e) => setInv({ ...inv, issuedOn: e.target.value })} style={{ marginTop: 8 }} />
-      <input className="mono" inputMode="decimal" placeholder={t("amount")} value={inv.amount}
-             onChange={(e) => setInv({ ...inv, amount: e.target.value })} style={{ marginTop: 8 }} />
+      <select value={inv.warehouseId} onChange={(e) => setInv({ ...inv, warehouseId: e.target.value })}
+              style={{ marginTop: 8 }}>
+        <option value="">{t("noWarehouse")}</option>
+        {stores.map((w) => (
+          <option key={w.id} value={w.id}>{ar ? w.nameAr : w.nameEn}</option>
+        ))}
+      </select>
+
+      {/* Half the bills a factory receives are a handwritten total, so lines
+          are offered rather than demanded. */}
+      <span className="k" style={{ marginTop: 14, display: "block" }}>{t("purchaseLines")}</span>
+      {inv.lines.map((l, i) => (
+        <div key={i} style={{ marginTop: 8 }}>
+          <div className="between">
+            <input placeholder={t("lineDescription")} value={l.description}
+                   onChange={(e) => setLine(i, { description: e.target.value })} style={{ flex: 1 }} />
+            {inv.lines.length > 1 && (
+              <button className="chip" style={{ marginInlineStart: 7 }}
+                      onClick={() => setInv({ ...inv, lines: inv.lines.filter((_, k) => k !== i) })}>
+                {t("remove")}
+              </button>
+            )}
+          </div>
+          <div className="row" style={{ marginTop: 6 }}>
+            <input className="mono" inputMode="decimal" placeholder={t("qty")} value={l.qty}
+                   onChange={(e) => setLine(i, { qty: e.target.value })} style={{ flex: 1 }} />
+            <input className="mono" inputMode="decimal" placeholder={t("unitPrice")} value={l.unitPrice}
+                   onChange={(e) => setLine(i, { unitPrice: e.target.value })} style={{ flex: 1.2 }} />
+            <input className="mono" inputMode="decimal" placeholder={t("discount")} value={l.discount}
+                   onChange={(e) => setLine(i, { discount: e.target.value })} style={{ flex: 1 }} />
+          </div>
+        </div>
+      ))}
+      <button className="btn sec sm" style={{ marginTop: 8 }}
+              onClick={() => setInv({ ...inv, lines: [...inv.lines, { ...BLANK_LINE }] })}>
+        {t("addLine")}
+      </button>
+
+      {!hasLines && (
+        <input className="mono" inputMode="decimal" placeholder={t("amountOnly")} value={inv.amount}
+               onChange={(e) => setInv({ ...inv, amount: e.target.value })} style={{ marginTop: 8 }} />
+      )}
+      <input className="mono" inputMode="decimal" placeholder={t("invoiceDiscount")} value={inv.discount}
+             onChange={(e) => setInv({ ...inv, discount: e.target.value })} style={{ marginTop: 8 }} />
+      <input className="mono" inputMode="decimal" placeholder={t("purchaseTaxRate")} value={inv.taxRate}
+             onChange={(e) => setInv({ ...inv, taxRate: e.target.value })} style={{ marginTop: 8 }} />
       <input placeholder={t("note")} value={inv.note}
              onChange={(e) => setInv({ ...inv, note: e.target.value })} style={{ marginTop: 8 }} />
+
+      {net > 0 && (
+        <p className="note">
+          {t("subtotal")} {net.toLocaleString()}
+          {tax > 0 && ` · ${t("vat")} ${tax.toLocaleString()}`}
+          {` · ${t("grandTotal")} ${(net + tax).toLocaleString()}`}
+        </p>
+      )}
+
       <div className="row" style={{ marginTop: 10 }}>
         <button className="btn sec sm" onClick={() => setOpen("")}>{t("cancel")}</button>
         <button className="btn pri sm"
-                disabled={busy || !inv.supplierId || !inv.number.trim() || !(Number(inv.amount) > 0)}
+                disabled={busy || !inv.supplierId || !inv.number.trim() || net <= 0}
                 onClick={async () => {
                   setBusy(true);
                   try {
@@ -461,10 +595,24 @@ function PurchaseDesk({ onDone }: { onDone: () => void }) {
                       supplierId: inv.supplierId, number: inv.number.trim(),
                       // The date input gives a day; the API wants an instant.
                       issuedOn: new Date(`${inv.issuedOn}T12:00:00`).toISOString(),
-                      amount: Number(inv.amount), note: inv.note.trim() || undefined,
+                      warehouseId: inv.warehouseId || undefined,
+                      taxRate: Number(inv.taxRate) || 0,
+                      discount: Number(inv.discount) || 0,
+                      note: inv.note.trim() || undefined,
+                      ...(hasLines
+                        ? { lines: inv.lines
+                              .filter((l) => l.description.trim() && Number(l.unitPrice) > 0)
+                              .map((l) => ({
+                                description: l.description.trim(),
+                                qty: Number(l.qty) || 1,
+                                unitPrice: Number(l.unitPrice),
+                                discount: Number(l.discount) || 0,
+                                warehouseId: inv.warehouseId || undefined,
+                              })) }
+                        : { amount: Number(inv.amount) }),
                     });
                     toast(t("addedInvoice"));
-                    setInv({ supplierId: "", number: "", issuedOn: iso(new Date()), amount: "", note: "" });
+                    setInv(BLANK_INVOICE());
                     setOpen("");
                     onDone();
                   } catch (e: any) { toast(e?.code ? t(e.code) : t("signInFailed")); }

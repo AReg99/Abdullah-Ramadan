@@ -20,6 +20,7 @@ export default function Payroll() {
   const [accounts, setAccounts] = useState<CashAccount[]>([]);
   const [accountId, setAccountId] = useState("");
   const [skip, setSkip] = useState<string[]>([]);
+  const [editing, setEditing] = useState("");
   const [busy, setBusy] = useState(false);
   const [loading, setLoading] = useState(false);
 
@@ -69,21 +70,44 @@ export default function Payroll() {
             {pay.lines.length === 0 && <p className="note">{t("nobodyOnPayroll")}</p>}
             {pay.lines.map((l) => {
               const off = skip.includes(l.userId);
+              // Only worth spelling out when something actually changed it.
+              const parts = ([["overtime", l.overtime], ["bonus", l.bonus],
+                              ["advance", l.advance], ["deduction", l.deduction],
+                              ["insurance", l.insurance]] as const)
+                .filter(([, v]) => (v ?? 0) > 0);
               return (
-                <div className="evt" key={l.userId} style={{ opacity: off ? 0.45 : 1 }}>
-                  <span style={{ flex: 1 }}>
-                    <b>{ar ? l.nameAr : l.nameEn}</b>
-                    {l.role && <span className="sub">{t(l.role as any)}</span>}
-                  </span>
-                  <b className="mono">{num(l.amount)}</b>
+                <div key={l.userId} style={{ opacity: off ? 0.45 : 1 }}>
+                  <div className="evt">
+                    <span style={{ flex: 1 }}>
+                      <b>{ar ? l.nameAr : l.nameEn}</b>
+                      {l.role && <span className="sub">{t(l.role as any)}</span>}
+                      {parts.length > 0 && (
+                        <span className="sub mono">
+                          {t("baseSalary")} {num(l.baseSalary ?? 0)}
+                          {parts.map(([k, v]) =>
+                            ` · ${t(k as any)} ${["advance", "deduction", "insurance"].includes(k) ? "−" : "+"}${num(v ?? 0)}`)}
+                        </span>
+                      )}
+                    </span>
+                    <b className="mono">{num(l.amount)}</b>
+                  </div>
                   {/* Leaving somebody out this month must not touch their
                       salary — they were away, not demoted. */}
                   {!pay.posted && (
-                    <button className="btn sec sm" style={{ marginInlineStart: 9 }}
-                            onClick={() => setSkip(off ? skip.filter((x) => x !== l.userId)
-                                                       : [...skip, l.userId])}>
-                      {off ? t("include") : t("skip")}
-                    </button>
+                    <div className="row" style={{ marginBottom: 10 }}>
+                      <button className="btn sec sm"
+                              onClick={() => setSkip(off ? skip.filter((x) => x !== l.userId)
+                                                         : [...skip, l.userId])}>
+                        {off ? t("include") : t("skip")}
+                      </button>
+                      <button className="btn sec sm"
+                              onClick={() => setEditing(editing === l.userId ? "" : l.userId)}>
+                        {t("adjustPay")}
+                      </button>
+                    </div>
+                  )}
+                  {editing === l.userId && !pay.posted && (
+                    <Adjust month={month} line={l} onDone={async () => { setEditing(""); await load(); }} />
                   )}
                 </div>
               );
@@ -119,5 +143,64 @@ export default function Payroll() {
         </>
       )}
     </>
+  );
+}
+
+
+/**
+ * What changes about one person's pay this month.
+ *
+ * Kept apart from their salary, because next month starts clean: an advance
+ * taken in July must not quietly repeat in August, which is exactly what
+ * happens when the only place to put it is the wage itself.
+ */
+function Adjust({ month, line, onDone }: { month: string; line: any; onDone: () => void }) {
+  const { t, toast } = useApp();
+  const [f, setF] = useState({
+    overtime: String(line.overtime ?? 0), bonus: String(line.bonus ?? 0),
+    advance: String(line.advance ?? 0), deduction: String(line.deduction ?? 0),
+    insurance: String(line.insurance ?? 0),
+  });
+  const [busy, setBusy] = useState(false);
+  const n = (v: string) => Number(v) || 0;
+  const net = Math.max(0, (line.baseSalary ?? 0) + n(f.overtime) + n(f.bonus)
+                          - n(f.advance) - n(f.deduction) - n(f.insurance));
+
+  const field = (k: keyof typeof f) => (
+    <span style={{ flex: 1 }}>
+      <span className="k">{t(k as any)}</span>
+      <input className="mono" inputMode="decimal" value={f[k]}
+             onChange={(e) => setF({ ...f, [k]: e.target.value })} style={{ marginTop: 4 }} />
+    </span>
+  );
+
+  return (
+    <div className="card" style={{ marginBottom: 11 }}>
+      <div className="row">{field("overtime")}{field("bonus")}</div>
+      <div className="row" style={{ marginTop: 8 }}>{field("advance")}{field("deduction")}</div>
+      <div className="row" style={{ marginTop: 8 }}>{field("insurance")}</div>
+      <div className="evt" style={{ marginTop: 10 }}>
+        <span style={{ flex: 1 }}><b>{t("netPay")}</b></span>
+        <b className="mono">{net.toLocaleString()}</b>
+      </div>
+      <div className="row" style={{ marginTop: 10 }}>
+        <button className="btn sec sm" onClick={onDone}>{t("cancel")}</button>
+        <button className="btn pri sm" disabled={busy}
+                onClick={async () => {
+                  setBusy(true);
+                  try {
+                    await api.savePayrollAdjustment(month, line.userId, {
+                      overtime: n(f.overtime), bonus: n(f.bonus), advance: n(f.advance),
+                      deduction: n(f.deduction), insurance: n(f.insurance),
+                    });
+                    toast(t("saved"));
+                    onDone();
+                  } catch (e: any) { toast(e?.code ? t(e.code) : t("signInFailed")); }
+                  finally { setBusy(false); }
+                }}>
+          {t("save")}
+        </button>
+      </div>
+    </div>
   );
 }

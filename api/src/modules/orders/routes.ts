@@ -227,7 +227,7 @@ export default async function orderRoutes(app: FastifyInstance) {
       where: { id },
       include: {
         customer: true, showroom: true,
-        lines: { include: { product: true } },
+        lines: { include: { product: true, warehouse: true } },
         payments: {
           where: { direction: "IN" },
           orderBy: { occurredOn: "asc" },
@@ -254,7 +254,11 @@ export default async function orderRoutes(app: FastifyInstance) {
         email: s["company.email"], vatNumber: s["vat.number"],
       },
       order: {
-        id: order.id, code: order.code, date: order.createdAt,
+        id: order.id, code: order.code,
+        // The number the customer and the tax authority quote. Falls back to
+        // the order code for anything written before the series existed.
+        invoiceNo: order.invoiceNo ?? order.code,
+        date: order.createdAt,
         status: order.status, promisedDate: order.promisedDate,
         showroom: order.showroom?.nameAr ?? null,
         currency: order.currency,
@@ -264,10 +268,16 @@ export default async function orderRoutes(app: FastifyInstance) {
       },
       lines: order.lines.map((l) => ({
         nameAr: l.product.nameAr, nameEn: l.product.nameEn, sku: l.product.sku,
-        qty: l.qty, unitPrice: num(l.unitPrice), lineTotal: num(l.unitPrice) * l.qty,
+        // Which store it left. A stock count later cannot be reconstructed
+        // without it, and the customer's copy is asked to say.
+        warehouse: l.warehouse?.nameAr ?? order.showroom?.nameAr ?? null,
+        qty: l.qty, unitPrice: num(l.unitPrice), discount: num(l.discount),
+        lineTotal: num(l.unitPrice) * l.qty - num(l.discount),
         specNotes: l.specNotes,
       })),
       totals: {
+        gross: order.lines.reduce((t, l) => t + num(l.unitPrice) * l.qty, 0),
+        discount: num(order.discountTotal),
         subtotal: num(order.subtotal) || num(order.total),
         taxRate: num(order.taxRate),
         taxTotal: num(order.taxTotal),
@@ -276,7 +286,8 @@ export default async function orderRoutes(app: FastifyInstance) {
         outstanding: Math.max(0, num(order.total) - paid),
       },
       payments: order.payments.map((p) => ({
-        date: p.occurredOn, amount: num(p.amount), method: p.method,
+        voucherNo: p.voucherNo, date: p.occurredOn, amount: num(p.amount),
+        discount: num(p.discount), method: p.method,
         account: p.account.nameAr, reference: p.reference,
       })),
     };

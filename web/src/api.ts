@@ -147,20 +147,30 @@ export const api = {
   cashAccounts: () => req<CashAccount[]>("/money/accounts"),
   addCashAccount: (b: { code: string; nameAr: string; kind?: string; openingBalance?: number }) =>
     req<CashAccount>("/money/accounts", { method: "POST", body: JSON.stringify(b) }),
-  collect: (b: { orderId: string; accountId: string; amount: number; method?: string;
-                 reference?: string; note?: string }) =>
+  collect: (b: { orderId: string; accountId: string; amount: number; discount?: number;
+                 method?: string; reference?: string; note?: string }) =>
     req<{ id: string; paidTotal: number; outstanding: number }>("/money/collect",
       { method: "POST", body: JSON.stringify(b) }),
   spend: (b: { accountId: string; amount: number; category?: string; method?: string;
-               purchaseInvoiceId?: string; reference?: string; note?: string }) =>
+               purchaseInvoiceId?: string; supplierId?: string; discount?: number;
+               reference?: string; note?: string }) =>
     req<any>("/money/spend", { method: "POST", body: JSON.stringify(b) }),
   reverseEntry: (id: string, reason: string) =>
     req<any>(`/money/entries/${id}/reverse`, { method: "POST", body: JSON.stringify({ reason }) }),
   suppliers: () => req<{ id: string; name: string; phone: string | null }[]>("/money/suppliers"),
   addSupplier: (b: { name: string; phone?: string }) =>
     req<any>("/money/suppliers", { method: "POST", body: JSON.stringify(b) }),
-  addPurchase: (b: { supplierId: string; number: string; issuedOn: string; amount: number; note?: string }) =>
-    req<any>("/money/purchases", { method: "POST", body: JSON.stringify(b) }),
+  addPurchase: (b: { supplierId: string; number: string; issuedOn: string; warehouseId?: string;
+                     taxRate?: number; discount?: number; amount?: number; note?: string;
+                     lines?: { description: string; qty: number; unitPrice: number;
+                               discount?: number; warehouseId?: string }[] }) =>
+    req<{ id: string }>("/money/purchases", { method: "POST", body: JSON.stringify(b) }),
+  purchase: (id: string) => req<PurchaseDoc>(`/money/purchases/${id}`),
+  voucher: (id: string) => req<Voucher>(`/money/vouchers/${id}`),
+  summary: (month?: string) =>
+    req<Summary>(`/money/summary${month ? `?month=${month}` : ""}`),
+  savePayrollAdjustment: (month: string, userId: string, b: Record<string, number>) =>
+    req<any>(`/money/payroll/${month}/${userId}`, { method: "PUT", body: JSON.stringify(b) }),
   receive: (b: { accountId: string; amount: number; category?: string; method?: string;
                  reference?: string; note?: string }) =>
     req<any>("/money/receive", { method: "POST", body: JSON.stringify(b) }),
@@ -245,7 +255,8 @@ export type ProductRow = { cost?: number; id: string; sku: string; nameAr: strin
 export type NewProduct = { cost?: number; sku: string; nameAr: string; nameEn?: string; categoryId: string;
   basePrice: number; baseLeadDays?: number; kind?: string; description?: string };
 export type NewOrder = { customerId?: string; customerName?: string; customerPhone?: string;
-  promisedDate?: string; lines: { productId: string; qty: number; unitPrice?: number; specNotes?: string; lineKind?: string }[] };
+  promisedDate?: string; lines: { productId: string; qty: number; unitPrice?: number;
+    discount?: number; warehouseId?: string; specNotes?: string; lineKind?: string }[] };
 export type LabelRow = { id: string; serial: string; printedAt: string | null; workOrderCode: string;
   orderCode: string; customer: string; productAr: string; productEn: string; qty: number; promisedDate: string | null };
 export type Me = { id: string; nameAr: string; nameEn: string; phone: string; locale: "ar" | "en"; role: string; stationId: string | null };
@@ -279,22 +290,57 @@ export type OrderRow = { id: string; code: string; status: string; kind: string;
 export type CashAccount = { id: string; code: string; nameAr: string; nameEn: string;
   kind: "CASH" | "BANK"; isActive: boolean; openingBalance: number;
   totalIn: number; totalOut: number; balance: number };
+export type PurchaseDoc = {
+  company: Invoice["company"];
+  invoice: { id: string; number: string; date: string; note: string | null; warehouse: string | null };
+  supplier: { name: string; phone: string | null };
+  lines: { description: string; qty: number; unitPrice: number; discount: number;
+           lineTotal: number; warehouse: string | null }[];
+  totals: { subtotal: number; discount: number; taxRate: number; taxTotal: number;
+            total: number; paid: number; outstanding: number };
+  payments: { voucherNo: string | null; date: string; amount: number; discount: number;
+              method: string; account: string }[];
+};
+export type Voucher = {
+  company: { nameAr: string; nameEn: string; address: string; phone: string };
+  voucher: { id: string; kind: "RECEIPT" | "PAYMENT"; number: string | null; date: string;
+             amount: number; discount: number; settled: number; method: string;
+             category: string | null; reference: string | null; note: string | null;
+             isReversal: boolean };
+  party: { name: string | null; phone: string | null };
+  against: { orderCode: string | null; orderInvoiceNo: string | null; purchaseNumber: string | null };
+  account: { nameAr: string; nameEn: string };
+  by: string | null;
+};
+export type Summary = {
+  month: string;
+  cash: { id: string; nameAr: string; nameEn: string; kind: string; balance: number }[];
+  totals: { inHand: number; sales: number; cogs: number; gross: number; expenses: number;
+            profit: number; collected: number; receivable: number; payable: number; net: number };
+  topDebtors: { id: string; code: string; customer: string; outstanding: number; ageDays: number }[];
+  oldestDebts: { id: string; code: string; customer: string; outstanding: number; ageDays: number }[];
+  topBills: { id: string; number: string; supplier: string; outstanding: number; ageDays: number }[];
+  byExpense: Record<string, number>;
+};
 export type Payroll = {
   month: string; posted: boolean; postedAt?: string; total: number;
   account?: { id: string; nameAr: string; nameEn: string };
-  lines: { userId: string; nameAr: string; nameEn: string; role?: string; amount: number }[];
+  lines: { userId: string; nameAr: string; nameEn: string; role?: string; amount: number;
+           baseSalary?: number; overtime?: number; bonus?: number;
+           advance?: number; deduction?: number; insurance?: number }[];
 };
 export type Invoice = {
   company: { nameAr: string; nameEn: string; address: string; phone: string;
              email: string; vatNumber: string };
-  order: { id: string; code: string; date: string; status: string; promisedDate: string | null;
+  order: { id: string; code: string; invoiceNo: string; date: string; status: string; promisedDate: string | null;
            showroom: string | null; currency: string };
   customer: { name: string; phone: string | null };
-  lines: { nameAr: string; nameEn: string; sku: string; qty: number;
-           unitPrice: number; lineTotal: number; specNotes: string | null }[];
-  totals: { subtotal: number; taxRate: number; taxTotal: number;
+  lines: { nameAr: string; nameEn: string; sku: string; warehouse: string | null; qty: number;
+           unitPrice: number; discount: number; lineTotal: number; specNotes: string | null }[];
+  totals: { gross: number; discount: number; subtotal: number; taxRate: number; taxTotal: number;
             total: number; paid: number; outstanding: number };
-  payments: { date: string; amount: number; method: string; account: string; reference: string | null }[];
+  payments: { voucherNo: string | null; date: string; amount: number; discount: number;
+              method: string; account: string; reference: string | null }[];
 };
 export type Report = {
   from?: string; to?: string;

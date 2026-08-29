@@ -5,6 +5,8 @@ import { db } from "../../db.js";
 import { guard } from "../../auth/jwt.js";
 import { BOOKS, COLLECT } from "../../auth/scopes.js";
 import { record } from "../../lib/events.js";
+import { nextNumber } from "../../lib/sequence.js";
+import { allSettings, applyVat } from "../../lib/settings.js";
 
 /**
  * The books.
@@ -37,9 +39,14 @@ const n = (d: unknown) => Number(d ?? 0);
 /** An order's paid figure is the sum of what actually came in against it. */
 async function syncPaid(orderId: string) {
   const rows = await db.cashEntry.findMany({
-    where: { orderId }, select: { direction: true, amount: true },
+    where: { orderId }, select: { direction: true, amount: true, discount: true },
   });
-  const paid = rows.reduce((s, r) => s + (r.direction === "IN" ? n(r.amount) : -n(r.amount)), 0);
+  // A settlement discount closes the balance as surely as cash does — that is
+  // the whole point of allowing one — so it counts here too.
+  const paid = rows.reduce((s, r) => {
+    const settled = n(r.amount) + n(r.discount);
+    return s + (r.direction === "IN" ? settled : -settled);
+  }, 0);
   await db.order.update({ where: { id: orderId }, data: { paidTotal: String(paid) } });
   return paid;
 }
@@ -182,6 +189,12 @@ export default async function moneyRoutes(app: FastifyInstance) {
       orderId: z.string(),
       accountId: z.string(),
       amount: money(),
+      /**
+       * Money written off to close the balance. A customer who owes 10,000 and
+       * hands over 9,500 by agreement has settled; without this the 500 sits
+       * for ever as a debt nobody intends to chase.
+       */
+      discount: z.number().nonnegative().default(0),
       method: z.enum(["CASH", "BANK_TRANSFER", "INSTAPAY", "CHEQUE", "CARD"]).default("CASH"),
       occurredOn: day(),
       reference: z.string().max(80).optional(),
@@ -204,7 +217,9 @@ export default async function moneyRoutes(app: FastifyInstance) {
     const total = n(order.total);
     // Overpaying is nearly always a typo — an extra zero — and it is far
     // cheaper to refuse it than to unpick it from the books later.
-    if (already + b.amount > total + 0.005) {
+    // The discount settles part of the balance too, so it is the pair that
+    // must not exceed what is owed.
+    if (already + b.amount + b.discount > total + 0.005) {
       return reply.code(400).send({
         error: "exceeds_outstanding", outstanding: Math.max(0, total - already),
       });
@@ -213,6 +228,7 @@ export default async function moneyRoutes(app: FastifyInstance) {
     const entry = await db.cashEntry.create({
       data: {
         accountId: b.accountId, direction: "IN", amount: String(b.amount),
+        discount: String(b.discount), voucherNo: await nextNumber("RV"),
         method: b.method, occurredOn: b.occurredOn ? new Date(b.occurredOn) : new Date(),
         orderId: b.orderId, reference: b.reference ?? null, note: b.note ?? null,
         actorId: user.id,
@@ -237,12 +253,19 @@ export default async function moneyRoutes(app: FastifyInstance) {
       method: z.enum(["CASH", "BANK_TRANSFER", "INSTAPAY", "CHEQUE", "CARD"]).default("CASH"),
       occurredOn: day(),
       purchaseInvoiceId: z.string().optional(),
+      /** Named on the voucher. A payment with nobody on it is not a voucher. */
+      supplierId: z.string().optional(),
+      /** Settlement discount the supplier allowed us. */
+      discount: z.number().nonnegative().default(0),
       reference: z.string().max(80).optional(),
       note: z.string().max(300).optional(),
     }).parse(req.body);
 
     if (!(await db.cashAccount.findUnique({ where: { id: b.accountId } }))) {
       return reply.code(404).send({ error: "account_not_found" });
+    }
+    if (b.supplierId && !(await db.supplier.findUnique({ where: { id: b.supplierId } }))) {
+      return reply.code(404).send({ error: "supplier_not_found" });
     }
     if (b.purchaseInvoiceId &&
         !(await db.purchaseInvoice.findUnique({ where: { id: b.purchaseInvoiceId } }))) {
@@ -251,8 +274,13 @@ export default async function moneyRoutes(app: FastifyInstance) {
     return db.cashEntry.create({
       data: {
         accountId: b.accountId, direction: "OUT", amount: String(b.amount),
+        discount: String(b.discount), voucherNo: await nextNumber("PV"),
         method: b.method, occurredOn: b.occurredOn ? new Date(b.occurredOn) : new Date(),
         category: b.category, purchaseInvoiceId: b.purchaseInvoiceId ?? null,
+        supplierId: b.supplierId
+          ?? (b.purchaseInvoiceId
+              ? (await db.purchaseInvoice.findUnique({ where: { id: b.purchaseInvoiceId } }))!.supplierId
+              : null),
         reference: b.reference ?? null, note: b.note ?? null,
         actorId: (req as any).user.id,
       },
@@ -276,6 +304,10 @@ export default async function moneyRoutes(app: FastifyInstance) {
         accountId: original.accountId,
         direction: original.direction === "IN" ? "OUT" : "IN",
         amount: original.amount, method: original.method,
+        // The discount goes back too, or reversing a settled invoice would
+        // leave the written-off part still settled.
+        discount: original.discount,
+        voucherNo: await nextNumber(original.direction === "IN" ? "PV" : "RV"),
         occurredOn: new Date(), orderId: original.orderId,
         purchaseInvoiceId: original.purchaseInvoiceId, category: original.category,
         note: reason, reversesId: original.id, actorId: (req as any).user.id,
@@ -301,9 +333,26 @@ export default async function moneyRoutes(app: FastifyInstance) {
       supplierId: z.string(),
       number: z.string().min(1).max(60),
       issuedOn: z.string().datetime(),
-      amount: money(),
+      warehouseId: z.string().optional(),
+      /** The tax the supplier charged us. Zero for an unregistered supplier. */
+      taxRate: z.number().min(0).max(100).default(0),
       note: z.string().max(300).optional(),
+      /**
+       * What was on their paper. An invoice with no lines is still accepted
+       * with a bare amount, because half the bills a factory receives are a
+       * handwritten total — refusing those would just mean they go unrecorded.
+       */
+      lines: z.array(z.object({
+        description: z.string().min(1).max(200),
+        qty: z.number().positive().default(1),
+        unitPrice: z.number().nonnegative(),
+        discount: z.number().nonnegative().default(0),
+        warehouseId: z.string().optional(),
+      })).default([]),
+      amount: money().optional(),
+      discount: z.number().nonnegative().default(0),
     }).parse(req.body);
+
     if (!(await db.supplier.findUnique({ where: { id: b.supplierId } }))) {
       return reply.code(404).send({ error: "supplier_not_found" });
     }
@@ -313,12 +362,142 @@ export default async function moneyRoutes(app: FastifyInstance) {
           where: { supplierId: b.supplierId, number: b.number } })) {
       return reply.code(409).send({ error: "invoice_number_taken" });
     }
+
+    const fromLines = b.lines.reduce((s, l) => s + l.unitPrice * l.qty - l.discount, 0);
+    const subtotal = b.lines.length ? fromLines : (b.amount ?? 0);
+    const net = subtotal - b.discount;
+    if (net <= 0) return reply.code(400).send({ error: "amount_required" });
+    const taxTotal = Math.round(net * (b.taxRate / 100) * 100) / 100;
+
     return db.purchaseInvoice.create({
       data: {
         supplierId: b.supplierId, number: b.number, issuedOn: new Date(b.issuedOn),
-        amount: String(b.amount), note: b.note ?? null, actorId: (req as any).user.id,
+        warehouseId: b.warehouseId ?? null,
+        subtotal: String(subtotal), discount: String(b.discount),
+        taxRate: String(b.taxRate), taxTotal: String(taxTotal),
+        amount: String(net + taxTotal),
+        note: b.note ?? null, actorId: (req as any).user.id,
+        lines: {
+          create: b.lines.map((l) => ({
+            description: l.description, qty: String(l.qty),
+            unitPrice: String(l.unitPrice), discount: String(l.discount),
+            warehouseId: l.warehouseId ?? null,
+          })),
+        },
+      },
+      include: { lines: true },
+    });
+  });
+
+  /** One supplier bill in full, for the screen and for the printed copy. */
+  app.get("/money/purchases/:id", { preHandler: guard(BOOKS) }, async (req, reply) => {
+    const { id } = req.params as { id: string };
+    const inv = await db.purchaseInvoice.findUnique({
+      where: { id },
+      include: {
+        supplier: true,
+        lines: { include: { warehouse: true } },
+        entries: { orderBy: { occurredOn: "asc" }, include: { account: true } },
       },
     });
+    if (!inv) return reply.code(404).send({ error: "not_found" });
+
+    const s = await allSettings();
+    const paid = inv.entries.reduce(
+      (t, e) => t + (e.direction === "OUT" ? n(e.amount) + n(e.discount) : -(n(e.amount) + n(e.discount))), 0);
+    const store = inv.warehouseId
+      ? await db.location.findUnique({ where: { id: inv.warehouseId } }) : null;
+
+    return {
+      company: {
+        nameAr: s["company.name"], nameEn: s["company.nameEn"],
+        address: s["company.address"], phone: s["company.phone"],
+        email: s["company.email"], vatNumber: s["vat.number"],
+      },
+      invoice: {
+        id: inv.id, number: inv.number, date: inv.issuedOn, note: inv.note,
+        warehouse: store?.nameAr ?? null,
+      },
+      supplier: { name: inv.supplier.name, phone: inv.supplier.phone },
+      lines: inv.lines.map((l) => ({
+        description: l.description, qty: n(l.qty), unitPrice: n(l.unitPrice),
+        discount: n(l.discount), lineTotal: n(l.unitPrice) * n(l.qty) - n(l.discount),
+        warehouse: l.warehouse?.nameAr ?? null,
+      })),
+      totals: {
+        subtotal: n(inv.subtotal), discount: n(inv.discount),
+        taxRate: n(inv.taxRate), taxTotal: n(inv.taxTotal), total: n(inv.amount),
+        paid, outstanding: Math.max(0, n(inv.amount) - paid),
+      },
+      payments: inv.entries.map((e) => ({
+        voucherNo: e.voucherNo, date: e.occurredOn, amount: n(e.amount),
+        discount: n(e.discount), method: e.method, account: e.account.nameAr,
+      })),
+    };
+  });
+
+  /**
+   * One voucher — a receipt from a customer, or a payment to a supplier —
+   * with everything the printed slip has to carry.
+   *
+   * Both directions share this route because they are the same document with
+   * the name changed: a date, a party, an amount, a discount, how it was paid,
+   * and room for a note. Two near-identical routes would drift.
+   */
+  app.get("/money/vouchers/:id", { preHandler: guard(COLLECT) }, async (req, reply) => {
+    const { id } = req.params as { id: string };
+    const e = await db.cashEntry.findUnique({
+      where: { id },
+      include: {
+        account: true, actor: true, supplier: true,
+        order: { include: { customer: true } },
+        purchaseInvoice: { include: { supplier: true } },
+      },
+    });
+    if (!e) return reply.code(404).send({ error: "not_found" });
+
+    // A transfer is a movement, not a voucher — nobody signs for it.
+    if (e.transferId) return reply.code(400).send({ error: "not_a_voucher" });
+
+    const user = (req as any).user;
+    // The counter prints receipts for its own branch and nothing else. The
+    // books, and payments out, are not the showroom's to see.
+    if (["SHOWROOM_MANAGER", "SALES_REP"].includes(user.role.key)) {
+      if (e.direction !== "IN") return reply.code(403).send({ error: "forbidden" });
+      if (user.locationId && e.order?.showroomId !== user.locationId) {
+        return reply.code(404).send({ error: "not_found" });
+      }
+    }
+
+    const s = await allSettings();
+    const party = e.direction === "IN"
+      ? { name: e.order?.customer.name ?? null, phone: e.order?.customer.phone ?? null }
+      : { name: e.supplier?.name ?? e.purchaseInvoice?.supplier.name ?? null,
+          phone: e.supplier?.phone ?? e.purchaseInvoice?.supplier.phone ?? null };
+
+    return {
+      company: {
+        nameAr: s["company.name"], nameEn: s["company.nameEn"],
+        address: s["company.address"], phone: s["company.phone"],
+      },
+      voucher: {
+        id: e.id, kind: e.direction === "IN" ? "RECEIPT" : "PAYMENT",
+        number: e.voucherNo, date: e.occurredOn,
+        amount: n(e.amount), discount: n(e.discount),
+        settled: n(e.amount) + n(e.discount),
+        method: e.method, category: e.category,
+        reference: e.reference, note: e.note,
+        isReversal: Boolean(e.reversesId),
+      },
+      party,
+      against: {
+        orderCode: e.order?.code ?? null,
+        orderInvoiceNo: e.order?.invoiceNo ?? null,
+        purchaseNumber: e.purchaseInvoice?.number ?? null,
+      },
+      account: { nameAr: e.account.nameAr, nameEn: e.account.nameEn },
+      by: e.actor?.nameAr ?? null,
+    };
   });
 
   // ──────────────────────────────────────────────────────── payroll (المرتبات)
@@ -347,7 +526,10 @@ export default async function moneyRoutes(app: FastifyInstance) {
         account: { id: run.account.id, nameAr: run.account.nameAr, nameEn: run.account.nameEn },
         total: run.lines.reduce((s, l) => s + n(l.amount), 0),
         lines: run.lines.map((l) => ({
-          userId: l.userId, nameAr: l.user.nameAr, nameEn: l.user.nameEn, amount: n(l.amount),
+          userId: l.userId, nameAr: l.user.nameAr, nameEn: l.user.nameEn,
+          baseSalary: n(l.baseSalary), overtime: n(l.overtime), bonus: n(l.bonus),
+          advance: n(l.advance), deduction: n(l.deduction), insurance: n(l.insurance),
+          amount: n(l.amount),
         })),
       };
     }
@@ -356,14 +538,60 @@ export default async function moneyRoutes(app: FastifyInstance) {
       include: { role: true },
       orderBy: { nameAr: "asc" },
     });
-    return {
-      month, posted: false,
-      total: staff.reduce((s, u) => s + n(u.salary), 0),
-      lines: staff.map((u) => ({
-        userId: u.id, nameAr: u.nameAr, nameEn: u.nameEn,
-        role: u.role.key, amount: n(u.salary),
-      })),
+    const adj = await db.payrollAdjustment.findMany({ where: { month } });
+    const lines = staff.map((u) => {
+      const a = adj.find((x) => x.userId === u.id);
+      const base = n(u.salary);
+      const add = n(a?.overtime) + n(a?.bonus);
+      const off = n(a?.advance) + n(a?.deduction) + n(a?.insurance);
+      return {
+        userId: u.id, nameAr: u.nameAr, nameEn: u.nameEn, role: u.role.key,
+        baseSalary: base,
+        overtime: n(a?.overtime), bonus: n(a?.bonus),
+        advance: n(a?.advance), deduction: n(a?.deduction), insurance: n(a?.insurance),
+        // Never below zero: an advance larger than the wage is carried by the
+        // next month, not clawed back out of the drawer.
+        amount: Math.max(0, Math.round((base + add - off) * 100) / 100),
+      };
+    });
+    return { month, posted: false, total: lines.reduce((s, l) => s + l.amount, 0), lines };
+  });
+
+  /**
+   * What changes about one person's pay this month: overtime, a bonus, an
+   * advance already handed over, a deduction, insurance withheld.
+   *
+   * Kept apart from the salary itself, because next month starts clean — an
+   * advance taken in July must not quietly repeat in August.
+   */
+  app.put("/money/payroll/:month/:userId", { preHandler: guard(BOOKS) }, async (req, reply) => {
+    const { month, userId } = req.params as { month: string; userId: string };
+    if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(month)) {
+      return reply.code(400).send({ error: "bad_month" });
+    }
+    if (await db.payrollRun.findUnique({ where: { month } })) {
+      return reply.code(409).send({ error: "month_already_paid" });
+    }
+    if (!(await db.user.findUnique({ where: { id: userId } }))) {
+      return reply.code(404).send({ error: "not_found" });
+    }
+    const b = z.object({
+      overtime: z.number().nonnegative().default(0),
+      bonus: z.number().nonnegative().default(0),
+      advance: z.number().nonnegative().default(0),
+      deduction: z.number().nonnegative().default(0),
+      insurance: z.number().nonnegative().default(0),
+      note: z.string().max(300).optional(),
+    }).parse(req.body ?? {});
+    const data = {
+      overtime: String(b.overtime), bonus: String(b.bonus), advance: String(b.advance),
+      deduction: String(b.deduction), insurance: String(b.insurance), note: b.note ?? null,
     };
+    return db.payrollAdjustment.upsert({
+      where: { month_userId: { month, userId } },
+      update: data,
+      create: { month, userId, ...data },
+    });
   });
 
   /**
@@ -389,10 +617,25 @@ export default async function moneyRoutes(app: FastifyInstance) {
     if (!(await db.cashAccount.findUnique({ where: { id: b.accountId } }))) {
       return reply.code(404).send({ error: "account_not_found" });
     }
+    const adj = await db.payrollAdjustment.findMany({ where: { month } });
     const staff = (await db.user.findMany({
       where: { isActive: true, salary: { not: null } },
     })).filter((u) => !b.skip.includes(u.id) && n(u.salary) > 0);
     if (staff.length === 0) return reply.code(400).send({ error: "nobody_on_payroll" });
+
+    // One place computes a payslip, so the screen and the posting cannot
+    // disagree about what somebody is owed.
+    const slip = (u: (typeof staff)[number]) => {
+      const a = adj.find((x) => x.userId === u.id);
+      const base = n(u.salary);
+      const net = base + n(a?.overtime) + n(a?.bonus)
+                  - n(a?.advance) - n(a?.deduction) - n(a?.insurance);
+      return {
+        baseSalary: base, overtime: n(a?.overtime), bonus: n(a?.bonus),
+        advance: n(a?.advance), deduction: n(a?.deduction), insurance: n(a?.insurance),
+        amount: Math.max(0, Math.round(net * 100) / 100),
+      };
+    };
 
     // The last day of the month being paid: wages belong to the month worked,
     // not the day the transfer happened to clear.
@@ -402,19 +645,32 @@ export default async function moneyRoutes(app: FastifyInstance) {
     const run = await db.payrollRun.create({
       data: { month, accountId: b.accountId, actorId: (req as any).user.id, note: b.note ?? null },
     });
+    let total = 0;
     for (const u of staff) {
+      const p = slip(u);
+      // Somebody whose advances swallowed the whole wage is paid nothing, and
+      // no empty voucher is written for them.
+      if (p.amount <= 0) continue;
       const entry = await db.cashEntry.create({
         data: {
-          accountId: b.accountId, direction: "OUT", amount: String(n(u.salary)),
+          accountId: b.accountId, direction: "OUT", amount: String(p.amount),
+          voucherNo: await nextNumber("PV"),
           method: "CASH", occurredOn, category: "SALARIES",
           note: `${month} · ${u.nameAr}`, actorId: (req as any).user.id,
         },
       });
       await db.payrollLine.create({
-        data: { runId: run.id, userId: u.id, amount: String(n(u.salary)), entryId: entry.id },
+        data: {
+          runId: run.id, userId: u.id, entryId: entry.id,
+          baseSalary: String(p.baseSalary), overtime: String(p.overtime),
+          bonus: String(p.bonus), advance: String(p.advance),
+          deduction: String(p.deduction), insurance: String(p.insurance),
+          amount: String(p.amount),
+        },
       });
+      total += p.amount;
     }
-    return { month, paid: staff.length, total: staff.reduce((s, u) => s + n(u.salary), 0) };
+    return { month, paid: staff.length, total };
   });
 
   // ───────────────────────────────────────────────────────────── reports
@@ -667,15 +923,137 @@ export default async function moneyRoutes(app: FastifyInstance) {
       id: o.id, code: o.code, date: o.createdAt, customer: o.customer.name,
       subtotal: n(o.subtotal), rate: n(o.taxRate), tax: n(o.taxTotal), total: n(o.total),
     }));
+    // Input tax: what suppliers charged us, which is deductible against what
+    // we charged our own customers. A return that shows only output tax
+    // overstates what is actually owed.
+    const purchases = await db.purchaseInvoice.findMany({
+      where: { issuedOn: { gte: from, lte: to }, taxTotal: { gt: 0 } },
+      include: { supplier: true }, orderBy: { issuedOn: "desc" },
+    });
+    const outputTax = rows.reduce((s, r) => s + r.tax, 0);
+    const inputTax = purchases.reduce((s, p) => s + n(p.taxTotal), 0);
     return {
       from, to,
       totals: {
         count: rows.length,
         subtotal: rows.reduce((s, r) => s + r.subtotal, 0),
-        tax: rows.reduce((s, r) => s + r.tax, 0),
-        total: rows.reduce((s, r) => s + r.total, 0),
+        outputTax, inputTax,
+        payable: Math.round((outputTax - inputTax) * 100) / 100,
       },
+      inputRows: purchases.map((p) => ({
+        id: p.id, number: p.number, date: p.issuedOn, supplier: p.supplier.name,
+        subtotal: n(p.subtotal) - n(p.discount), rate: n(p.taxRate), tax: n(p.taxTotal),
+      })),
       rows,
+    };
+  });
+
+  /**
+   * ملخص الحسابات — the whole business on one screen.
+   *
+   * Not another report: the answer to "how are we doing", which today needs
+   * five tabs opened and four numbers held in your head. What is in the
+   * drawers, what the month did, who owes us, who we owe, and the handful of
+   * names behind each — enough to know whether to worry, and where to look if
+   * the answer is yes.
+   */
+  app.get("/money/summary", { preHandler: guard(BOOKS) }, async (req) => {
+    const q = z.object({ month: z.string().optional() }).parse(req.query ?? {});
+    const now = new Date();
+    const month = q.month && /^\d{4}-(0[1-9]|1[0-2])$/.test(q.month)
+      ? q.month : now.toISOString().slice(0, 7);
+    const [y, m] = month.split("-").map(Number);
+    const from = new Date(Date.UTC(y, m - 1, 1));
+    const to = new Date(Date.UTC(y, m, 0, 23, 59, 59, 999));
+
+    // ── what is in the drawers, right now
+    const accounts = await db.cashAccount.findMany({ orderBy: { code: "asc" } });
+    const sums = await db.cashEntry.groupBy({ by: ["accountId", "direction"], _sum: { amount: true } });
+    const cash = accounts.map((a) => {
+      const inn = n(sums.find((s) => s.accountId === a.id && s.direction === "IN")?._sum.amount);
+      const out = n(sums.find((s) => s.accountId === a.id && s.direction === "OUT")?._sum.amount);
+      return {
+        id: a.id, nameAr: a.nameAr, nameEn: a.nameEn, kind: a.kind,
+        balance: n(a.openingBalance) + inn - out,
+      };
+    });
+
+    // ── what the month did
+    const orders = await db.order.findMany({
+      where: { createdAt: { gte: from, lte: to }, status: { not: "CANCELLED" } },
+      include: { lines: true },
+    });
+    const sales = orders.reduce((s, o) => s + (n(o.subtotal) || n(o.total)), 0);
+    const cogs = orders.reduce(
+      (s, o) => s + o.lines.reduce((t, l) => t + n(l.unitCost) * l.qty, 0), 0);
+    const collected = (await db.cashEntry.aggregate({
+      _sum: { amount: true },
+      where: { direction: "IN", orderId: { not: null }, occurredOn: { gte: from, lte: to } },
+    }))._sum.amount;
+    const spendRows = await db.cashEntry.groupBy({
+      by: ["category"], _sum: { amount: true },
+      where: {
+        direction: "OUT", occurredOn: { gte: from, lte: to },
+        category: { notIn: ["MATERIALS", "TRANSFER"] },
+      },
+    });
+    const expenses = spendRows.reduce((s, g) => s + n(g._sum.amount), 0);
+
+    // ── who owes us, and who we owe
+    const openOrders = await db.order.findMany({
+      where: { status: { not: "CANCELLED" } },
+      include: { customer: true }, orderBy: { createdAt: "asc" },
+    });
+    const debts = openOrders
+      .map((o) => ({
+        id: o.id, code: o.code, customer: o.customer.name,
+        outstanding: n(o.total) - n(o.paidTotal),
+        ageDays: Math.floor((now.getTime() - o.createdAt.getTime()) / 86_400_000),
+      }))
+      .filter((r) => r.outstanding > 0.005);
+
+    const bills = await db.purchaseInvoice.findMany({
+      include: { supplier: true, entries: true }, orderBy: { issuedOn: "asc" },
+    });
+    const owed = bills
+      .map((i) => {
+        const paid = i.entries.reduce(
+          (s, e) => s + (e.direction === "OUT" ? n(e.amount) + n(e.discount)
+                                               : -(n(e.amount) + n(e.discount))), 0);
+        return {
+          id: i.id, number: i.number, supplier: i.supplier.name,
+          outstanding: n(i.amount) - paid,
+          ageDays: Math.floor((now.getTime() - i.issuedOn.getTime()) / 86_400_000),
+        };
+      })
+      .filter((r) => r.outstanding > 0.005);
+
+    const receivable = debts.reduce((s, r) => s + r.outstanding, 0);
+    const payable = owed.reduce((s, r) => s + r.outstanding, 0);
+    const inHand = cash.reduce((s, a) => s + a.balance, 0);
+
+    return {
+      month,
+      cash,
+      totals: {
+        inHand,
+        sales, cogs,
+        gross: sales - cogs,
+        expenses,
+        profit: sales - cogs - expenses,
+        collected: n(collected),
+        receivable, payable,
+        // What the business is worth on paper today: the drawer plus what is
+        // owed to it, less what it owes. The one number an owner asks for.
+        net: inHand + receivable - payable,
+      },
+      // The names behind the numbers, worst first — a total with nobody
+      // attached to it cannot be acted on.
+      topDebtors: [...debts].sort((a, b) => b.outstanding - a.outstanding).slice(0, 5),
+      oldestDebts: [...debts].sort((a, b) => b.ageDays - a.ageDays).slice(0, 5),
+      topBills: [...owed].sort((a, b) => b.outstanding - a.outstanding).slice(0, 5),
+      byExpense: Object.fromEntries(
+        spendRows.filter((g) => g.category).map((g) => [g.category!, n(g._sum.amount)])),
     };
   });
 

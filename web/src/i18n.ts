@@ -214,6 +214,37 @@ const ar = {
   vatHint: "لما تفعّلها، الطلبات الجديدة بس هي اللي هتتحسب بالضريبة. الطلبات القديمة بتفضل زي ما اتكتبت.",
   bad_vat_rate: "النسبة لازم تكون بين ٠ و ١٠٠", unknown_setting: "إعداد مش معروف",
   costHint: "تكلفة التصنيع. بتتسجل مع الطلب يوم البيع، فأرباح السنة اللي فاتت مابتتغيرش لما التكلفة تتغير.",
+  // ── الخصم والمخزن
+  discount: "الخصم", beforeDiscount: "قبل الخصم", warehouse: "المخزن",
+  pickWarehouse: "المخزن الصادر منه", noWarehouse: "من غير مخزن",
+  discount_exceeds_line: "الخصم أكبر من قيمة البند",
+  // ── السندات
+  receiptVoucher: "سند قبض", paymentVoucher: "سند صرف", printVoucher: "طباعة السند",
+  receivedFrom: "استلمنا من", paidTo: "صرفنا إلى",
+  amountReceived: "المبلغ المستلم", amountPaid: "المبلغ المصروف",
+  settlementDiscount: "خصم تسوية", totalSettled: "إجمالي المسدّد",
+  method: "طريقة السداد", intoAccount: "الخزنة", against: "عن",
+  receivedBy: "المستلم", paidBy: "الصارف",
+  payerSignature: "توقيع العميل", payeeSignature: "توقيع المورد",
+  thisIsAReversal: "ده سند عكسي لسند اتكتب قبل كده",
+  voucher: "السند", not_a_voucher: "ده تحويل داخلي، مش سند",
+  // ── فاتورة المشتريات
+  purchaseLines: "بنود الفاتورة", addLine: "ضيف بند", lineDescription: "الصنف",
+  invoiceDiscount: "خصم على الفاتورة", purchaseTaxRate: "ضريبة المورد ٪",
+  amountOnly: "أو اكتب الإجمالي على طول",
+  amount_required: "لازم بنود أو إجمالي",
+  // ── الملخص
+  summary: "الملخص", netPosition: "صافي المركز",
+  netPositionHint: "اللي في الخزن + اللي عند العملاء − اللي عليك للموردين.",
+  inHand: "في الخزن", owedToUs: "عند العملاء", weOwe: "على الشركة",
+  theMonth: "الشهر ده", topDebtors: "أكبر المديونيات", oldestDebts: "أقدم المديونيات",
+  topBills: "أكبر المستحقات للموردين",
+  nobodyOwes: "مفيش مديونيات", nothingOwed: "مفيش مستحقات", day: "يوم",
+  negativeBalance: "فيه خزنة رصيدها بالسالب — يعني اتصرف منها فلوس مش موجودة، أو فيه دخل لسه ماتسجلش.",
+  // ── تفاصيل المرتب
+  overtime: "إضافي", bonus: "مكافأة", advance: "سلفة", deduction: "خصم",
+  insurance: "تأمينات", netPay: "الصافي", baseSalary: "الأساسي",
+  adjustPay: "تعديل الشهر", payDetails: "تفاصيل المرتب",
   PAYMENT_RECEIVED: "تحصيل دفعة",
 };
 
@@ -431,6 +462,37 @@ const en: Record<keyof typeof ar, string> = {
   vatHint: "Turning it on affects new orders only. Orders already written keep the total they were written at.",
   bad_vat_rate: "The rate must be between 0 and 100", unknown_setting: "Unknown setting",
   costHint: "What it costs to make. Copied onto the order on the day of sale, so last year's margin does not move when this year's cost does.",
+  // ── discount and the store
+  discount: "Discount", beforeDiscount: "Before discount", warehouse: "Store",
+  pickWarehouse: "Store it leaves", noWarehouse: "No store",
+  discount_exceeds_line: "That is more off than the line is worth",
+  // ── vouchers
+  receiptVoucher: "Receipt voucher", paymentVoucher: "Payment voucher", printVoucher: "Print voucher",
+  receivedFrom: "Received from", paidTo: "Paid to",
+  amountReceived: "Amount received", amountPaid: "Amount paid",
+  settlementDiscount: "Settlement discount", totalSettled: "Total settled",
+  method: "Method", intoAccount: "Account", against: "Against",
+  receivedBy: "Received by", paidBy: "Paid by",
+  payerSignature: "Customer signature", payeeSignature: "Supplier signature",
+  thisIsAReversal: "This reverses an earlier voucher",
+  voucher: "Voucher", not_a_voucher: "That is an internal transfer, not a voucher",
+  // ── the purchase invoice
+  purchaseLines: "Invoice lines", addLine: "Add a line", lineDescription: "Item",
+  invoiceDiscount: "Discount on the invoice", purchaseTaxRate: "Supplier's VAT %",
+  amountOnly: "or just type the total",
+  amount_required: "Lines or a total are needed",
+  // ── the summary
+  summary: "Summary", netPosition: "Net position",
+  netPositionHint: "What is in the accounts, plus what customers owe, less what you owe suppliers.",
+  inHand: "In the accounts", owedToUs: "Owed to us", weOwe: "We owe",
+  theMonth: "This month", topDebtors: "Biggest debts", oldestDebts: "Oldest debts",
+  topBills: "Biggest supplier balances",
+  nobodyOwes: "Nothing outstanding", nothingOwed: "Nothing owed", day: "days",
+  negativeBalance: "An account is negative — money went out that was not there, or something coming in has not been recorded yet.",
+  // ── payslip detail
+  overtime: "Overtime", bonus: "Bonus", advance: "Advance", deduction: "Deduction",
+  insurance: "Insurance", netPay: "Net", baseSalary: "Base",
+  adjustPay: "Adjust this month", payDetails: "Payslip",
   PAYMENT_RECEIVED: "Payment received",
 };
 

@@ -53,6 +53,13 @@ model Role {
 /// Company-wide configuration: VAT, the letterhead, anything an owner changes
 /// without a deploy. Key/value because the alternative is a migration every
 /// time the tax rate moves.
+/// A counter per document series, incremented under a transaction so two
+/// people invoicing at the same second cannot be handed the same number.
+model DocumentSequence {
+  key  String @id
+  next Int    @default(1)
+}
+
 model Setting {
   key       String   @id
   value     String
@@ -97,6 +104,7 @@ model User {
   cashEntries   CashEntry[]       @relation("CashEntryAuthor")
   purchases     PurchaseInvoice[] @relation("PurchaseAuthor")
   payslips      PayrollLine[]
+  payAdjustments PayrollAdjustment[]
   payrollRuns   PayrollRun[]      @relation("PayrollAuthor")
 }
 
@@ -155,9 +163,11 @@ model Location {
   nameEn   String
   address  String?
   stations Station[]
-  orders   Order[]
-  events   TrackingEvent[]
-  staff    User[]
+  orders    Order[]
+  events    TrackingEvent[]
+  staff     User[]
+  soldFrom  OrderLine[]         @relation("LineWarehouse")
+  received  PurchaseInvoiceLine[]
 }
 
 model Station {
@@ -286,6 +296,9 @@ model Order {
   promisedDate  DateTime?
   /// The lines before tax. total is what the customer actually pays.
   subtotal      Decimal      @default(0) @db.Decimal(14, 2)
+  /// The sum of the lines' discounts, kept on the order so the invoice can
+  /// print "you were given this much off" as its own line.
+  discountTotal Decimal      @default(0) @db.Decimal(14, 2)
   taxTotal      Decimal      @default(0) @db.Decimal(14, 2)
   /// The rate this order was written at, kept so an old invoice reprints as it
   /// was issued rather than at today's rate.
@@ -293,6 +306,10 @@ model Order {
   total         Decimal      @default(0) @db.Decimal(14, 2)
   paidTotal     Decimal      @default(0) @db.Decimal(14, 2)
   currency      String       @default("EGP")
+  /// The invoice number, from our own series. Separate from the order code
+  /// because the two answer to different people: the code is how the factory
+  /// talks about the job, the number is what the tax authority counts.
+  invoiceNo     String?      @unique
   trackingToken String       @unique
   createdAt     DateTime     @default(now())
 
@@ -357,9 +374,16 @@ model OrderLine {
   product      Product    @relation(fields: [productId], references: [id])
   qty          Int        @default(1)
   unitPrice    Decimal    @db.Decimal(14, 2)
+  /// Money off this line, in currency rather than percent: a discount is
+  /// almost always argued in pounds across a counter, not in percentages.
+  discount     Decimal    @default(0) @db.Decimal(14, 2)
   /// The cost on the day it was sold. Copied, not looked up, so last year's
   /// margin does not move when this year's timber does.
   unitCost     Decimal    @default(0) @db.Decimal(14, 2)
+  /// Which store the piece came out of. The invoice has to say, and a
+  /// stock count later cannot be reconstructed without it.
+  warehouseId  String?
+  warehouse    Location?  @relation("LineWarehouse", fields: [warehouseId], references: [id])
   lineKind     LineKind   @default(STANDARD)
   status       LineStatus @default(PENDING)
   promisedDate DateTime?
@@ -651,6 +675,16 @@ model CashEntry {
   category          ExpenseCategory?
   reference         String?
   note              String?
+  /// The voucher number, from its own series — receipts and payments are
+  /// counted separately, as they are on paper.
+  voucherNo         String?          @unique
+  /// Settlement discount: money written off to close the balance. A customer
+  /// who owes 10,000 and hands over 9,500 by agreement has settled, and the
+  /// 500 has to go somewhere rather than sitting as a debt nobody will chase.
+  discount          Decimal          @default(0) @db.Decimal(14, 2)
+  /// Whose money it was. A voucher without a name on it is not a voucher.
+  supplierId        String?
+  supplier          Supplier?        @relation(fields: [supplierId], references: [id])
   /// Both halves of a transfer share one id, so the pair can be shown as the
   /// single movement it actually is.
   transferId        String?
@@ -686,18 +720,64 @@ model PayrollRun {
   lines PayrollLine[]
 }
 
+/// What changes about one person's pay in one month: overtime worked, an
+/// advance already taken, a deduction. Entered before the month is posted and
+/// kept afterwards as part of why the payslip said what it said.
+model PayrollAdjustment {
+  id         String  @id @default(uuid())
+  /// "2026-08"
+  month      String
+  userId     String
+  user       User    @relation(fields: [userId], references: [id])
+  overtime   Decimal @default(0) @db.Decimal(14, 2)
+  bonus      Decimal @default(0) @db.Decimal(14, 2)
+  /// Money already handed over during the month, taken off the payslip.
+  advance    Decimal @default(0) @db.Decimal(14, 2)
+  /// Absence, damage, anything held back.
+  deduction  Decimal @default(0) @db.Decimal(14, 2)
+  /// Social insurance withheld from the wage.
+  insurance  Decimal @default(0) @db.Decimal(14, 2)
+  note       String?
+
+  @@unique([month, userId])
+}
+
 model PayrollLine {
   id      String     @id @default(uuid())
   runId   String
   run     PayrollRun @relation(fields: [runId], references: [id], onDelete: Cascade)
   userId  String
   user    User       @relation(fields: [userId], references: [id])
+  /// The wage before anything was added or held back, kept so a posted
+  /// payslip can still be explained a year later.
+  baseSalary Decimal @default(0) @db.Decimal(14, 2)
+  overtime   Decimal @default(0) @db.Decimal(14, 2)
+  bonus      Decimal @default(0) @db.Decimal(14, 2)
+  advance    Decimal @default(0) @db.Decimal(14, 2)
+  deduction  Decimal @default(0) @db.Decimal(14, 2)
+  insurance  Decimal @default(0) @db.Decimal(14, 2)
+  /// Net: what actually left the drawer.
   amount  Decimal    @db.Decimal(14, 2)
   /// The cash movement this payslip caused.
   entryId String?    @unique
   entry   CashEntry? @relation(fields: [entryId], references: [id])
 
   @@unique([runId, userId])
+}
+
+/// What was on the supplier's paper. Free text rather than a product link:
+/// most of what a furniture factory buys — timber, foam, glue, a repair — is
+/// not in the catalogue and never will be.
+model PurchaseInvoiceLine {
+  id          String          @id @default(uuid())
+  invoiceId   String
+  invoice     PurchaseInvoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  description String
+  qty         Decimal         @default(1) @db.Decimal(12, 3)
+  unitPrice   Decimal         @db.Decimal(14, 2)
+  discount    Decimal         @default(0) @db.Decimal(14, 2)
+  warehouseId String?
+  warehouse   Location?       @relation(fields: [warehouseId], references: [id])
 }
 
 model Supplier {
@@ -709,6 +789,7 @@ model Supplier {
   createdAt DateTime @default(now())
 
   invoices PurchaseInvoice[]
+  entries  CashEntry[]
 }
 
 /// فاتورة مشتريات — what a supplier billed us.
@@ -719,6 +800,16 @@ model PurchaseInvoice {
   /// The supplier's own invoice number, as printed on their paper.
   number     String
   issuedOn   DateTime
+  /// Which store took the goods in.
+  warehouseId String?
+  /// Before discount and tax.
+  subtotal   Decimal  @default(0) @db.Decimal(14, 2)
+  discount   Decimal  @default(0) @db.Decimal(14, 2)
+  /// Tax the supplier charged us — input VAT, deductible against what we
+  /// charged our own customers.
+  taxRate    Decimal  @default(0) @db.Decimal(5, 2)
+  taxTotal   Decimal  @default(0) @db.Decimal(14, 2)
+  /// What the supplier is actually owed: subtotal − discount + tax.
   amount     Decimal  @db.Decimal(14, 2)
   note       String?
   actorId    String?
@@ -726,6 +817,7 @@ model PurchaseInvoice {
   createdAt  DateTime @default(now())
 
   entries CashEntry[]
+  lines   PurchaseInvoiceLine[]
 
   @@unique([supplierId, number])
   @@index([issuedOn])

@@ -7,6 +7,7 @@ import { guard } from "../../auth/jwt.js";
 import { BOOKS, CATALOGUE, SELL, SETUP, STAFF_ADMIN, canGrant, grantableBy } from "../../auth/scopes.js";
 import { record } from "../../lib/events.js";
 import { applyVat, vatPolicy } from "../../lib/settings.js";
+import { nextNumber } from "../../lib/sequence.js";
 import { discard, isAllowed, readUpload, storeFile } from "../../lib/uploads.js";
 
 /**
@@ -47,8 +48,10 @@ export default async function adminRoutes(app: FastifyInstance) {
     grantableBy((req as any).user.role.key));
 
   // ---------------------------------------------------------------- locations
-  app.get("/admin/locations", { preHandler: guard(CATALOGUE) }, async () =>
-    db.location.findMany({ orderBy: { type: "asc" } }));
+  // The accountant needs the store list too: a purchase invoice has to say
+  // which one took the goods in.
+  app.get("/admin/locations", { preHandler: guard([...new Set([...CATALOGUE, ...BOOKS])]) },
+    async () => db.location.findMany({ orderBy: { type: "asc" } }));
 
   app.post("/admin/locations", { preHandler: guard(SETUP) }, async (req) => {
     const b = z.object({
@@ -484,6 +487,10 @@ export default async function adminRoutes(app: FastifyInstance) {
         productId: z.string(),
         qty: z.number().int().positive().default(1),
         unitPrice: z.number().nonnegative().optional(),
+        /** Money off this line, in pounds — that is how it is argued. */
+        discount: z.number().nonnegative().default(0),
+        /** Which store the piece leaves. */
+        warehouseId: z.string().optional(),
         specNotes: z.string().optional(),
         lineKind: z.enum(["STANDARD", "CUSTOM"]).default("STANDARD"),
       })).min(1),
@@ -519,7 +526,14 @@ export default async function adminRoutes(app: FastifyInstance) {
     const seq = (await db.order.count()) + 1;
     const year = new Date().getFullYear();
     const promised = b.promisedDate ? new Date(b.promisedDate) : null;
-    const lineTotal = b.lines.reduce((sum, l) => sum + (l.unitPrice ?? priceOf(l.productId)) * l.qty, 0);
+    const gross = (l: { productId: string; qty: number; unitPrice?: number }) =>
+      (l.unitPrice ?? priceOf(l.productId)) * l.qty;
+    // A discount bigger than the line is a typo, and one that makes the order
+    // negative is money the business would be handing out.
+    const overdone = b.lines.find((l) => l.discount > gross(l) + 0.005);
+    if (overdone) return reply.code(400).send({ error: "discount_exceeds_line" });
+    const discountTotal = b.lines.reduce((s, l) => s + l.discount, 0);
+    const lineTotal = b.lines.reduce((sum, l) => sum + gross(l) - l.discount, 0);
     // Resolved once, here, so the order carries the rate it was written at.
     const tax = applyVat(lineTotal, await vatPolicy());
     const anyCustom = b.lines.some((l) => l.lineKind === "CUSTOM");
@@ -534,8 +548,10 @@ export default async function adminRoutes(app: FastifyInstance) {
         // to it means nobody has to pick, and the showroom board is never empty
         // because an order was filed against no branch.
         showroomId: b.showroomId ?? (await defaultShowroomId()),
-        subtotal: String(tax.subtotal), taxTotal: String(tax.taxTotal),
+        subtotal: String(tax.subtotal), discountTotal: String(discountTotal),
+        taxTotal: String(tax.taxTotal),
         taxRate: String(tax.rate), total: String(tax.total),
+        invoiceNo: await nextNumber("INV"),
         trackingToken: randomUUID(),
       },
     });
@@ -546,6 +562,8 @@ export default async function adminRoutes(app: FastifyInstance) {
         data: {
           orderId: order.id, productId: l.productId, qty: l.qty,
           unitPrice: String(l.unitPrice ?? priceOf(l.productId)),
+          discount: String(l.discount),
+          warehouseId: l.warehouseId ?? null,
           // Copied, not looked up later: this is what it cost to make today.
           unitCost: String(costOf(l.productId)),
           lineKind: l.lineKind, status: "QUEUED",
@@ -583,8 +601,8 @@ export default async function adminRoutes(app: FastifyInstance) {
       payload: { code: order.code, total: tax.total },
     });
     return {
-      id: order.id, code: order.code,
-      subtotal: tax.subtotal, taxTotal: tax.taxTotal, total: tax.total,
+      id: order.id, code: order.code, invoiceNo: order.invoiceNo,
+      subtotal: tax.subtotal, discountTotal, taxTotal: tax.taxTotal, total: tax.total,
     };
   });
 }

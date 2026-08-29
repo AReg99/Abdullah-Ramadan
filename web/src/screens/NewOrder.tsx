@@ -1,12 +1,13 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useApp } from "../app-context";
-import { api, type ProductRow } from "../api";
+import { api, type LocationRow, type ProductRow } from "../api";
 
-type Line = { productId: string; qty: string; unitPrice: string; specNotes: string;
-              lineKind: "STANDARD" | "CUSTOM" };
+type Line = { productId: string; qty: string; unitPrice: string; discount: string;
+              warehouseId: string; specNotes: string; lineKind: "STANDARD" | "CUSTOM" };
 
-const BLANK: Line = { productId: "", qty: "1", unitPrice: "", specNotes: "", lineKind: "STANDARD" };
+const BLANK: Line = { productId: "", qty: "1", unitPrice: "", discount: "",
+                      warehouseId: "", specNotes: "", lineKind: "STANDARD" };
 
 /**
  * Order entry. Confirming an order is the moment the factory gets work: it
@@ -22,18 +23,29 @@ export default function NewOrder() {
   const [promisedDate, setPromisedDate] = useState("");
   const [lines, setLines] = useState<Line[]>([{ ...BLANK }]);
   const [files, setFiles] = useState<File[]>([]);
+  const [stores, setStores] = useState<LocationRow[]>([]);
   const [busy, setBusy] = useState(false);
 
   useEffect(() => { api.products().then(setProducts).catch(() => toast("error")); }, []);
+  // The invoice has to say which store the piece left, and a stock count later
+  // cannot be reconstructed without it.
+  useEffect(() => {
+    api.locations()
+      .then((ls) => setStores(ls.filter((l) => l.type !== "FACTORY")))
+      .catch(() => setStores([]));
+  }, []);
 
   const priceOf = (id: string) => products.find((p) => p.id === id)?.basePrice ?? 0;
   const photosOf = (id: string) => products.find((p) => p.id === id)?.photos ?? [];
   // The catalogue price is a starting point, not the deal. What was actually
   // agreed goes in the box; leaving it blank keeps the list price.
-  const lineTotal = (l: Line) =>
+  const lineGross = (l: Line) =>
     (l.unitPrice.trim() === "" ? priceOf(l.productId) : Number(l.unitPrice) || 0) * (Number(l.qty) || 0);
+  const lineTotal = (l: Line) => lineGross(l) - (Number(l.discount) || 0);
   const total = lines.reduce((s, l) => s + lineTotal(l), 0);
-  const valid = customerName.trim() && lines.some((l) => l.productId && Number(l.qty) > 0);
+  const overdone = lines.some((l) => l.productId && (Number(l.discount) || 0) > lineGross(l));
+  const valid = customerName.trim()
+    && lines.some((l) => l.productId && Number(l.qty) > 0) && !overdone;
 
   const setLine = (i: number, patch: Partial<Line>) =>
     setLines((ls) => ls.map((l, k) => (k === i ? { ...l, ...patch } : l)));
@@ -88,6 +100,22 @@ export default function NewOrder() {
               <option value="CUSTOM">{t("kindCustom")}</option>
             </select>
           </div>
+          <div className="row" style={{ marginTop: 8 }}>
+            {/* In pounds, not percent — that is how it is argued at a counter. */}
+            <input className="mono" inputMode="decimal" placeholder={t("discount")}
+              value={l.discount} onChange={(e) => setLine(i, { discount: e.target.value })}
+              style={{ flex: 1 }} />
+            <select value={l.warehouseId} onChange={(e) => setLine(i, { warehouseId: e.target.value })}
+                    style={{ flex: 1.6 }}>
+              <option value="">{t("pickWarehouse")}</option>
+              {stores.map((w) => (
+                <option key={w.id} value={w.id}>{lang === "ar" ? w.nameAr : w.nameEn}</option>
+              ))}
+            </select>
+          </div>
+          {Number(l.discount) > lineGross(l) && Number(l.discount) > 0 && (
+            <p className="note" style={{ color: "var(--bad)" }}>{t("discount_exceeds_line")}</p>
+          )}
           <input placeholder={t("specNotes")} value={l.specNotes}
             onChange={(e) => setLine(i, { specNotes: e.target.value })} style={{ marginTop: 8 }} />
           {/* Show the customer what they are buying, from the seller's own screen. */}
@@ -146,6 +174,8 @@ export default function NewOrder() {
             lines: lines.filter((l) => l.productId && Number(l.qty) > 0).map((l) => ({
               productId: l.productId, qty: Number(l.qty),
               unitPrice: l.unitPrice.trim() === "" ? undefined : Number(l.unitPrice),
+              discount: Number(l.discount) || 0,
+              warehouseId: l.warehouseId || undefined,
               specNotes: l.specNotes.trim() || undefined, lineKind: l.lineKind,
             })),
           });

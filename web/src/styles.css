@@ -122,6 +122,14 @@ input.mono{font-family:"IBM Plex Mono",monospace}
 .label-txt{display:flex;flex-direction:column;gap:2px;font-size:.76rem;min-width:0}
 .label-txt b{font-size:.84rem}
 .label-txt .muted{color:#666}
+/* Somewhere to write the reason, and somewhere to sign. A voucher printed
+   with no room for either comes back with both scrawled over the total. */
+.voucher-note{border:1px dashed #cfc6bc;border-radius:8px;min-height:64px;
+  margin-top:8px;padding:9px;font-size:.85rem}
+.voucher-signs{display:flex;gap:26px;margin-top:26px}
+.voucher-signs>div{flex:1}
+.sign-line{border-bottom:1px solid #1a1512;height:34px;margin-top:6px}
+
 @media print{
   .top,.nav,.no-print{display:none !important}
   body,.shell{background:#fff;border:0}

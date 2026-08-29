@@ -125,8 +125,18 @@ written at, so an invoice reprinted next year is the invoice that was issued —
 not last year's sale repriced at today's rate. An order written before VAT was
 switched on keeps its total exactly as typed.
 
-The **VAT report** (الضريبة) gives the return in one place: what was charged in
-the period, the invoices behind it, and each one's rate.
+Each purchase invoice carries **the supplier's own rate**, so the tax they
+charged you is recorded as input tax.
+
+The **VAT report** (الضريبة) is the return in one place:
+
+```
+output tax (what you charged)  −  input tax (what suppliers charged you)
+    =  payable
+```
+
+with the sales invoices and the supplier invoices behind each side. A return
+showing only output tax overstates what is actually owed.
 
 ## The printed invoice
 
@@ -183,6 +193,22 @@ Three things it is careful about:
 - **Wages belong to the month worked**, not the day the transfer cleared, so a
   posted month lands on that month's last day.
 
+Each person's month can be adjusted before it is posted — **overtime, a bonus,
+an advance already handed over, a deduction, insurance withheld** — and the net
+updates as you type:
+
+```
+net = salary + overtime + bonus − advance − deduction − insurance
+```
+
+Adjustments live on the month, not on the salary, because next month starts
+clean: an advance taken in July must not quietly repeat in August, which is
+exactly what happens when the only place to put it is the wage itself. Nobody
+is ever paid a negative amount — a person whose advances swallowed the whole
+wage is simply not paid this month, and no empty voucher is written for them.
+Once the month is posted its payslips keep every part, so a payslip can still
+explain itself a year later.
+
 Once posted, the month stops being a view of today's salaries and becomes the
 record: an old month reads back as it was paid.
 
@@ -199,6 +225,72 @@ is always wrong. Three things are on the cash box tab:
 - **Opening balance** — what was in the account the day you started using the
   system. It is the one figure nothing else can derive, because the business
   existed before the software did.
+
+## The documents
+
+Four printed documents, all laid out in the browser so a phone can make a PDF
+of any of them — **Print → Save as PDF** — and a shop printer produces the same
+page.
+
+| Document | Carries |
+| --- | --- |
+| **فاتورة المبيعات** — sales invoice | Its own number, the date, the customer, and per line: the item, **the store it came out of**, quantity, unit price, discount, line total. Then the discount total, VAT if any, the grand total, what has been paid and what is left, and every receipt against it. |
+| **فاتورة المشتريات** — purchase invoice | The supplier, their invoice number, the date, the store that took the goods in, and per line: the item, quantity, price, discount. Then the invoice-level discount, the supplier's VAT, the total, and every payment against it. |
+| **سند قبض** — receipt voucher | Its own number, the date, the customer, the amount, the settlement discount, what was settled in total, how it was paid, which account it went into, what it was against, a bordered box for a note, and two signature lines. |
+| **سند صرف** — payment voucher | The same, with the supplier's name instead of the customer's. |
+
+A voucher opens automatically the moment you take or make a payment, which is
+when somebody is standing there waiting to sign it. Every row in the reports
+also links to its own document.
+
+### Document numbers
+
+Sales invoices, receipts and payments each have their own series
+(`INV-2026-0001`, `RV-…`, `PV-…`), with the prefixes configurable. Numbers come
+from a counter incremented inside a transaction, not from counting rows: two
+people invoicing in the same second would otherwise be handed the same number,
+and deleting anything would silently make the series repeat.
+
+The order code (`AUR-2026-0400`) still exists and still prints. The two answer
+to different people — the code is how the factory talks about the job, the
+number is what the tax authority counts.
+
+## Discounts
+
+A discount is entered **in pounds, not percent**, because that is how it is
+argued across a counter. There are three places one can appear, and they are
+different things:
+
+- **Per line, on an order.** Comes off before tax, prints on the invoice as its
+  own column and as a total. More off than the line is worth is refused.
+- **On a purchase invoice**, at invoice level, before the supplier's tax.
+- **On a voucher — a settlement discount.** A customer who owes 10,000 and
+  hands over 9,500 by agreement has settled. The 500 closes the balance rather
+  than sitting for ever as a debt nobody intends to chase. Reversing the
+  receipt takes the discount back too.
+
+## Stores
+
+Every sales line can name the store the piece came out of, and every purchase
+invoice the store that took the goods in. The invoice is asked to say, and a
+stock count later cannot be reconstructed without it. Stores are added in
+Setup → Staff alongside showrooms.
+
+## The owner's summary
+
+One screen answering "how are we doing", which otherwise means opening five
+tabs and holding four numbers in your head:
+
+- **Net position** — what is in the accounts, plus what customers owe, less
+  what you owe suppliers. The one number an owner actually asks for.
+- **The month** — sales, cost of goods, expenses, profit, and what was
+  collected.
+- **Every account's balance**, with anything negative shown in red: a drawer
+  cannot really hold less than nothing, so a negative one means something was
+  posted that never happened, or in the wrong order.
+- **The names behind the numbers** — biggest debts, oldest debts, biggest
+  supplier balances — each linking straight to the order or bill. A total with
+  nobody attached to it cannot be acted on.
 
 ## Who may do what
 
@@ -220,12 +312,13 @@ structure is not leaked by the error message.
 
 ## Still not built
 
-- **Input VAT on purchases.** The sales side is complete. Reclaiming the tax on
-  what you buy needs the tax to be recorded on each supplier bill, which means
-  the purchase invoice needs its own rate field.
-- **An invoice numbering series separate from the order code.** Today the order
-  code is the invoice number. Egyptian e-invoicing has its own rules about
-  sequence, and inventing one before reading them would be worse than using the
-  code you already recognise.
-- **Payroll beyond a flat monthly wage** — overtime, advances, deductions,
-  social insurance. What is there pays a fixed salary correctly.
+- **Stock quantities.** A line names the store it came out of, but nothing
+  counts what is in that store. Real stock control means opening balances per
+  item, movements in and out, and a stocktake — a module of its own rather than
+  a field.
+- **Egyptian e-invoicing submission.** The invoice has its own number series and
+  carries what a tax invoice needs. Sending it to the ETA portal is a separate
+  integration with its own credentials and signing.
+- **A negative account is flagged, not blocked.** Refusing the entry would
+  break back-dating history, where a payment is often typed before the receipt
+  that funded it. It shows in red instead.

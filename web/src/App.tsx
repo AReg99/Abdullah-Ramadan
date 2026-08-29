@@ -20,6 +20,9 @@ import Account from "./screens/Account";
 import Track from "./screens/Track";
 import Invoice from "./screens/Invoice";
 import Payroll from "./screens/Payroll";
+import Voucher from "./screens/Voucher";
+import PurchaseDoc from "./screens/PurchaseDoc";
+import Summary from "./screens/Summary";
 import Money from "./screens/Money";
 import { onSyncChange, queued } from "./outbox";
 import { startSyncLoop } from "./sync";
@@ -36,6 +39,7 @@ type Tab = [string, string, string];
  */
 const NAVS: Record<string, Tab[]> = {
   OWNER: [
+    ["/summary", "◈", "summary"],
     ["/today", "◧", "today"], ["/floor", "▦", "floor"], ["/dispatch", "⇥", "dispatch"],
     ["/showroom", "⌂", "showroom"], ["/orders", "▤", "orders"], ["/new-order", "✎", "newOrder"],
     ["/labels", "⌗", "labels"], ["/money", "₤", "money"], ["/payroll", "☰", "payroll"],
@@ -62,7 +66,8 @@ const NAVS: Record<string, Tab[]> = {
   // Not the ops dashboard — that is guarded to production roles, and pointing
   // the accountant at it landed them on a 403 the moment they signed in.
   // The books are the whole job: the cash box, the invoices, what is owed.
-  ACCOUNTANT: [["/money", "₤", "money"], ["/payroll", "☰", "payroll"], ["/orders", "▤", "orders"]],
+  ACCOUNTANT: [["/summary", "◈", "summary"], ["/money", "₤", "money"],
+               ["/payroll", "☰", "payroll"], ["/orders", "▤", "orders"]],
   // QC stands at a station like a leader does, so they get the floor tabs.
   QC: [["/work", "▤", "work"], ["/scan", "⌗", "scan"], ["/myday", "◔", "myday"]],
 };
@@ -122,6 +127,9 @@ export default function App() {
           <Route path="/track/:id" element={<Track />} />
           <Route path="/invoice/:id" element={<Invoice />} />
           <Route path="/payroll" element={<Payroll />} />
+          <Route path="/voucher/:id" element={<Voucher />} />
+          <Route path="/purchase/:id" element={<PurchaseDoc />} />
+          <Route path="/summary" element={<Summary />} />
           <Route path="/money" element={<Money />} />
           <Route path="/dispatch" element={<Dispatch />} />
           <Route path="/showroom" element={<Showroom />} />
