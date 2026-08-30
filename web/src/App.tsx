@@ -28,6 +28,7 @@ import Attendance from "./screens/Attendance";
 import Inspect from "./screens/Inspect";
 import Run from "./screens/Run";
 import Quality from "./screens/Quality";
+import Purchasing from "./screens/Purchasing";
 import Money from "./screens/Money";
 import { onSyncChange, queued } from "./outbox";
 import { startSyncLoop } from "./sync";
@@ -49,7 +50,8 @@ const NAVS: Record<string, Tab[]> = {
     ["/showroom", "⌂", "showroom"], ["/orders", "▤", "orders"], ["/new-order", "✎", "newOrder"],
     ["/labels", "⌗", "labels"], ["/stock", "▥", "stock"], ["/money", "₤", "money"],
     ["/attendance", "✓", "attendance"], ["/payroll", "☰", "payroll"],
-    ["/quality", "◎", "quality"], ["/run", "⇢", "run"], ["/setup", "⚙", "setup"],
+    ["/quality", "◎", "quality"], ["/run", "⇢", "run"],
+    ["/purchasing", "⇩", "purchasing"], ["/setup", "⚙", "setup"],
   ],
   // Runs the factory. Not the business: setup and order entry are the owner's,
   // and the showroom's, and money never appears on these screens.
@@ -57,14 +59,16 @@ const NAVS: Record<string, Tab[]> = {
     ["/today", "◧", "today"], ["/floor", "▦", "floor"], ["/dispatch", "⇥", "dispatch"],
     ["/orders", "▤", "orders"], ["/labels", "⌗", "labels"], ["/stock", "▥", "stock"],
     ["/attendance", "✓", "attendance"], ["/quality", "◎", "quality"],
-    ["/setup", "⚙", "setup"],
+    ["/purchasing", "⇩", "purchasing"], ["/setup", "⚙", "setup"],
   ],
   SUPERVISOR: [
     ["/today", "◧", "today"], ["/floor", "▦", "floor"], ["/dispatch", "⇥", "dispatch"],
     ["/orders", "▤", "orders"], ["/labels", "⌗", "labels"],
     ["/attendance", "✓", "attendance"], ["/quality", "◎", "quality"],
+    ["/purchasing", "⇩", "purchasing"],
   ],
   STOREKEEPER: [["/dispatch", "⇥", "dispatch"], ["/stock", "▥", "stock"],
+                ["/purchasing", "⇩", "purchasing"],
                 ["/labels", "⌗", "labels"], ["/orders", "▤", "orders"]],
   SHOWROOM_MANAGER: [["/showroom", "⌂", "showroom"], ["/run", "⇢", "run"],
                      ["/orders", "▤", "orders"], ["/new-order", "✎", "newOrder"],
@@ -79,7 +83,8 @@ const NAVS: Record<string, Tab[]> = {
   // The books are the whole job: the cash box, the invoices, what is owed.
   ACCOUNTANT: [["/summary", "◈", "summary"], ["/money", "₤", "money"],
                ["/payroll", "☰", "payroll"], ["/attendance", "✓", "attendance"],
-               ["/stock", "▥", "stock"], ["/orders", "▤", "orders"]],
+               ["/stock", "▥", "stock"], ["/purchasing", "⇩", "purchasing"],
+               ["/orders", "▤", "orders"]],
   // QC stands at a station like a leader does, so they get the floor tabs.
   QC: [["/work", "▤", "work"], ["/scan", "⌗", "scan"],
        ["/quality", "◎", "quality"], ["/myday", "◔", "myday"]],
@@ -147,6 +152,7 @@ export default function App() {
           <Route path="/attendance" element={<Attendance />} />
           <Route path="/inspect/:id" element={<Inspect />} />
           <Route path="/quality" element={<Quality />} />
+          <Route path="/purchasing" element={<Purchasing />} />
           <Route path="/run" element={<Run />} />
           <Route path="/money" element={<Money />} />
           <Route path="/dispatch" element={<Dispatch />} />

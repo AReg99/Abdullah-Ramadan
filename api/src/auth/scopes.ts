@@ -98,19 +98,31 @@ export const STOCK_ADMIN = ["OWNER", "FACTORY_MANAGER", "ACCOUNTANT"];
  * there, the accountant is not. They see the day rates, though, which is why
  * this is not wider still.
  */
+export const ATTENDANCE = ["OWNER", "FACTORY_MANAGER", "SUPERVISOR", "ACCOUNTANT"];
+
 /**
  * Passing or failing a piece. The inspector's own job, plus the people who
  * answer for the floor — a supervisor has to be able to release a piece when
  * the inspector is off.
  */
+export const QUALITY = ["OWNER", "FACTORY_MANAGER", "SUPERVISOR", "QC"];
+
 /**
  * The road. The driver's own job, plus the showroom that answers the phone
  * when a customer asks where their bedroom is.
  */
 export const DELIVERY = ["OWNER", "DRIVER", "SHOWROOM_MANAGER", "SALES_REP"];
 
-export const QUALITY = ["OWNER", "FACTORY_MANAGER", "SUPERVISOR", "QC"];
+/**
+ * Asking for materials, and seeing what is on order. Deliberately wide: the
+ * storekeeper and the floor are the people who know what is running out, and a
+ * request only they may raise is a request that gets shouted across a yard
+ * instead.
+ */
+export const PURCHASING = ["OWNER", "FACTORY_MANAGER", "SUPERVISOR",
+                           "STOREKEEPER", "ACCOUNTANT"];
 
-export const ATTENDANCE = ["OWNER", "FACTORY_MANAGER", "SUPERVISOR", "ACCOUNTANT"];
+/** Approving one. Money, so it stops with the owner. */
+export const PURCHASE_APPROVE = ["OWNER"];
 
 export const seesMoney = (roleKey: string) => MONEY.includes(roleKey);

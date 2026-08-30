@@ -160,7 +160,8 @@ export const api = {
   suppliers: () => req<{ id: string; name: string; phone: string | null }[]>("/money/suppliers"),
   addSupplier: (b: { name: string; phone?: string }) =>
     req<any>("/money/suppliers", { method: "POST", body: JSON.stringify(b) }),
-  addPurchase: (b: { supplierId: string; number: string; issuedOn: string; warehouseId?: string;
+  addPurchase: (b: { supplierId: string; purchaseOrderId?: string; number: string;
+                     issuedOn: string; warehouseId?: string;
                      taxRate?: number; discount?: number; amount?: number; note?: string;
                      lines?: { description: string; qty: number; unitPrice: number;
                                discount?: number; warehouseId?: string }[] }) =>
@@ -199,6 +200,32 @@ export const api = {
   saveSettings: (b: Record<string, string>) =>
     req<Record<string, string>>("/settings", { method: "PUT", body: JSON.stringify(b) }),
   invoice: (id: string) => req<Invoice>(`/orders/${id}/invoice`),
+
+  // ---- purchasing ----
+  purchaseRequests: (status?: string) =>
+    req<PurchaseRequest[]>(`/purchasing/requests${status ? `?status=${status}` : ""}`),
+  purchaseRequest: (id: string) => req<PurchaseRequest>(`/purchasing/requests/${id}`),
+  addPurchaseRequest: (b: { warehouseId?: string; neededBy?: string; note?: string;
+                            lines: { stockItemId: string; qty: number; note?: string }[] }) =>
+    req<PurchaseRequest>("/purchasing/requests", { method: "POST", body: JSON.stringify(b) }),
+  decideRequest: (id: string, b: { approve: boolean; note?: string }) =>
+    req<any>(`/purchasing/requests/${id}/decide`, { method: "POST", body: JSON.stringify(b) }),
+  purchaseOrders: (status?: string) =>
+    req<PurchaseOrder[]>(`/purchasing/orders${status ? `?status=${status}` : ""}`),
+  purchaseOrder: (id: string) => req<PurchaseOrder>(`/purchasing/orders/${id}`),
+  addPurchaseOrder: (b: { supplierId: string; requestId?: string; warehouseId?: string;
+                          expectedOn?: string; note?: string;
+                          lines: { stockItemId: string; qty: number; unitPrice: number }[] }) =>
+    req<PurchaseOrder>("/purchasing/orders", { method: "POST", body: JSON.stringify(b) }),
+  cancelPurchaseOrder: (id: string) =>
+    req<any>(`/purchasing/orders/${id}/cancel`, { method: "POST" }),
+  receiveOrder: (id: string, b: { warehouseId?: string; note?: string;
+                                  lines: { orderLineId: string; qty: number; batch?: string }[] }) =>
+    req<{ receipt: { id: string; number: string }; order: PurchaseOrder }>(
+      `/purchasing/orders/${id}/receive`, { method: "POST", body: JSON.stringify(b) }),
+  threeWayMatch: (id: string) => req<ThreeWayMatch>(`/purchasing/orders/${id}/match`),
+  goodsReceipts: () => req<GoodsReceipt[]>("/purchasing/receipts"),
+  buySuggestions: () => req<BuySuggestions>("/purchasing/suggest"),
 
   // ---- the road ----
   deliveryRun: () => req<DeliveryRun>("/delivery/run"),
@@ -425,6 +452,48 @@ export type Summary = {
   lowStock: { id: string; name: string; unit: string; onHand: number;
               reorderLevel: number; value: number }[];
   byExpense: Record<string, number>;
+};
+export type PurchaseRequest = {
+  id: string; number: string; status: string;
+  warehouse: string | null; warehouseId: string | null;
+  neededBy: string | null; note: string | null;
+  requestedBy: string | null; decidedBy: string | null;
+  decidedAt: string | null; decisionNote: string | null; createdAt: string;
+  orders: { id: string; number: string }[];
+  lines: { id: string; stockItemId: string; item: string; sku: string;
+           unit: string; qty: number; note: string | null }[];
+};
+export type PurchaseOrder = {
+  id: string; number: string; status: string;
+  supplier: string | null; supplierId: string;
+  warehouse: string | null; warehouseId: string | null;
+  requestNumber: string | null; expectedOn: string | null; note: string | null;
+  by: string | null; createdAt: string; total: number;
+  lines: { id: string; stockItemId: string; item: string; sku: string; unit: string;
+           qty: number; received: number; outstanding: number;
+           unitPrice: number; lineTotal: number; note: string | null }[];
+  receipts: { id: string; number: string; receivedOn: string }[];
+  invoices: { id: string; number: string; amount: number }[];
+};
+export type GoodsReceipt = {
+  id: string; number: string; receivedOn: string;
+  order: { id: string; number: string };
+  supplier: string; warehouse: string; by: string | null; note: string | null;
+  lines: { item: string; unit: string; qty: number; batch: string | null }[];
+};
+export type ThreeWayMatch = {
+  order: { id: string; number: string; status: string; supplier: string };
+  lines: { item: string; sku: string; unit: string; ordered: number; received: number;
+           shortfall: number; unitPrice: number; orderedValue: number; receivedValue: number }[];
+  totals: { ordered: number; received: number; billed: number; gap: number };
+  invoices: { id: string; number: string; date: string; amount: number }[];
+  verdict: { fullyReceived: boolean; billedMoreThanArrived: boolean; notYetBilled: boolean };
+};
+export type BuySuggestions = {
+  totals: { items: number; value: number };
+  rows: { id: string; sku: string; name: string; unit: string; onHand: number;
+          committed: number; onOrder: number; reorderLevel: number;
+          suggest: number; unitCost: number }[];
 };
 export type DeliveryStop = {
   id: string; status: string; qty: number; retry?: boolean;

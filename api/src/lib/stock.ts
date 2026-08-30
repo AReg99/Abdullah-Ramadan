@@ -66,6 +66,10 @@ export async function receiveOnPurchase(purchaseInvoiceId: string, actorId?: str
     include: { lines: true },
   });
   if (!inv) return { moved: 0 };
+  // Goods on a purchase order came in on a goods receipt, when somebody
+  // actually counted them off the van. Shelving them again here would double
+  // every delivery that went through the proper cycle.
+  if (inv.purchaseOrderId) return { moved: 0, why: "received_on_grn" as const };
 
   let moved = 0;
   for (const l of inv.lines) {

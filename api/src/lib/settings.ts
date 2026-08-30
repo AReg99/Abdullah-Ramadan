@@ -41,6 +41,14 @@ export const DEFAULTS = {
    * Businesses genuinely disagree about which is honest, so it is a choice.
    */
   "stock.valuation": "CURRENT",
+  /**
+   * Document prefixes for the purchasing cycle. Named goodsReceipt rather than
+   * receipt because series.receipt is already the money receipt voucher, and
+   * reusing it would have silently renamed every RV to a GRN.
+   */
+  "series.request": "PR",
+  "series.order": "PO",
+  "series.goodsReceipt": "GRN",
 } as const;
 
 export type SettingKey = keyof typeof DEFAULTS;

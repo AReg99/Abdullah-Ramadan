@@ -391,6 +391,8 @@ export default async function moneyRoutes(app: FastifyInstance) {
   app.post("/money/purchases", { preHandler: guard(BOOKS) }, async (req, reply) => {
     const b = z.object({
       supplierId: z.string(),
+      /** The order this bills, where there was one — what makes a match possible. */
+      purchaseOrderId: z.string().optional(),
       number: z.string().min(1).max(60),
       issuedOn: z.string().datetime(),
       warehouseId: z.string().optional(),
@@ -418,6 +420,15 @@ export default async function moneyRoutes(app: FastifyInstance) {
     if (!(await db.supplier.findUnique({ where: { id: b.supplierId } }))) {
       return reply.code(404).send({ error: "supplier_not_found" });
     }
+    if (b.purchaseOrderId) {
+      const po = await db.purchaseOrder.findUnique({ where: { id: b.purchaseOrderId } });
+      if (!po) return reply.code(404).send({ error: "order_not_found" });
+      // A bill from one supplier against another's order is either a mistake
+      // or worse, and it would quietly pass the three-way match.
+      if (po.supplierId !== b.supplierId) {
+        return reply.code(400).send({ error: "supplier_mismatch" });
+      }
+    }
     // The same supplier cannot bill the same number twice; catching it here
     // stops the duplicate that gets paid a second time a month later.
     if (await db.purchaseInvoice.findFirst({
@@ -434,6 +445,7 @@ export default async function moneyRoutes(app: FastifyInstance) {
     const invoice = await db.purchaseInvoice.create({
       data: {
         supplierId: b.supplierId, number: b.number, issuedOn: new Date(b.issuedOn),
+        purchaseOrderId: b.purchaseOrderId ?? null,
         warehouseId: b.warehouseId ?? null,
         subtotal: String(subtotal), discount: String(b.discount),
         taxRate: String(b.taxRate), taxTotal: String(taxTotal),

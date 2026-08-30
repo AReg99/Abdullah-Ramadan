@@ -86,6 +86,7 @@ web/   React + Vite — worker app and owner console, RTL-first
 | [13 — Attendance & wages](docs/13-attendance-and-wages.md) | The register, weekly pay by days worked, monthly pay for the office |
 | [14 — Quality](docs/14-quality.md) | The inspection gate, rework and scrap, where faults come from |
 | [15 — Delivery](docs/15-delivery.md) | The driver's run, proof of delivery, failed visits |
+| [16 — Purchasing](docs/16-purchasing.md) | What to buy, the request, the order, the goods receipt, the three-way match |
 | [**User guide**](docs/guide/README.md) | How to actually use the app, one short guide per role, in Arabic and English |
 
 ## Design principles

@@ -117,6 +117,10 @@ model User {
   attendanceTaken Attendance[]    @relation("AttendanceAuthor")
   inspections   Inspection[]      @relation("InspectionAuthor")
   deliveries    DeliveryAttempt[] @relation("DeliveryDriver")
+  requested     PurchaseRequest[] @relation("RequestedBy")
+  decided       PurchaseRequest[] @relation("DecidedBy")
+  purchaseOrders PurchaseOrder[]  @relation("PurchaseOrderAuthor")
+  goodsReceipts GoodsReceipt[]    @relation("GoodsReceiptAuthor")
 }
 
 /// A crew working one station under one leader.
@@ -180,8 +184,11 @@ model Location {
   staff     User[]
   soldFrom  OrderLine[]         @relation("LineWarehouse")
   received  PurchaseInvoiceLine[]
-  stock     StockMovement[]
-  stocktakes Stocktake[]
+  stock       StockMovement[]
+  stocktakes  Stocktake[]
+  requests    PurchaseRequest[]
+  purchaseOrders PurchaseOrder[]
+  receipts    GoodsReceipt[]
 }
 
 model Station {
@@ -800,6 +807,21 @@ enum AttendanceStatus {
   ABSENT
 }
 
+enum PurchaseRequestStatus {
+  SUBMITTED
+  APPROVED
+  REJECTED
+  /// Everything on it has been ordered.
+  ORDERED
+}
+
+enum PurchaseOrderStatus {
+  OPEN
+  PART_RECEIVED
+  RECEIVED
+  CANCELLED
+}
+
 enum StockKind {
   /// A catalogue piece sitting in a store.
   PRODUCT
@@ -1053,6 +1075,8 @@ model StockItem {
   movements       StockMovement[]
   stocktakeLines  StocktakeLine[]
   bomLines        BomLine[]
+  requestLines    PurchaseRequestLine[]
+  orderLines      PurchaseOrderLine[]
 }
 
 /// One movement of stock, in or out of one store.
@@ -1135,6 +1159,116 @@ model StocktakeLine {
   @@unique([stocktakeId, itemId])
 }
 
+/// طلب شراء — somebody on the floor saying they need something.
+///
+/// The system used to learn about a purchase from the supplier's invoice, which
+/// is the last possible moment: by then the money is owed, nobody approved it,
+/// and there is nothing to check the delivery against. This is the first
+/// moment instead.
+model PurchaseRequest {
+  id          String                @id @default(uuid())
+  number      String                @unique
+  status      PurchaseRequestStatus @default(SUBMITTED)
+  /// Where it is wanted.
+  warehouseId String?
+  warehouse   Location?             @relation(fields: [warehouseId], references: [id])
+  neededBy    DateTime?
+  note        String?
+  requestedById String?
+  requestedBy   User?               @relation("RequestedBy", fields: [requestedById], references: [id])
+  decidedById   String?
+  decidedBy     User?               @relation("DecidedBy", fields: [decidedById], references: [id])
+  decidedAt     DateTime?
+  /// Why it was turned down. A refusal with no reason gets asked again next week.
+  decisionNote  String?
+  createdAt   DateTime              @default(now())
+
+  lines  PurchaseRequestLine[]
+  orders PurchaseOrder[]
+}
+
+model PurchaseRequestLine {
+  id          String          @id @default(uuid())
+  requestId   String
+  request     PurchaseRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  stockItemId String
+  stockItem   StockItem       @relation(fields: [stockItemId], references: [id])
+  qty         Decimal         @db.Decimal(14, 3)
+  note        String?
+
+  @@unique([requestId, stockItemId])
+}
+
+/// أمر شراء — what was actually ordered, from whom, at what price.
+model PurchaseOrder {
+  id         String              @id @default(uuid())
+  number     String              @unique
+  supplierId String
+  supplier   Supplier            @relation(fields: [supplierId], references: [id])
+  requestId  String?
+  request    PurchaseRequest?    @relation(fields: [requestId], references: [id])
+  status     PurchaseOrderStatus @default(OPEN)
+  warehouseId String?
+  warehouse   Location?          @relation(fields: [warehouseId], references: [id])
+  expectedOn DateTime?
+  note       String?
+  actorId    String?
+  actor      User?               @relation("PurchaseOrderAuthor", fields: [actorId], references: [id])
+  createdAt  DateTime            @default(now())
+
+  lines    PurchaseOrderLine[]
+  receipts GoodsReceipt[]
+  invoices PurchaseInvoice[]
+}
+
+model PurchaseOrderLine {
+  id          String        @id @default(uuid())
+  orderId     String
+  order       PurchaseOrder @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  stockItemId String
+  stockItem   StockItem     @relation(fields: [stockItemId], references: [id])
+  qty         Decimal       @db.Decimal(14, 3)
+  unitPrice   Decimal       @db.Decimal(14, 2)
+  note        String?
+
+  receiptLines GoodsReceiptLine[]
+
+  @@unique([orderId, stockItemId])
+}
+
+/// إذن استلام — what actually turned up.
+///
+/// Kept apart from the invoice on purpose. Without it nothing says what arrived
+/// as opposed to what was billed, so nothing stops the business paying for a
+/// delivery that never came.
+model GoodsReceipt {
+  id          String        @id @default(uuid())
+  number      String        @unique
+  orderId     String
+  order       PurchaseOrder @relation(fields: [orderId], references: [id])
+  warehouseId String
+  warehouse   Location      @relation(fields: [warehouseId], references: [id])
+  receivedOn  DateTime      @default(now())
+  note        String?
+  actorId     String?
+  actor       User?         @relation("GoodsReceiptAuthor", fields: [actorId], references: [id])
+  createdAt   DateTime      @default(now())
+
+  lines GoodsReceiptLine[]
+}
+
+model GoodsReceiptLine {
+  id          String            @id @default(uuid())
+  receiptId   String
+  receipt     GoodsReceipt      @relation(fields: [receiptId], references: [id], onDelete: Cascade)
+  orderLineId String
+  orderLine   PurchaseOrderLine @relation(fields: [orderLineId], references: [id])
+  /// What was counted off the van, which is not always what the note says.
+  qty         Decimal           @db.Decimal(14, 3)
+  batch       String?
+  note        String?
+}
+
 model Supplier {
   id        String   @id @default(uuid())
   name      String
@@ -1145,6 +1279,7 @@ model Supplier {
 
   invoices PurchaseInvoice[]
   entries  CashEntry[]
+  orders   PurchaseOrder[]
 }
 
 /// فاتورة مشتريات — what a supplier billed us.
@@ -1152,6 +1287,10 @@ model PurchaseInvoice {
   id         String   @id @default(uuid())
   supplierId String
   supplier   Supplier @relation(fields: [supplierId], references: [id])
+  /// The purchase order this bills, where there was one. Without it the
+  /// invoice can only be taken on trust.
+  purchaseOrderId String?
+  purchaseOrder   PurchaseOrder? @relation(fields: [purchaseOrderId], references: [id])
   /// The supplier's own invoice number, as printed on their paper.
   number     String
   issuedOn   DateTime
