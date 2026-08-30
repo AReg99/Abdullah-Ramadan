@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useApp } from "../app-context";
-import { api, type LocationRow, type ProductRow } from "../api";
+import { api, ApiError, type Approval, type LocationRow, type MyLimits,
+         type ProductRow } from "../api";
 
 type Line = { productId: string; qty: string; unitPrice: string; discount: string;
               warehouseId: string; specNotes: string; lineKind: "STANDARD" | "CUSTOM" };
@@ -25,8 +26,23 @@ export default function NewOrder() {
   const [files, setFiles] = useState<File[]>([]);
   const [stores, setStores] = useState<LocationRow[]>([]);
   const [busy, setBusy] = useState(false);
+  const [mine, setMine] = useState<MyLimits | null>(null);
+  const [slips, setSlips] = useState<Approval[]>([]);
+  const [using, setUsing] = useState<Approval | null>(null);
+  const [blocked, setBlocked] = useState<
+    { allowed: number; asked: number; limitPct: number } | null>(null);
 
   useEffect(() => { api.products().then(setProducts).catch(() => toast("error")); }, []);
+  // What this person may take off on their own, and any permission already
+  // granted to them and not yet spent. Both are read up front so the rep is
+  // told where the line is rather than finding out at the counter.
+  const loadSlips = () => api.approvals({ mine: true, status: "APPROVED" })
+    .then((a) => setSlips(a.filter((x) => x.kind === "ORDER_DISCOUNT")))
+    .catch(() => setSlips([]));
+  useEffect(() => {
+    api.myLimits().then(setMine).catch(() => setMine(null));
+    void loadSlips();
+  }, []);
   // The invoice has to say which store the piece left, and a stock count later
   // cannot be reconstructed without it.
   useEffect(() => {
@@ -43,6 +59,11 @@ export default function NewOrder() {
     (l.unitPrice.trim() === "" ? priceOf(l.productId) : Number(l.unitPrice) || 0) * (Number(l.qty) || 0);
   const lineTotal = (l: Line) => lineGross(l) - (Number(l.discount) || 0);
   const total = lines.reduce((s, l) => s + lineTotal(l), 0);
+  const grossTotal = lines.reduce((s, l) => s + lineGross(l), 0);
+  const discountTotal = lines.reduce((s, l) => s + (Number(l.discount) || 0), 0);
+  const ceiling = mine?.discountPct == null
+    ? Infinity : Math.round(grossTotal * (mine.discountPct / 100) * 100) / 100;
+  const overCeiling = discountTotal > ceiling + 0.005;
   const overdone = lines.some((l) => l.productId && (Number(l.discount) || 0) > lineGross(l));
   const valid = customerName.trim()
     && lines.some((l) => l.productId && Number(l.qty) > 0) && !overdone;
@@ -161,7 +182,53 @@ export default function NewOrder() {
           <span className="k">{t("total")}</span>
           <span className="big mono" style={{ color: "var(--p)" }}>{total.toLocaleString()}</span>
         </div>
+        {/* Where the line is, before it is crossed. */}
+        {mine?.discountPct != null && discountTotal > 0 && (
+          <p className="note" style={{ color: overCeiling ? "var(--warn)" : undefined }}>
+            {t("youMayTake")} {ceiling.toLocaleString()} ({mine.discountPct}%)
+            {" · "}{t("youAsked")} {discountTotal.toLocaleString()}
+          </p>
+        )}
       </div>
+
+      {/* A permission already granted and not yet spent. */}
+      {slips.length > 0 && !using && overCeiling && (
+        <div className="card">
+          <span className="k">{t("usableApprovals")}</span>
+          {slips.map((a) => (
+            <div className="evt" key={a.id}>
+              <span style={{ flex: 1 }}>
+                <b className="mono">{a.amount.toLocaleString()}</b>
+                <span className="sub">{a.subject}</span>
+              </span>
+              <button className="btn sec sm toggle"
+                      onClick={() => { setUsing(a); setBlocked(null); }}>{t("useApproval")}</button>
+            </div>
+          ))}
+        </div>
+      )}
+      {using && (
+        <div className="card">
+          <div className="between">
+            <span style={{ flex: 1 }}>
+              <span className="k">{t("usingApproval")}</span>
+              <span className="sub mono">{using.number} · {using.amount.toLocaleString()}</span>
+            </span>
+            <button className="chip" onClick={() => setUsing(null)}>{t("clearApproval")}</button>
+          </div>
+        </div>
+      )}
+
+      {blocked && (
+        <AskPanel blocked={blocked} gross={grossTotal}
+                  subject={`${customerName.trim() || t("customer")} — ${
+                    products.find((p) => p.id === lines[0]?.productId)?.nameAr ?? ""}`}
+                  onClose={() => setBlocked(null)}
+                  /* The panel stays up to say the question went — closing it on
+                     send leaves the rep looking at the same refused sale with
+                     no sign anything happened but a toast they may have missed. */
+                  onSent={loadSlips} />
+      )}
 
       <div style={{ height: 12 }} />
       <button className="btn pri" disabled={busy || !valid} onClick={async () => {
@@ -178,6 +245,7 @@ export default function NewOrder() {
               warehouseId: l.warehouseId || undefined,
               specNotes: l.specNotes.trim() || undefined, lineKind: l.lineKind,
             })),
+            approvalId: using?.id,
           });
 
           // The files can only be attached once the order exists. A failure
@@ -193,12 +261,84 @@ export default function NewOrder() {
             : `${t("orderCreated")} ${r.code}`);
           nav(`/orders/${r.id}`);
         } catch (e: any) {
-          toast(e?.code ?? "error");
+          // Not a failure to take the order — a limit, with the figures that
+          // make it actionable. The rep asks from right here.
+          if (e instanceof ApiError && e.code === "discount_needs_approval") {
+            setBlocked({
+              allowed: e.detail.allowed ?? 0,
+              asked: e.detail.asked ?? discountTotal,
+              limitPct: e.detail.limitPct ?? 0,
+            });
+            setUsing(null);
+          }
+          toast(e?.code ? t(e.code) : "error");
         } finally { setBusy(false); }
       }}>
         {t("createOrder")}
       </button>
       <p className="note">{t("createOrderHint")}</p>
     </>
+  );
+}
+
+/**
+ * Asking the owner, without leaving the sale.
+ *
+ * The showroom rings the owner for this already. What was missing was anywhere
+ * for the answer to land — so a concession agreed on the phone had no name
+ * against it, no amount, and nothing stopping the same yes being used again on
+ * the next customer.
+ */
+function AskPanel({ blocked, gross, subject, onClose, onSent }: {
+  blocked: { allowed: number; asked: number; limitPct: number };
+  gross: number; subject: string; onClose: () => void; onSent: () => void;
+}) {
+  const { t, toast } = useApp();
+  const [reason, setReason] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [sent, setSent] = useState(false);
+
+  return (
+    <div className="card" style={{ borderColor: "var(--warn)" }}>
+      <span className="k" style={{ color: "var(--warn)" }}>{t("needsApprovalTitle")}</span>
+      <div className="between" style={{ marginTop: 8 }}>
+        <span className="k">{t("youMayTake")}</span>
+        <b className="mono">{blocked.allowed.toLocaleString()} ({blocked.limitPct}%)</b>
+      </div>
+      <div className="between" style={{ marginTop: 5 }}>
+        <span className="k">{t("youAsked")}</span>
+        <b className="mono" style={{ color: "var(--warn)" }}>{blocked.asked.toLocaleString()}</b>
+      </div>
+
+      {sent ? (
+        <>
+          <p className="note" style={{ color: "var(--ok)" }}>{t("askSent")}</p>
+          <button className="btn sec sm" style={{ marginTop: 8 }} onClick={onClose}>
+            {t("back")}
+          </button>
+        </>
+      ) : (
+        <>
+          <input placeholder={t("approvalReason")} value={reason}
+                 onChange={(e) => setReason(e.target.value)} style={{ marginTop: 10 }} />
+          <div className="row wrap" style={{ marginTop: 9 }}>
+            <button className="btn sec sm toggle" onClick={onClose}>{t("cancel")}</button>
+            <button className="btn pri sm toggle" disabled={busy}
+                    onClick={async () => {
+                      setBusy(true);
+                      try {
+                        await api.askApproval({
+                          kind: "ORDER_DISCOUNT", amount: blocked.asked, gross,
+                          subject: subject.trim() || "—",
+                          reason: reason.trim() || undefined,
+                        });
+                        setSent(true); toast(t("askSent")); onSent();
+                      } catch (e: any) { toast(e?.code ? t(e.code) : "error"); }
+                      finally { setBusy(false); }
+                    }}>{t("askForIt")}</button>
+          </div>
+        </>
+      )}
+    </div>
   );
 }

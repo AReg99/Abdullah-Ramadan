@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
 import { useApp } from "../app-context";
-import { api, type BuySuggestions, type GoodsReceipt, type LocationRow,
-         type PurchaseOrder, type PurchaseRequest, type StockItem,
-         type ThreeWayMatch } from "../api";
+import { api, ApiError, type Approval, type BuySuggestions, type GoodsReceipt,
+         type LocationRow, type MyLimits, type PurchaseOrder, type PurchaseRequest,
+         type StockItem, type ThreeWayMatch } from "../api";
 
 type Tab = "buy" | "requests" | "orders" | "receipts";
 const TABS: Tab[] = ["buy", "requests", "orders", "receipts"];
@@ -526,6 +526,12 @@ function NewOrder({ request, onClose, onDone }: {
   const [expectedOn, setExpectedOn] = useState("");
   const [note, setNote] = useState("");
   const [busy, setBusy] = useState(false);
+  const [mine, setMine] = useState<MyLimits | null>(null);
+  const [slips, setSlips] = useState<Approval[]>([]);
+  const [using, setUsing] = useState<Approval | null>(null);
+  const [blocked, setBlocked] = useState<{ allowed: number; asked: number } | null>(null);
+  const [reason, setReason] = useState("");
+  const [sent, setSent] = useState(false);
   const [lines, setLines] = useState<{ stockItemId: string; qty: string; unitPrice: string }[]>(
     request?.lines.map((l) => ({ stockItemId: l.stockItemId, qty: String(l.qty), unitPrice: "" }))
       ?? [{ stockItemId: "", qty: "", unitPrice: "" }]);
@@ -541,9 +547,16 @@ function NewOrder({ request, onClose, onDone }: {
     }).catch(() => setItems([]));
     api.locations().then(setStores).catch(() => setStores([]));
     api.suppliers().then(setSuppliers).catch(() => setSuppliers([]));
+    api.myLimits().then(setMine).catch(() => setMine(null));
+    void loadSlips();
   }, []);
 
+  const loadSlips = () => api.approvals({ mine: true, status: "APPROVED" })
+    .then((a) => setSlips(a.filter((x) => x.kind === "PURCHASE_ORDER_VALUE")))
+    .catch(() => setSlips([]));
+
   const total = lines.reduce((s, l) => s + (Number(l.qty) || 0) * (Number(l.unitPrice) || 0), 0);
+  const overCeiling = mine?.purchaseCeiling != null && total > mine.purchaseCeiling + 0.005;
   const ready = Boolean(supplierId)
     && lines.every((l) => l.stockItemId && Number(l.qty) > 0 && Number(l.unitPrice) >= 0)
     && new Set(lines.map((l) => l.stockItemId)).size === lines.length;
@@ -607,9 +620,75 @@ function NewOrder({ request, onClose, onDone }: {
 
       <div className="between" style={{ marginTop: 10 }}>
         <span className="k">{t("total")}</span>
-        <b className="mono">{Math.round(total).toLocaleString(ar ? "ar-EG" : "en-GB")}</b>
+        <b className="mono" style={{ color: overCeiling ? "var(--warn)" : undefined }}>
+          {Math.round(total).toLocaleString(ar ? "ar-EG" : "en-GB")}
+        </b>
       </div>
+      {mine?.purchaseCeiling != null && (
+        <p className="note" style={{ color: overCeiling ? "var(--warn)" : undefined }}>
+          {t("youMayTake")} {mine.purchaseCeiling.toLocaleString(ar ? "ar-EG" : "en-GB")}
+        </p>
+      )}
       <p className="note">{t("orderHint")}</p>
+
+      {slips.length > 0 && !using && overCeiling && (
+        <>
+          <span className="k" style={{ marginTop: 10, display: "block" }}>{t("usableApprovals")}</span>
+          {slips.map((a) => (
+            <div className="evt" key={a.id}>
+              <span style={{ flex: 1 }}>
+                <b className="mono">{a.amount.toLocaleString(ar ? "ar-EG" : "en-GB")}</b>
+                <span className="sub">{a.subject}</span>
+              </span>
+              <button className="btn sec sm toggle"
+                      onClick={() => { setUsing(a); setBlocked(null); }}>{t("useApproval")}</button>
+            </div>
+          ))}
+        </>
+      )}
+      {using && (
+        <div className="between" style={{ marginTop: 9 }}>
+          <span className="sub mono">{t("usingApproval")} {using.number}</span>
+          <button className="chip" onClick={() => setUsing(null)}>{t("clearApproval")}</button>
+        </div>
+      )}
+
+      {blocked && (
+        <div className="card" style={{ marginTop: 10, borderColor: "var(--warn)" }}>
+          <span className="k" style={{ color: "var(--warn)" }}>{t("order_needs_approval")}</span>
+          <div className="between" style={{ marginTop: 8 }}>
+            <span className="k">{t("youMayTake")}</span>
+            <b className="mono">{blocked.allowed.toLocaleString(ar ? "ar-EG" : "en-GB")}</b>
+          </div>
+          <div className="between" style={{ marginTop: 5 }}>
+            <span className="k">{t("youAsked")}</span>
+            <b className="mono" style={{ color: "var(--warn)" }}>
+              {blocked.asked.toLocaleString(ar ? "ar-EG" : "en-GB")}
+            </b>
+          </div>
+          {sent ? (
+            <p className="note" style={{ color: "var(--ok)" }}>{t("askSent")}</p>
+          ) : (
+            <>
+              <input placeholder={t("approvalReason")} value={reason}
+                     onChange={(e) => setReason(e.target.value)} style={{ marginTop: 9 }} />
+              <button className="btn pri sm" style={{ marginTop: 9 }} disabled={busy}
+                      onClick={async () => {
+                        setBusy(true);
+                        try {
+                          await api.askApproval({
+                            kind: "PURCHASE_ORDER_VALUE", amount: blocked.asked,
+                            subject: `${suppliers.find((x) => x.id === supplierId)?.name ?? "—"}`,
+                            reason: reason.trim() || undefined,
+                          });
+                          setSent(true); toast(t("askSent")); await loadSlips();
+                        } catch (e: any) { toast(e?.code ? t(e.code) : t("signInFailed")); }
+                        finally { setBusy(false); }
+                      }}>{t("askForIt")}</button>
+            </>
+          )}
+        </div>
+      )}
 
       <div className="row" style={{ marginTop: 10 }}>
         <button className="btn sec sm" onClick={onClose}>{t("cancel")}</button>
@@ -621,14 +700,22 @@ function NewOrder({ request, onClose, onDone }: {
                       supplierId, requestId: request?.id,
                       warehouseId: warehouseId || undefined,
                       expectedOn: expectedOn ? new Date(expectedOn).toISOString() : undefined,
-                      note: note.trim() || undefined,
+                      note: note.trim() || undefined, approvalId: using?.id,
                       lines: lines.map((l) => ({
                         stockItemId: l.stockItemId, qty: Number(l.qty),
                         unitPrice: Number(l.unitPrice) || 0,
                       })),
                     });
                     toast(t("saved")); onDone();
-                  } catch (e: any) { toast(e?.code ? t(e.code) : t("signInFailed")); }
+                  } catch (e: any) {
+                    // A ceiling, not a failure. The figures come back with it
+                    // so the accountant can ask from where they are standing.
+                    if (e instanceof ApiError && e.code === "order_needs_approval") {
+                      setBlocked({ allowed: e.detail.allowed ?? 0, asked: e.detail.asked ?? total });
+                      setUsing(null); setSent(false);
+                    }
+                    toast(e?.code ? t(e.code) : t("signInFailed"));
+                  }
                   finally { setBusy(false); }
                 }}>{t("save")}</button>
       </div>

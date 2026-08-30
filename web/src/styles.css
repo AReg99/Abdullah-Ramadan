@@ -38,7 +38,13 @@ a{color:var(--p)}
 .nav a{flex:1;padding:11px 4px 14px;display:flex;flex-direction:column;align-items:center;gap:4px;
   font-size:.72rem;color:var(--g6);text-decoration:none;min-height:60px}
 .nav a.on{color:var(--p);font-weight:600}
-.nav .ic{font-size:1.15rem;line-height:1}
+.nav .ic{font-size:1.15rem;line-height:1;position:relative}
+/* How many decisions are standing still. An inbox you have to remember to
+   open is one somebody is waiting on all afternoon. */
+.badge{position:absolute;top:-6px;inset-inline-start:100%;margin-inline-start:-6px;
+  min-width:16px;height:16px;padding:0 4px;border-radius:9px;background:var(--bad);
+  color:#fff;font-family:"IBM Plex Mono",monospace;font-size:.6rem;font-weight:700;
+  line-height:16px;text-align:center}
 
 .card{background:var(--g1);border:1px solid var(--g3);border-radius:var(--rl);padding:15px}
 .card+.card{margin-top:11px}

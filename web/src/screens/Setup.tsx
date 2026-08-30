@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
 import { useApp } from "../app-context";
-import { api, type GroupRow, type LocationRow, type PersonRow, type ProductPhoto, type ProductRow, type Station } from "../api";
+import { api, type GroupRow, type LocationRow, type PersonRow, type ProductPhoto,
+         type ProductRow, type RoleLimitRow, type Station } from "../api";
 
-type Tab = "crews" | "staff" | "products" | "company";
+type Tab = "crews" | "staff" | "products" | "company" | "limits";
 
 /**
  * Where the business puts its own people and catalogue in.
@@ -72,8 +73,12 @@ export default function Setup() {
                   onClick={() => setTab("products")}>{t("productsTab")}</button>
         )}
         {owner && (
-          <button className={`btn sm ${tab === "company" ? "pri" : "sec"}`}
-                  onClick={() => setTab("company")}>{t("companyTab")}</button>
+          <>
+            <button className={`btn sm ${tab === "company" ? "pri" : "sec"}`}
+                    onClick={() => setTab("company")}>{t("companyTab")}</button>
+            <button className={`btn sm ${tab === "limits" ? "pri" : "sec"}`}
+                    onClick={() => setTab("limits")}>{t("limitsTab")}</button>
+          </>
         )}
       </div>
 
@@ -83,6 +88,7 @@ export default function Setup() {
                                  roles={roles} busy={busy} run={run} nm={nm} />}
       {tab === "products" && catalogue && <Products products={products} cats={cats} busy={busy} run={run} nm={nm} />}
       {tab === "company" && owner && <Company />}
+      {tab === "limits" && owner && <Limits />}
     </>
   );
 }
@@ -748,5 +754,99 @@ function SalaryEditor({ person, busy, run }: any) {
       </button>
       <button className="btn sec sm" onClick={() => setOpen(false)}>{t("cancel")}</button>
     </span>
+  );
+}
+
+/**
+ * الحدود — what each role may do without asking.
+ *
+ * The screen has to be able to say **no limit** as distinct from **none
+ * allowed**, because they are opposite instructions and the shipped state is
+ * the first one. A form that can only hold a number would quietly turn "we
+ * have never thought about this" into "you may not discount anything", the
+ * morning after an upgrade.
+ */
+function Limits() {
+  const { t, lang, toast } = useApp();
+  const ar = lang === "ar";
+  const [rows, setRows] = useState<RoleLimitRow[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const load = async () => {
+    setLoading(true);
+    try { setRows(await api.limits()); }
+    catch { setRows([]); }
+    finally { setLoading(false); }
+  };
+  useEffect(() => { void load(); }, []);
+
+  if (loading) return <div className="empty">{t("loading")}</div>;
+
+  return (
+    <>
+      <p className="note">{t("limitsHint")}</p>
+      {rows.filter((r) => r.sells || r.buys).map((r) => (
+        <RoleCard key={r.role} r={r} ar={ar} t={t} toast={toast} onDone={load} />
+      ))}
+    </>
+  );
+}
+
+function RoleCard({ r, ar, t, toast, onDone }: {
+  r: RoleLimitRow; ar: boolean; t: (k: any) => string;
+  toast: (m: string) => void; onDone: () => void;
+}) {
+  const [disc, setDisc] = useState(r.discountPct == null ? "" : String(r.discountPct));
+  const [buy, setBuy] = useState(r.purchaseCeiling == null ? "" : String(r.purchaseCeiling));
+  const [busy, setBusy] = useState(false);
+
+  // An empty box means no ceiling; a zero means none allowed. The difference
+  // is the whole point, so it is carried right through to the request.
+  const asLimit = (v: string) => (v.trim() === "" ? null : Number(v));
+  const dirty = (r.discountPct == null ? "" : String(r.discountPct)) !== disc
+             || (r.purchaseCeiling == null ? "" : String(r.purchaseCeiling)) !== buy;
+
+  return (
+    <div className="card">
+      <div className="between">
+        <span style={{ flex: 1 }}>
+          <span className="nm">{ar ? r.nameAr : r.nameEn}</span>
+          <span className="sub mono">{r.role}</span>
+        </span>
+      </div>
+
+      {r.sells && (
+        <>
+          <span className="k" style={{ marginTop: 10, display: "block" }}>{t("discountCeiling")}</span>
+          <input className="mono" inputMode="decimal" placeholder={t("noCeiling")}
+                 value={disc} onChange={(e) => setDisc(e.target.value)} style={{ marginTop: 6 }} />
+          <p className="note">{t("discountCeilingHint")}</p>
+        </>
+      )}
+
+      {r.buys && (
+        <>
+          <span className="k" style={{ marginTop: 10, display: "block" }}>{t("purchaseCeiling")}</span>
+          <input className="mono" inputMode="decimal" placeholder={t("noCeiling")}
+                 value={buy} onChange={(e) => setBuy(e.target.value)} style={{ marginTop: 6 }} />
+          <p className="note">{t("purchaseCeilingHint")}</p>
+        </>
+      )}
+
+      {dirty && (
+        <button className="btn pri sm" style={{ marginTop: 10 }} disabled={busy}
+                onClick={async () => {
+                  setBusy(true);
+                  try {
+                    await api.saveLimit(r.role, {
+                      ...(r.sells ? { discountPct: asLimit(disc) } : {}),
+                      ...(r.buys ? { purchaseCeiling: asLimit(buy) } : {}),
+                    });
+                    toast(t("saved")); onDone();
+                  } catch (e: any) { toast(e?.code ? t(e.code) : "error"); }
+                  finally { setBusy(false); }
+                }}>{t("save")}</button>
+      )}
+    </div>
   );
 }

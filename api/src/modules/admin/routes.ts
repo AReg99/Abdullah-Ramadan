@@ -8,6 +8,7 @@ import { BOOKS, CATALOGUE, SELL, SETUP, STAFF_ADMIN, canGrant, grantableBy } fro
 import { record } from "../../lib/events.js";
 import { applyVat, vatPolicy } from "../../lib/settings.js";
 import { nextNumber } from "../../lib/sequence.js";
+import { checkDiscount, claimApproval } from "../../lib/limits.js";
 import { discard, isAllowed, readUpload, storeFile } from "../../lib/uploads.js";
 
 /**
@@ -511,6 +512,11 @@ export default async function adminRoutes(app: FastifyInstance) {
         specNotes: z.string().optional(),
         lineKind: z.enum(["STANDARD", "CUSTOM"]).default("STANDARD"),
       })).min(1),
+      /**
+       * A permission slip for a discount above this person's ceiling, where
+       * one was needed and granted.
+       */
+      approvalId: z.string().optional(),
     }).parse(req.body);
 
     if (!b.customerId && !b.customerName) {
@@ -551,6 +557,35 @@ export default async function adminRoutes(app: FastifyInstance) {
     if (overdone) return reply.code(400).send({ error: "discount_exceeds_line" });
     const discountTotal = b.lines.reduce((s, l) => s + l.discount, 0);
     const lineTotal = b.lines.reduce((sum, l) => sum + gross(l) - l.discount, 0);
+
+    /**
+     * How much this person may take off on their own.
+     *
+     * Refusing the sale outright would leave a rep arguing with a customer
+     * over a screen, so the answer names the ceiling and what was asked, and
+     * the showroom raises a request the owner can answer from their phone.
+     * Until a limit is set for the role, nothing here bites at all.
+     */
+    const grossTotal = b.lines.reduce((s, l) => s + gross(l), 0);
+    const allowance = await checkDiscount((req as any).user.role.key, grossTotal, discountTotal);
+    let approval: { id: string } | null = null;
+    if (!allowance.ok) {
+      if (!b.approvalId) {
+        return reply.code(409).send({
+          error: "discount_needs_approval",
+          limitPct: allowance.limitPct,
+          allowed: allowance.allowed,
+          asked: allowance.asked,
+          gross: Math.round(grossTotal * 100) / 100,
+        });
+      }
+      const claim = await claimApproval({
+        id: b.approvalId, kind: "ORDER_DISCOUNT",
+        amount: discountTotal, actorId: (req as any).user.id,
+      });
+      if (!claim.ok) return reply.code(409).send(claim);
+      approval = { id: claim.approval.id };
+    }
     // Resolved once, here, so the order carries the rate it was written at.
     const tax = applyVat(lineTotal, await vatPolicy());
     const anyCustom = b.lines.some((l) => l.lineKind === "CUSTOM");
@@ -572,6 +607,15 @@ export default async function adminRoutes(app: FastifyInstance) {
         trackingToken: randomUUID(),
       },
     });
+
+    if (approval) {
+      // Spent only now the order exists. Consuming it earlier would burn a
+      // permission the showroom still needs if the write fails.
+      await db.approval.update({
+        where: { id: approval.id },
+        data: { status: "USED", usedAt: new Date(), orderId: order.id },
+      });
+    }
 
     let woSeq = (await db.workOrder.count()) + 1;
     for (const l of b.lines) {

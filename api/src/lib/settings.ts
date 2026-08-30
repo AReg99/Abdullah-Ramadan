@@ -49,6 +49,7 @@ export const DEFAULTS = {
   "series.request": "PR",
   "series.order": "PO",
   "series.goodsReceipt": "GRN",
+  "series.approval": "APR",
 } as const;
 
 export type SettingKey = keyof typeof DEFAULTS;

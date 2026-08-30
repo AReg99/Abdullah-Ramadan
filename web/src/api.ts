@@ -7,7 +7,19 @@ export const token = {
 };
 
 export class ApiError extends Error {
-  constructor(public status: number, public code: string) {
+  constructor(
+    public status: number,
+    public code: string,
+    /**
+     * The rest of the server's answer.
+     *
+     * A refusal often carries the numbers that make it actionable — the
+     * ceiling that was hit, what was asked, what is still outstanding — and
+     * throwing away everything but the code leaves the screen able to say
+     * only "no".
+     */
+    public detail: Record<string, any> = {},
+  ) {
     super(code);
   }
 }
@@ -20,9 +32,13 @@ async function req<T>(path: string, init: RequestInit = {}): Promise<T> {
   const res = await fetch(`/api${path}`, { ...init, headers });
   if (!res.ok) {
     let code = String(res.status);
-    try { code = (await res.json()).error ?? code; } catch {}
+    let detail: Record<string, any> = {};
+    try {
+      detail = await res.json();
+      code = detail.error ?? code;
+    } catch {}
     if (res.status === 401) token.clear();
-    throw new ApiError(res.status, code);
+    throw new ApiError(res.status, code, detail);
   }
   return res.status === 204 ? (undefined as T) : res.json();
 }
@@ -201,6 +217,24 @@ export const api = {
     req<Record<string, string>>("/settings", { method: "PUT", body: JSON.stringify(b) }),
   invoice: (id: string) => req<Invoice>(`/orders/${id}/invoice`),
 
+  // ---- limits & approvals ----
+  myLimits: () => req<MyLimits>("/limits/mine"),
+  limits: () => req<RoleLimitRow[]>("/limits"),
+  saveLimit: (role: string, b: { discountPct?: number | null; purchaseCeiling?: number | null }) =>
+    req<RoleLimitRow>(`/limits/${role}`, { method: "PUT", body: JSON.stringify(b) }),
+  approvals: (q?: { status?: string; mine?: boolean }) =>
+    req<Approval[]>(`/approvals${q?.status || q?.mine
+      ? `?${new URLSearchParams({ ...(q.status ? { status: q.status } : {}),
+                                  ...(q.mine ? { mine: "1" } : {}) })}` : ""}`),
+  askApproval: (b: { kind: "ORDER_DISCOUNT" | "PURCHASE_ORDER_VALUE"; amount: number;
+                     gross?: number; subject: string; reason?: string }) =>
+    req<Approval>("/approvals", { method: "POST", body: JSON.stringify(b) }),
+  decideApproval: (id: string, b: { approve: boolean; amount?: number; note?: string }) =>
+    req<Approval>(`/approvals/${id}/decide`, { method: "POST", body: JSON.stringify(b) }),
+  cancelApproval: (id: string) => req<any>(`/approvals/${id}/cancel`, { method: "POST" }),
+  waiting: () => req<{ approvals: number; purchaseRequests: number; total: number }>(
+    "/approvals/waiting"),
+
   // ---- purchasing ----
   purchaseRequests: (status?: string) =>
     req<PurchaseRequest[]>(`/purchasing/requests${status ? `?status=${status}` : ""}`),
@@ -214,7 +248,7 @@ export const api = {
     req<PurchaseOrder[]>(`/purchasing/orders${status ? `?status=${status}` : ""}`),
   purchaseOrder: (id: string) => req<PurchaseOrder>(`/purchasing/orders/${id}`),
   addPurchaseOrder: (b: { supplierId: string; requestId?: string; warehouseId?: string;
-                          expectedOn?: string; note?: string;
+                          expectedOn?: string; note?: string; approvalId?: string;
                           lines: { stockItemId: string; qty: number; unitPrice: number }[] }) =>
     req<PurchaseOrder>("/purchasing/orders", { method: "POST", body: JSON.stringify(b) }),
   cancelPurchaseOrder: (id: string) =>
@@ -383,7 +417,8 @@ export type ProductRow = { cost?: number; id: string; sku: string; nameAr: strin
 export type NewProduct = { cost?: number; sku: string; nameAr: string; nameEn?: string; categoryId: string;
   basePrice: number; baseLeadDays?: number; kind?: string; description?: string };
 export type NewOrder = { customerId?: string; customerName?: string; customerPhone?: string;
-  promisedDate?: string; lines: { productId: string; qty: number; unitPrice?: number;
+  promisedDate?: string; approvalId?: string;
+  lines: { productId: string; qty: number; unitPrice?: number;
     discount?: number; warehouseId?: string; specNotes?: string; lineKind?: string }[] };
 export type LabelRow = { id: string; serial: string; printedAt: string | null; workOrderCode: string;
   orderCode: string; customer: string; productAr: string; productEn: string; qty: number; promisedDate: string | null };
@@ -452,6 +487,24 @@ export type Summary = {
   lowStock: { id: string; name: string; unit: string; onHand: number;
               reorderLevel: number; value: number }[];
   byExpense: Record<string, number>;
+};
+export type MyLimits = {
+  role: string; discountPct: number | null; purchaseCeiling: number | null;
+  approvalHours: number;
+};
+export type RoleLimitRow = {
+  role: string; nameAr: string; nameEn: string;
+  discountPct: number | null; purchaseCeiling: number | null;
+  sells: boolean; buys: boolean;
+};
+export type Approval = {
+  id: string; number: string; kind: "ORDER_DISCOUNT" | "PURCHASE_ORDER_VALUE";
+  status: "PENDING" | "APPROVED" | "REJECTED" | "USED" | "EXPIRED";
+  amount: number; ceiling: number; subject: string; reason: string | null;
+  requestedBy: string | null; decidedBy: string | null;
+  decidedAt: string | null; decisionNote: string | null;
+  usedAt: string | null; spentOn: string | null;
+  expiresAt: string; createdAt: string;
 };
 export type PurchaseRequest = {
   id: string; number: string; status: string;

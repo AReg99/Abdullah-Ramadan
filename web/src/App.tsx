@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Navigate, Route, Routes, NavLink, useLocation } from "react-router-dom";
 import { useApp } from "./app-context";
+import { api } from "./api";
 import { Wordmark } from "./logo";
 import Login from "./screens/Login";
 import Work from "./screens/Work";
@@ -29,6 +30,7 @@ import Inspect from "./screens/Inspect";
 import Run from "./screens/Run";
 import Quality from "./screens/Quality";
 import Purchasing from "./screens/Purchasing";
+import Approvals from "./screens/Approvals";
 import Money from "./screens/Money";
 import { onSyncChange, queued } from "./outbox";
 import { startSyncLoop } from "./sync";
@@ -51,7 +53,8 @@ const NAVS: Record<string, Tab[]> = {
     ["/labels", "⌗", "labels"], ["/stock", "▥", "stock"], ["/money", "₤", "money"],
     ["/attendance", "✓", "attendance"], ["/payroll", "☰", "payroll"],
     ["/quality", "◎", "quality"], ["/run", "⇢", "run"],
-    ["/purchasing", "⇩", "purchasing"], ["/setup", "⚙", "setup"],
+    ["/purchasing", "⇩", "purchasing"], ["/approvals", "✓", "approvals"],
+    ["/setup", "⚙", "setup"],
   ],
   // Runs the factory. Not the business: setup and order entry are the owner's,
   // and the showroom's, and money never appears on these screens.
@@ -72,9 +75,11 @@ const NAVS: Record<string, Tab[]> = {
                 ["/labels", "⌗", "labels"], ["/orders", "▤", "orders"]],
   SHOWROOM_MANAGER: [["/showroom", "⌂", "showroom"], ["/run", "⇢", "run"],
                      ["/orders", "▤", "orders"], ["/new-order", "✎", "newOrder"],
-                     ["/stock", "▥", "stock"], ["/setup", "⚙", "setup"]],
+                     ["/stock", "▥", "stock"], ["/approvals", "✓", "approvals"],
+                     ["/setup", "⚙", "setup"]],
   SALES_REP: [["/showroom", "⌂", "showroom"], ["/orders", "▤", "orders"],
-              ["/new-order", "✎", "newOrder"], ["/setup", "⚙", "setup"]],
+              ["/new-order", "✎", "newOrder"], ["/approvals", "✓", "approvals"],
+              ["/setup", "⚙", "setup"]],
   // On the road between the factory and the showroom: what is on the van, and
   // signing it in when it lands.
   DRIVER: [["/run", "⇢", "run"], ["/showroom", "⌂", "showroom"]],
@@ -84,7 +89,7 @@ const NAVS: Record<string, Tab[]> = {
   ACCOUNTANT: [["/summary", "◈", "summary"], ["/money", "₤", "money"],
                ["/payroll", "☰", "payroll"], ["/attendance", "✓", "attendance"],
                ["/stock", "▥", "stock"], ["/purchasing", "⇩", "purchasing"],
-               ["/orders", "▤", "orders"]],
+               ["/approvals", "✓", "approvals"], ["/orders", "▤", "orders"]],
   // QC stands at a station like a leader does, so they get the floor tabs.
   QC: [["/work", "▤", "work"], ["/scan", "⌗", "scan"],
        ["/quality", "◎", "quality"], ["/myday", "◔", "myday"]],
@@ -97,6 +102,7 @@ export default function App() {
   const loc = useLocation();
   const [pending, setPending] = useState(0);
   const [online, setOnline] = useState(navigator.onLine);
+  const [waiting, setWaiting] = useState(0);
 
   useEffect(() => {
     const off = onSyncChange((n, on) => { setPending(n); setOnline(on); });
@@ -104,6 +110,19 @@ export default function App() {
     void queued();
     return off;
   }, []);
+
+  /**
+   * How many decisions are standing still waiting for this person.
+   *
+   * Only the owner is asked for any, and the count is what makes the tab worth
+   * looking at — an inbox you have to remember to open is one somebody is
+   * waiting on all afternoon. Refreshed on every navigation rather than on a
+   * timer: it is the moment they look at the screen that matters.
+   */
+  useEffect(() => {
+    if (me?.role !== "OWNER") return;
+    api.waiting().then((w) => setWaiting(w.total)).catch(() => setWaiting(0));
+  }, [me?.role, loc.pathname]);
 
   if (!ready) return <div className="empty">{t("loading")}</div>;
   if (!me) return <Login />;
@@ -153,6 +172,7 @@ export default function App() {
           <Route path="/inspect/:id" element={<Inspect />} />
           <Route path="/quality" element={<Quality />} />
           <Route path="/purchasing" element={<Purchasing />} />
+          <Route path="/approvals" element={<Approvals />} />
           <Route path="/run" element={<Run />} />
           <Route path="/money" element={<Money />} />
           <Route path="/dispatch" element={<Dispatch />} />
@@ -168,7 +188,10 @@ export default function App() {
       <div className="nav">
         {tabs.map(([to, ic, key]) => (
           <NavLink key={to} to={to} className={loc.pathname.startsWith(to) ? "on" : ""}>
-            <span className="ic">{ic}</span>{t(key as any)}
+            <span className="ic">
+              {ic}
+              {to === "/approvals" && waiting > 0 && <span className="badge">{waiting}</span>}
+            </span>{t(key as any)}
           </NavLink>
         ))}
       </div>

@@ -4,6 +4,7 @@ import { db } from "../../db.js";
 import { guard } from "../../auth/jwt.js";
 import { BOOKS, PURCHASING, PURCHASE_APPROVE, STOCK } from "../../auth/scopes.js";
 import { nextNumber } from "../../lib/sequence.js";
+import { checkPurchaseValue, claimApproval } from "../../lib/limits.js";
 
 /**
  * Buying things.
@@ -161,6 +162,8 @@ export default async function purchasingRoutes(app: FastifyInstance) {
         unitPrice: z.number().nonnegative(),
         note: z.string().max(200).optional(),
       })).min(1),
+      /** A permission slip, where the order is worth more than this person may commit. */
+      approvalId: z.string().optional(),
     }).parse(req.body);
 
     if (!(await db.supplier.findUnique({ where: { id: b.supplierId } }))) {
@@ -181,6 +184,31 @@ export default async function purchasingRoutes(app: FastifyInstance) {
     }
     const found = await db.stockItem.findMany({ where: { id: { in: ids } } });
     if (found.length !== ids.length) return reply.code(404).send({ error: "item_not_found" });
+
+    /**
+     * The size of the commitment, against what this person may make alone.
+     *
+     * A purchase order is a promise to pay somebody, and until now anyone who
+     * kept the books could make one of any size with nobody else's name on it.
+     * As with a discount, nothing bites until a ceiling has been set.
+     */
+    const value = b.lines.reduce((s, l) => s + l.qty * l.unitPrice, 0);
+    const allowance = await checkPurchaseValue((req as any).user.role.key, value);
+    let approval: { id: string } | null = null;
+    if (!allowance.ok) {
+      if (!b.approvalId) {
+        return reply.code(409).send({
+          error: "order_needs_approval",
+          allowed: allowance.allowed, asked: allowance.asked,
+        });
+      }
+      const claim = await claimApproval({
+        id: b.approvalId, kind: "PURCHASE_ORDER_VALUE",
+        amount: value, actorId: (req as any).user.id,
+      });
+      if (!claim.ok) return reply.code(409).send(claim);
+      approval = { id: claim.approval.id };
+    }
 
     const made = await db.purchaseOrder.create({
       data: {
@@ -203,6 +231,12 @@ export default async function purchasingRoutes(app: FastifyInstance) {
     if (b.requestId) {
       await db.purchaseRequest.update({
         where: { id: b.requestId }, data: { status: "ORDERED" },
+      });
+    }
+    if (approval) {
+      await db.approval.update({
+        where: { id: approval.id },
+        data: { status: "USED", usedAt: new Date(), purchaseOrderId: made.id },
       });
     }
     return orderView(made);

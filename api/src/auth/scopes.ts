@@ -125,4 +125,19 @@ export const PURCHASING = ["OWNER", "FACTORY_MANAGER", "SUPERVISOR",
 /** Approving one. Money, so it stops with the owner. */
 export const PURCHASE_APPROVE = ["OWNER"];
 
+/**
+ * Answering a request for permission — a discount above somebody's ceiling, a
+ * purchase order above what they may commit. The same place the purchase
+ * request stops, and for the same reason: whoever can lift a limit on
+ * themselves does not have one.
+ */
+export const APPROVE = ["OWNER"];
+
+/**
+ * Setting the ceilings in the first place. Narrower than reading them: every
+ * signed-in person may ask what their own limit is, because being told where
+ * the line is beats discovering it when a sale is refused at the counter.
+ */
+export const LIMITS = ["OWNER"];
+
 export const seesMoney = (roleKey: string) => MONEY.includes(roleKey);

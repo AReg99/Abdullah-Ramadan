@@ -108,6 +108,8 @@ model User {
   decided       PurchaseRequest[] @relation("DecidedBy")
   purchaseOrders PurchaseOrder[]  @relation("PurchaseOrderAuthor")
   goodsReceipts GoodsReceipt[]    @relation("GoodsReceiptAuthor")
+  approvalsAsked    Approval[] @relation("ApprovalAsked")
+  approvalsAnswered Approval[] @relation("ApprovalAnswered")
 }
 
 /// A crew working one station under one leader.
@@ -280,6 +282,7 @@ model Order {
   payments    CashEntry[]
 
   @@index([status, promisedDate])
+  approvals Approval[]
 }
 
 /**
@@ -1015,6 +1018,7 @@ model PurchaseOrder {
   lines    PurchaseOrderLine[]
   receipts GoodsReceipt[]
   invoices PurchaseInvoice[]
+  approvals Approval[]
 }
 
 model PurchaseOrderLine {
@@ -1111,4 +1115,74 @@ model PurchaseInvoice {
 
   @@unique([supplierId, number])
   @@index([issuedOn])
+}
+
+// ------------------------------------------------------ limits & approvals
+
+/// What each role may do on their own, before somebody has to be asked.
+///
+/// One row per role rather than a settings key per role: the values are read
+/// together on every sale, and a table can be shown as a table.
+///
+/// A null is *no ceiling*, not a ceiling of zero. That distinction is the
+/// whole upgrade story — a business that has never set a limit must not find
+/// its showroom unable to sell the morning after a release.
+model RoleLimit {
+  id   String  @id @default(uuid())
+  role String @unique
+  /// The most this role may take off an order, as a percent of its gross.
+  /// Percent rather than pounds because a hundred off a bedroom and a hundred
+  /// off a stool are not the same concession.
+  discountPct     Decimal?
+  /// The largest purchase order this role may commit the business to.
+  purchaseCeiling Decimal?
+  updatedAt       DateTime @updatedAt
+}
+
+
+
+/// موافقة — permission to do one specific thing, once.
+///
+/// The showroom already rings the owner when a customer pushes for more off.
+/// Nothing here changes that conversation; it changes whether the answer
+/// survives it. An approval names the amount, the person who asked, the person
+/// who answered, and what it was for — and is spent the moment it is used, so
+/// a yes given for one sofa cannot be quietly reused on the next.
+model Approval {
+  id     String         @id @default(uuid())
+  number String         @unique
+  kind   String
+  status String @default("PENDING")
+
+  /// What is being asked for, in currency. A discount of this much, or a
+  /// purchase order worth this much — never more when it is spent.
+  amount  Decimal
+  /// The ceiling that was exceeded, copied at the moment of asking so the
+  /// record still reads correctly after somebody moves the limit.
+  ceiling Decimal
+  /// Who or what it concerns, in words: the customer, the supplier, the model.
+  /// The approver is answering on their phone and cannot go and look.
+  subject String
+  /// Why the asker thinks it is worth it.
+  reason  String?
+
+  requestedById String
+  requestedBy   User   @relation("ApprovalAsked", fields: [requestedById], references: [id])
+  decidedById   String?
+  decidedBy     User?    @relation("ApprovalAnswered", fields: [decidedById], references: [id])
+  decidedAt     DateTime?
+  decisionNote  String?
+
+  /// Spent on this order or purchase order, whichever it authorised.
+  usedAt  DateTime?
+  orderId String?
+  order   Order?  @relation(fields: [orderId], references: [id])
+  purchaseOrderId String?
+  purchaseOrder   PurchaseOrder? @relation(fields: [purchaseOrderId], references: [id])
+
+  /// A yes left lying around gets spent on a different sale a fortnight later.
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([status, createdAt])
 }

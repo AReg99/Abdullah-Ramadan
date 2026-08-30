@@ -20,6 +20,7 @@ import stockRoutes from "./modules/stock/routes.js";
 import qualityRoutes from "./modules/quality/routes.js";
 import deliveryRoutes from "./modules/delivery/routes.js";
 import purchasingRoutes from "./modules/purchasing/routes.js";
+import approvalRoutes from "./modules/approvals/routes.js";
 
 export async function build() {
   const app = Fastify({ logger: { level: "warn" } });
@@ -81,6 +82,7 @@ export async function build() {
   await app.register(qualityRoutes);
   await app.register(deliveryRoutes);
   await app.register(purchasingRoutes);
+  await app.register(approvalRoutes);
 
   return app;
 }
