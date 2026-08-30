@@ -20,6 +20,11 @@ datasource db {
 enum RoleKey {
   OWNER
   FACTORY_MANAGER
+  /// Plans the work rather than running the plant: what gets made in what
+  /// order, where the queue is piling up, and which promises are about to be
+  /// missed. Distinct from the factory manager, who staffs it and answers for
+  /// it — in a furniture shop these are two people and two jobs.
+  PRODUCTION_MANAGER
   SUPERVISOR
   GROUP_LEADER
   QC

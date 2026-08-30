@@ -4,7 +4,8 @@ import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import { db } from "../../db.js";
 import { guard } from "../../auth/jwt.js";
-import { BOOKS, CATALOGUE, SELL, SETUP, STAFF_ADMIN, canGrant, grantableBy } from "../../auth/scopes.js";
+import { BOOKS, CATALOGUE, ROLE_KEYS, SELL, SETUP, STAFF_ADMIN,
+         canGrant, grantableBy } from "../../auth/scopes.js";
 import { record } from "../../lib/events.js";
 import { applyVat, vatPolicy } from "../../lib/settings.js";
 import { nextNumber } from "../../lib/sequence.js";
@@ -92,8 +93,9 @@ export default async function adminRoutes(app: FastifyInstance) {
   app.post("/admin/people", { preHandler: guard(STAFF_ADMIN) }, async (req, reply) => {
     const b = z.object({
       nameAr: z.string().min(1), nameEn: z.string().min(1).optional(),
-      role: z.enum(["OWNER","FACTORY_MANAGER","SUPERVISOR","GROUP_LEADER","QC",
-                    "STOREKEEPER","SHOWROOM_MANAGER","SALES_REP","DRIVER","ACCOUNTANT"]),
+      // From the one list, so a role added to the schema can actually be
+      // hired into rather than rejected by a copy nobody remembered to edit.
+      role: z.enum(ROLE_KEYS),
       phone: z.string().min(6).optional(),
       email: z.string().email().optional(),
       password: z.string().min(6).optional(),

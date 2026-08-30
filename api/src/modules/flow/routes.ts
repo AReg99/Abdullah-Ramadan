@@ -2,6 +2,7 @@ import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { db } from "../../db.js";
 import { guard } from "../../auth/jwt.js";
+import { FACTORY_SIDE, SHOWROOM_SIDE } from "../../auth/scopes.js";
 import { record } from "../../lib/events.js";
 import { releaseOnDelivery } from "../../lib/stock.js";
 import { syncOrderStatus } from "../../lib/order-status.js";
@@ -17,9 +18,6 @@ import { syncOrderStatus } from "../../lib/order-status.js";
  *
  *   FINISHED --dispatch--> IN_TRANSIT --receive--> READY --deliver--> DELIVERED
  */
-
-const FACTORY_SIDE = ["OWNER", "FACTORY_MANAGER", "SUPERVISOR", "STOREKEEPER"];
-const SHOWROOM_SIDE = ["OWNER", "FACTORY_MANAGER", "SHOWROOM_MANAGER", "SALES_REP", "DRIVER"];
 
 const envelope = z.object({
   clientEventId: z.string().min(8).optional(),

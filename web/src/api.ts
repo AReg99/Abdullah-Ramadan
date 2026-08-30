@@ -217,6 +217,17 @@ export const api = {
     req<Record<string, string>>("/settings", { method: "PUT", body: JSON.stringify(b) }),
   invoice: (id: string) => req<Invoice>(`/orders/${id}/invoice`),
 
+  // ---- planning ----
+  planningBoard: () => req<PlanBoard>("/planning/board"),
+  setPriority: (id: string, b: { level: "NORMAL" | "URGENT" | "CRITICAL"; note?: string }) =>
+    req<{ id: string; priority: number; level: string }>(
+      `/planning/work-orders/${id}/priority`, { method: "POST", body: JSON.stringify(b) }),
+  stationLoad: () => req<StationLoad>("/planning/load"),
+  setCapacity: (id: string, dailyCapacityMinutes: number) =>
+    req<{ id: string; dailyCapacityMinutes: number }>(
+      `/planning/stations/${id}/capacity`,
+      { method: "PUT", body: JSON.stringify({ dailyCapacityMinutes }) }),
+
   // ---- limits & approvals ----
   myLimits: () => req<MyLimits>("/limits/mine"),
   limits: () => req<RoleLimitRow[]>("/limits"),
@@ -487,6 +498,30 @@ export type Summary = {
   lowStock: { id: string; name: string; unit: string; onHand: number;
               reorderLevel: number; value: number }[];
   byExpense: Record<string, number>;
+};
+export type PlanRow = {
+  id: string; code: string; qty: number;
+  priority: number; level: "NORMAL" | "URGENT" | "CRITICAL";
+  order: { id: string; code: string }; customer: string;
+  product: { nameAr: string; nameEn: string; sku: string };
+  promisedDate: string | null; daysLeft: number | null;
+  late: boolean; atRisk: boolean; started: boolean;
+  done: number; of: number; remainingMinutes: number;
+  at: { stage: string; station: string; stationId: string; status: string } | null;
+  blocked: { reason: string | null; note: string | null; sinceMinutes: number } | null;
+};
+export type PlanBoard = {
+  totals: { open: number; late: number; atRisk: number; notStarted: number;
+            blocked: number; urgent: number; remainingHours: number };
+  rows: PlanRow[];
+};
+export type StationLoad = {
+  totals: { queuedHours: number; capacityHoursPerDay: number; stations: number };
+  bottleneck: string | null;
+  rows: { id: string; code: string; nameAr: string; nameEn: string;
+          dailyCapacityMinutes: number; queuedMinutes: number; queuedHours: number;
+          inProgress: number; blocked: number; pieces: number; lateMinutes: number;
+          people: number; daysOfQueue: number | null }[];
 };
 export type MyLimits = {
   role: string; discountPct: number | null; purchaseCeiling: number | null;

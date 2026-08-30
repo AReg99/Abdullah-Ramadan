@@ -4,7 +4,7 @@ import { PrismaClient } from "@prisma/client";
 // against either schema: PostgreSQL keeps real enums, SQLite stores the same
 // values as strings. See prisma/make-sqlite-schema.mjs.
 type RoleKey =
-  | "OWNER" | "FACTORY_MANAGER" | "SUPERVISOR" | "GROUP_LEADER" | "QC"
+  | "OWNER" | "FACTORY_MANAGER" | "PRODUCTION_MANAGER" | "SUPERVISOR" | "GROUP_LEADER" | "QC"
   | "STOREKEEPER" | "SHOWROOM_MANAGER" | "SALES_REP" | "DRIVER" | "ACCOUNTANT";
 type PhotoRule = "OFF" | "OPTIONAL" | "REQUIRED";
 import bcrypt from "bcryptjs";
@@ -24,6 +24,7 @@ function requireOwnerPassword() {
 const ROLES: [RoleKey, string, string][] = [
   ["OWNER", "المالك", "Owner"],
   ["FACTORY_MANAGER", "مدير المصنع", "Factory manager"],
+  ["PRODUCTION_MANAGER", "مدير الإنتاج", "Production manager"],
   ["SUPERVISOR", "مشرف", "Supervisor"],
   ["GROUP_LEADER", "رئيس عمال", "Group leader"],
   ["QC", "مفتش الجودة", "QC inspector"],
@@ -89,6 +90,16 @@ async function ensureBaseline() {
     if (!(await db.defectType.findUnique({ where: { code: d.code } }))) {
       await db.defectType.create({ data: d });
       console.log(`  added the default fault type ${d.code}`);
+    }
+  }
+
+  // A role added by a release does not exist on a server that was seeded
+  // before it. Without this the job cannot be handed to anybody: the staff
+  // form offers only roles that have a row.
+  for (const [key, nameAr, nameEn] of ROLES) {
+    if (!(await db.role.findUnique({ where: { key } }))) {
+      await db.role.create({ data: { key: key as any, nameAr, nameEn, permissions: [] } });
+      console.log(`  added the missing role ${key}`);
     }
   }
 

@@ -2,6 +2,7 @@ import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { db } from "../../db.js";
 import { guard } from "../../auth/jwt.js";
+import { CROSS_STATION } from "../../auth/scopes.js";
 import { record } from "../../lib/events.js";
 import { consumeForWorkOrder } from "../../lib/stock.js";
 import { syncOrderStatus } from "../../lib/order-status.js";
@@ -47,14 +48,6 @@ async function stationFor(user: { stationId: string | null; groupId: string | nu
   }
   return user.stationId;
 }
-
-/**
- * Managers legitimately look across every station. Nobody else does: without
- * this, a station-less account — a driver, an unassigned QC inspector — asked
- * for "my station's work" and was handed the entire factory's open job list,
- * because an empty station filter matches everything.
- */
-const CROSS_STATION = ["OWNER", "FACTORY_MANAGER", "SUPERVISOR"];
 
 /** A stage becomes READY only when every earlier stage is DONE. */
 /**

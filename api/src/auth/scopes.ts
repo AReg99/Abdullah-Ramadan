@@ -11,6 +11,20 @@
  * part of production's work.
  */
 
+/**
+ * Every job in the business, in one list.
+ *
+ * The staff form validated a role against its own hand-typed copy of this,
+ * which meant adding a role to the schema left the form rejecting it — the job
+ * existed everywhere except the one place somebody could be hired into it.
+ * Anything that needs the set of roles reads it from here.
+ */
+export const ROLE_KEYS = [
+  "OWNER", "FACTORY_MANAGER", "PRODUCTION_MANAGER", "SUPERVISOR", "GROUP_LEADER",
+  "QC", "STOREKEEPER", "SHOWROOM_MANAGER", "SALES_REP", "DRIVER", "ACCOUNTANT",
+] as const;
+export type RoleKey = (typeof ROLE_KEYS)[number];
+
 /** Configuration of the business itself: catalogue, branches, stations. */
 export const SETUP = ["OWNER"];
 
@@ -27,9 +41,10 @@ export const STAFF_ADMIN = ["OWNER", "FACTORY_MANAGER"];
  * would let him step outside it or above it.
  */
 const GRANTS: Record<string, string[]> = {
-  OWNER: ["OWNER", "FACTORY_MANAGER", "SUPERVISOR", "GROUP_LEADER", "QC",
-          "STOREKEEPER", "SHOWROOM_MANAGER", "SALES_REP", "DRIVER", "ACCOUNTANT"],
-  FACTORY_MANAGER: ["SUPERVISOR", "GROUP_LEADER", "QC", "STOREKEEPER", "DRIVER"],
+  // Everything, including their own job — the only account that can.
+  OWNER: [...ROLE_KEYS],
+  FACTORY_MANAGER: ["PRODUCTION_MANAGER", "SUPERVISOR", "GROUP_LEADER", "QC",
+                    "STOREKEEPER", "DRIVER"],
 };
 
 /** Roles this person may create, and equally: whose accounts they may edit. */
@@ -50,7 +65,36 @@ export const SELL = ["OWNER", "SHOWROOM_MANAGER", "SALES_REP"];
 export const CATALOGUE = [...new Set([...SETUP, ...SELL])];
 
 /** Running the factory: the floor, the queue, the handover. */
-export const PRODUCTION = ["OWNER", "FACTORY_MANAGER", "SUPERVISOR"];
+export const PRODUCTION = ["OWNER", "FACTORY_MANAGER", "PRODUCTION_MANAGER", "SUPERVISOR"];
+
+/**
+ * Deciding what gets made in what order, and reading where the queue is piling
+ * up. Narrower than PRODUCTION on purpose: a supervisor runs the station in
+ * front of them, and letting each of them reorder the whole factory is how two
+ * stations end up each convinced they are next.
+ */
+export const PLANNING = ["OWNER", "FACTORY_MANAGER", "PRODUCTION_MANAGER"];
+
+/**
+ * Sending a finished piece out of the factory, and reading the queue waiting to
+ * go. The storekeeper loads the van; the production manager decides what is
+ * ready to leave.
+ */
+export const FACTORY_SIDE = ["OWNER", "FACTORY_MANAGER", "PRODUCTION_MANAGER",
+                             "SUPERVISOR", "STOREKEEPER"];
+
+/** Receiving it at the other end, and handing it to the customer. */
+export const SHOWROOM_SIDE = ["OWNER", "FACTORY_MANAGER", "SHOWROOM_MANAGER",
+                              "SALES_REP", "DRIVER"];
+
+/**
+ * Managers legitimately look across every station. Nobody else does: without
+ * this, a station-less account — a driver, an unassigned QC inspector — asked
+ * for "my station's work" and was handed the entire factory's open job list,
+ * because an empty station filter matches everything.
+ */
+export const CROSS_STATION = ["OWNER", "FACTORY_MANAGER", "PRODUCTION_MANAGER",
+                              "SUPERVISOR"];
 
 /**
  * The whole-factory activity feed: every action by every person, in one list.
@@ -83,8 +127,8 @@ export const READ_ORDERS = [...new Set([...PRODUCTION, ...MONEY])];
  * and the driver put things on and off shelves all day, and stock that only the
  * office may touch is stock nobody records.
  */
-export const STOCK = ["OWNER", "FACTORY_MANAGER", "SUPERVISOR", "STOREKEEPER",
-                      "SHOWROOM_MANAGER", "SALES_REP", "ACCOUNTANT"];
+export const STOCK = ["OWNER", "FACTORY_MANAGER", "PRODUCTION_MANAGER", "SUPERVISOR",
+                      "STOREKEEPER", "SHOWROOM_MANAGER", "SALES_REP", "ACCOUNTANT"];
 
 /**
  * Setting up what is tracked, and what it is worth. Costs are on a stock item,
@@ -98,14 +142,15 @@ export const STOCK_ADMIN = ["OWNER", "FACTORY_MANAGER", "ACCOUNTANT"];
  * there, the accountant is not. They see the day rates, though, which is why
  * this is not wider still.
  */
-export const ATTENDANCE = ["OWNER", "FACTORY_MANAGER", "SUPERVISOR", "ACCOUNTANT"];
+export const ATTENDANCE = ["OWNER", "FACTORY_MANAGER", "PRODUCTION_MANAGER",
+                           "SUPERVISOR", "ACCOUNTANT"];
 
 /**
  * Passing or failing a piece. The inspector's own job, plus the people who
  * answer for the floor — a supervisor has to be able to release a piece when
  * the inspector is off.
  */
-export const QUALITY = ["OWNER", "FACTORY_MANAGER", "SUPERVISOR", "QC"];
+export const QUALITY = ["OWNER", "FACTORY_MANAGER", "PRODUCTION_MANAGER", "SUPERVISOR", "QC"];
 
 /**
  * The road. The driver's own job, plus the showroom that answers the phone
@@ -119,8 +164,8 @@ export const DELIVERY = ["OWNER", "DRIVER", "SHOWROOM_MANAGER", "SALES_REP"];
  * request only they may raise is a request that gets shouted across a yard
  * instead.
  */
-export const PURCHASING = ["OWNER", "FACTORY_MANAGER", "SUPERVISOR",
-                           "STOREKEEPER", "ACCOUNTANT"];
+export const PURCHASING = ["OWNER", "FACTORY_MANAGER", "PRODUCTION_MANAGER",
+                           "SUPERVISOR", "STOREKEEPER", "ACCOUNTANT"];
 
 /** Approving one. Money, so it stops with the owner. */
 export const PURCHASE_APPROVE = ["OWNER"];

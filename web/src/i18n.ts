@@ -441,6 +441,25 @@ const ar = {
   purchaseCeiling: "أقصى أمر شراء", purchaseCeilingHint:
     "أكبر أمر شراء يقدر يعمله لوحده. اللي أكبر من كده بيستنى موافقتك.",
   noCeiling: "مفيش حد", setCeiling: "حدد", clearCeiling: "شيل الحد",
+  // ── التخطيط
+  planning: "التخطيط", PRODUCTION_MANAGER: "مدير الإنتاج",
+  plan_queue: "طابور الشغل", plan_load: "تحميل المحطات",
+  openPieces: "قطع شغالة", bumped: "اتقدّمت", workLeft: "شغل باقي",
+  hoursShort: "س", piecesShort: "قطعة", peopleShort: "عامل",
+  leftShort: "فاضل", lateBy: "متأخر", stillToDo: "لسه",
+  queueHint:
+    "الترتيب ده هو نفسه اللي المحطات بتشوفه. لما تقدّم قطعة بتوصل للمحطات في نفس اللحظة.",
+  nothingHere: "مفيش حاجة هنا.",
+  betweenStations: "بين محطتين", notStartedYet: "لسه مابدأتش",
+  changeOrder: "غيّر ترتيبها", whyBump: "ليه؟ (بيتسجل)",
+  lvl_NORMAL: "عادي", lvl_URGENT: "مستعجل", lvl_CRITICAL: "حرج",
+  already_finished: "القطعة دي خلصت",
+  capacityPerDay: "طاقة اليوم", daysOfQueue: "أيام في الطابور",
+  bottleneck: "أضيق محطة", onTheBench: "على البنك",
+  loadHint:
+    "أيام الطابور = الشغل المستني على المحطة ÷ طاقتها اليومية. أعلى رقم هو اللي المصنع كله مستنيه.",
+  capacityHint: "بالساعات. عدد الساعات اللي المحطة دي بتنتجها في اليوم فعلاً.",
+  WO_PRIORITY_SET: "غيّر ترتيب قطعة",
 };
 
 const en: Record<keyof typeof ar, string> = {
@@ -882,6 +901,25 @@ const en: Record<keyof typeof ar, string> = {
   purchaseCeiling: "Largest purchase order", purchaseCeilingHint:
     "The biggest order they may commit to on their own. Anything more waits for you.",
   noCeiling: "No limit", setCeiling: "Set it", clearCeiling: "Clear the limit",
+  // ── planning
+  planning: "Planning", PRODUCTION_MANAGER: "Production manager",
+  plan_queue: "The queue", plan_load: "Station load",
+  openPieces: "Pieces open", bumped: "Bumped up", workLeft: "Work left",
+  hoursShort: "h", piecesShort: "pieces", peopleShort: "people",
+  leftShort: "left", lateBy: "late by", stillToDo: "still to do",
+  queueHint:
+    "This is the order the stations see. Bump a piece and it reaches the floor the same moment.",
+  nothingHere: "Nothing here.",
+  betweenStations: "between stations", notStartedYet: "not started",
+  changeOrder: "Change its place", whyBump: "Why? (this goes on the record)",
+  lvl_NORMAL: "Normal", lvl_URGENT: "Urgent", lvl_CRITICAL: "Critical",
+  already_finished: "That piece is finished",
+  capacityPerDay: "A day's capacity", daysOfQueue: "Days of queue",
+  bottleneck: "The bottleneck", onTheBench: "on the bench",
+  loadHint:
+    "Days of queue = the work waiting at a station ÷ what it does in a day. The highest number is what the whole factory is waiting on.",
+  capacityHint: "In hours. What this station actually produces in a working day.",
+  WO_PRIORITY_SET: "Changed a piece's place in the queue",
 };
 
 export const DICT = { ar, en };

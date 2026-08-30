@@ -31,6 +31,7 @@ import Run from "./screens/Run";
 import Quality from "./screens/Quality";
 import Purchasing from "./screens/Purchasing";
 import Approvals from "./screens/Approvals";
+import Planning from "./screens/Planning";
 import Money from "./screens/Money";
 import { onSyncChange, queued } from "./outbox";
 import { startSyncLoop } from "./sync";
@@ -48,8 +49,8 @@ type Tab = [string, string, string];
 const NAVS: Record<string, Tab[]> = {
   OWNER: [
     ["/summary", "◈", "summary"],
-    ["/today", "◧", "today"], ["/floor", "▦", "floor"], ["/dispatch", "⇥", "dispatch"],
-    ["/showroom", "⌂", "showroom"], ["/orders", "▤", "orders"], ["/new-order", "✎", "newOrder"],
+    ["/today", "◧", "today"], ["/floor", "▦", "floor"], ["/planning", "≡", "planning"],
+    ["/dispatch", "⇥", "dispatch"], ["/showroom", "⌂", "showroom"], ["/orders", "▤", "orders"], ["/new-order", "✎", "newOrder"],
     ["/labels", "⌗", "labels"], ["/stock", "▥", "stock"], ["/money", "₤", "money"],
     ["/attendance", "✓", "attendance"], ["/payroll", "☰", "payroll"],
     ["/quality", "◎", "quality"], ["/run", "⇢", "run"],
@@ -59,10 +60,21 @@ const NAVS: Record<string, Tab[]> = {
   // Runs the factory. Not the business: setup and order entry are the owner's,
   // and the showroom's, and money never appears on these screens.
   FACTORY_MANAGER: [
-    ["/today", "◧", "today"], ["/floor", "▦", "floor"], ["/dispatch", "⇥", "dispatch"],
+    ["/today", "◧", "today"], ["/floor", "▦", "floor"], ["/planning", "≡", "planning"],
+    ["/dispatch", "⇥", "dispatch"],
     ["/orders", "▤", "orders"], ["/labels", "⌗", "labels"], ["/stock", "▥", "stock"],
     ["/attendance", "✓", "attendance"], ["/quality", "◎", "quality"],
     ["/purchasing", "⇩", "purchasing"], ["/setup", "⚙", "setup"],
+  ],
+  // Plans the work rather than running the plant. No setup, no staff form, no
+  // money: the queue, the load, and everything needed to judge them — what is
+  // on the floor, who turned up, what quality is sending back, and what the
+  // store is running out of.
+  PRODUCTION_MANAGER: [
+    ["/planning", "≡", "planning"], ["/today", "◧", "today"], ["/floor", "▦", "floor"],
+    ["/orders", "▤", "orders"], ["/dispatch", "⇥", "dispatch"], ["/labels", "⌗", "labels"],
+    ["/quality", "◎", "quality"], ["/attendance", "✓", "attendance"],
+    ["/stock", "▥", "stock"], ["/purchasing", "⇩", "purchasing"],
   ],
   SUPERVISOR: [
     ["/today", "◧", "today"], ["/floor", "▦", "floor"], ["/dispatch", "⇥", "dispatch"],
@@ -173,6 +185,7 @@ export default function App() {
           <Route path="/quality" element={<Quality />} />
           <Route path="/purchasing" element={<Purchasing />} />
           <Route path="/approvals" element={<Approvals />} />
+          <Route path="/planning" element={<Planning />} />
           <Route path="/run" element={<Run />} />
           <Route path="/money" element={<Money />} />
           <Route path="/dispatch" element={<Dispatch />} />

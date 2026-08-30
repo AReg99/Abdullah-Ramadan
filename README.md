@@ -88,6 +88,7 @@ web/   React + Vite — worker app and owner console, RTL-first
 | [15 — Delivery](docs/15-delivery.md) | The driver's run, proof of delivery, failed visits |
 | [16 — Purchasing](docs/16-purchasing.md) | What to buy, the request, the order, the goods receipt, the three-way match |
 | [17 — Limits & approvals](docs/17-limits-and-approvals.md) | Discount and purchase ceilings per role, asking, answering, and spending an approval |
+| [18 — The production manager](docs/18-production-manager.md) | The planning board, bumping a piece, station load and the bottleneck |
 | [**User guide**](docs/guide/README.md) | How to actually use the app, one short guide per role, in Arabic and English |
 
 ## Design principles

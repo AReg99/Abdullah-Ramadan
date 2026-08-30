@@ -1,11 +1,12 @@
 # 02 — Roles & permissions
 
-## The eleven roles
+## The twelve roles
 
 | Role | Where | Primary app | Core job in the system |
 | --- | --- | --- | --- |
 | **Owner** | Anywhere | Owner mobile + web | Watch everything, approve exceptions, receive reports |
-| **Factory manager** | Factory | Web | Accept showroom orders, plan production, resolve blockers |
+| **Factory manager** | Factory | Web | Staff and configure the plant, accept showroom orders, resolve blockers |
+| **Production manager** | Factory | Web | Decide what is made in what order, watch the station load and the bottleneck |
 | **Production supervisor** | Factory | Web + tablet | Assign work to stations and workers, unblock, sign off shifts |
 | **Group leader** | Factory | Mobile (Arabic, large targets) | Scan, start, finish, report a problem — for their whole crew |
 | *Worker* | Factory | — | Does not sign in. A roster record so output stays attributable |
@@ -21,14 +22,15 @@
 
 ## What each role opens in the app today
 
-Ten of the eleven roles above exist in the system and each signs in to a screen
+Eleven of the twelve roles above exist in the system and each signs in to a screen
 built for them. Verified by signing in as every one of them and opening its
 first tab.
 
 | Role | Signs in to | Sees |
 | --- | --- | --- |
 | Owner | Today | Everything: floor, dispatch, showroom, orders, new order, setup |
-| Factory manager | Today | Floor, dispatch, orders, labels, and Setup's crews and staff — no prices |
+| Factory manager | Today | Floor, planning, dispatch, orders, labels, and Setup's crews and staff — no prices |
+| Production manager | Planning | The queue and the station load, plus floor, orders, quality, attendance, store — no money, no setup |
 | Supervisor | Today | Floor, dispatch, orders, labels |
 | Group leader | Work | Only their own group's station |
 | QC inspector | Work | Only the QC station's queue — needs a station assigned in Setup |
