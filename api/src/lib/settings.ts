@@ -50,6 +50,13 @@ export const DEFAULTS = {
   "series.order": "PO",
   "series.goodsReceipt": "GRN",
   "series.approval": "APR",
+  "series.service": "SRV",
+  /**
+   * The warranty a model carries when its own is not set. Months, from the
+   * day the customer took it — not from the order, which can be six weeks
+   * earlier and is not when they got anything.
+   */
+  "warranty.months": "24",
 } as const;
 
 export type SettingKey = keyof typeof DEFAULTS;

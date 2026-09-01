@@ -110,6 +110,9 @@ model User {
   goodsReceipts GoodsReceipt[]    @relation("GoodsReceiptAuthor")
   approvalsAsked    Approval[] @relation("ApprovalAsked")
   approvalsAnswered Approval[] @relation("ApprovalAnswered")
+  serviceReported   ServiceTicket[] @relation("ServiceReporter")
+  serviceAssigned   ServiceTicket[] @relation("ServiceAssignee")
+  serviceVisits     ServiceVisit[]  @relation("ServiceTechnician")
 }
 
 /// A crew working one station under one leader.
@@ -361,6 +364,7 @@ model OrderLine {
   deliveries DeliveryAttempt[]
 
   @@index([status, promisedDate])
+  serviceTickets ServiceTicket[]
 }
 
 // ---------------------------------------------------------------- production
@@ -520,6 +524,7 @@ model DefectType {
   isActive Boolean  @default(true)
 
   defects InspectionDefect[]
+  serviceTickets ServiceTicket[]
 }
 
 /// One verdict on one QC gate.
@@ -1185,4 +1190,81 @@ model Approval {
   createdAt DateTime @default(now())
 
   @@index([status, createdAt])
+}
+
+// ----------------------------------------------------- warranty & after-sales
+
+
+
+
+/// بلاغ ما بعد البيع — a customer's complaint about a piece already delivered.
+///
+/// Once a piece was handed over the system forgot it existed. A customer
+/// ringing six months later about a sagging door reached a WhatsApp message
+/// and somebody's memory: nothing said whether it was still under warranty,
+/// nothing tracked the repair, and nothing learned which models keep coming
+/// back — which is the only figure that would change what the factory builds.
+model ServiceTicket {
+  id     String        @id @default(uuid())
+  number String        @unique
+  status String @default("OPEN")
+  kind   String   @default("WARRANTY")
+
+  /// The piece, through the line it was sold on.
+  orderLineId String
+  orderLine   OrderLine @relation(fields: [orderLineId], references: [id])
+  /// The exact unit, where the label was scanned. A line can be three chairs
+  /// and only one of them is broken.
+  serial      String?
+
+  /// What the customer said, in their words. Not a diagnosis.
+  description  String
+  /// The same taxonomy production uses, so a fault found in a customer's house
+  /// and one found at the gate are the same kind of thing and can be counted
+  /// together.
+  defectTypeId String?
+  defectType   DefectType? @relation(fields: [defectTypeId], references: [id])
+
+  /// Copied at the moment the ticket was raised. The warranty period lives on
+  /// the product and somebody will shorten it next year; a ticket that
+  /// silently changes its own answer afterwards is worse than no record.
+  underWarranty Boolean
+  warrantyUntil DateTime?
+
+  reportedById String
+  reportedBy   User   @relation("ServiceReporter", fields: [reportedById], references: [id])
+  assignedToId String?
+  assignedTo   User?  @relation("ServiceAssignee", fields: [assignedToId], references: [id])
+  /// When we told the customer somebody would come.
+  promisedDate DateTime?
+
+  resolution String?
+  closedAt   DateTime?
+  /// What the repair cost us — parts and time. The number that says whether a
+  /// model is worth building.
+  costAmount   Decimal @default(0)
+  /// What the customer paid, where it was chargeable.
+  chargeAmount Decimal @default(0)
+
+  createdAt DateTime @default(now())
+  visits    ServiceVisit[]
+
+  @@index([status, createdAt])
+}
+
+/// One trip out to the customer. Append-only, because they go more than once:
+/// the first visit finds it needs a part, the second fits it.
+model ServiceVisit {
+  id           String         @id @default(uuid())
+  ticketId     String
+  ticket       ServiceTicket  @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  technicianId String?
+  technician   User?          @relation("ServiceTechnician", fields: [technicianId], references: [id])
+  outcome      String
+  note         String?
+  photoPath    String?
+  occurredAt   DateTime       @default(now())
+  createdAt    DateTime       @default(now())
+
+  @@index([ticketId])
 }

@@ -153,6 +153,24 @@ export const ATTENDANCE = ["OWNER", "FACTORY_MANAGER", "PRODUCTION_MANAGER",
 export const QUALITY = ["OWNER", "FACTORY_MANAGER", "PRODUCTION_MANAGER", "SUPERVISOR", "QC"];
 
 /**
+ * After-sales: taking the complaint, chasing the repair, closing it.
+ *
+ * The showroom answers the phone, so they raise it. The factory fixes it, so
+ * they schedule it. The accountant reads what it cost, because a model that
+ * keeps coming back is a costing question before it is a quality one.
+ */
+export const SERVICE = ["OWNER", "FACTORY_MANAGER", "PRODUCTION_MANAGER",
+                        "SHOWROOM_MANAGER", "SALES_REP", "ACCOUNTANT"];
+
+/**
+ * Recording what happened on a visit. Wider, because the person who actually
+ * goes to the house is a carpenter or the driver, and a visit only the office
+ * may write down is a visit that gets written down from memory that evening.
+ */
+export const SERVICE_VISIT = [...new Set([...SERVICE, "SUPERVISOR", "QC",
+                                          "GROUP_LEADER", "DRIVER"])];
+
+/**
  * The road. The driver's own job, plus the showroom that answers the phone
  * when a customer asks where their bedroom is.
  */

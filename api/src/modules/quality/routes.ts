@@ -2,7 +2,7 @@ import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { db } from "../../db.js";
 import { guard } from "../../auth/jwt.js";
-import { PRODUCTION, QUALITY, SETUP } from "../../auth/scopes.js";
+import { PRODUCTION, QUALITY, SERVICE, SETUP } from "../../auth/scopes.js";
 import { record } from "../../lib/events.js";
 import { syncOrderStatus } from "../../lib/order-status.js";
 import { consumeForWorkOrder } from "../../lib/stock.js";
@@ -25,7 +25,8 @@ const n = (d: unknown) => Number(d ?? 0);
 
 export default async function qualityRoutes(app: FastifyInstance) {
   // ─────────────────────────────────────────────── the vocabulary of faults
-  app.get("/quality/defect-types", { preHandler: guard(PRODUCTION) }, async () =>
+  app.get("/quality/defect-types",
+    { preHandler: guard([...new Set([...PRODUCTION, ...QUALITY, ...SERVICE])]) }, async () =>
     db.defectType.findMany({ where: { isActive: true }, orderBy: { nameAr: "asc" } }));
 
   app.post("/quality/defect-types", { preHandler: guard(SETUP) }, async (req, reply) => {

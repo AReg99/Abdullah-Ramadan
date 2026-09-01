@@ -324,7 +324,8 @@ export default async function adminRoutes(app: FastifyInstance) {
     });
     return rows.map((p) => ({
       id: p.id, sku: p.sku, nameAr: p.nameAr, nameEn: p.nameEn, kind: p.kind,
-      basePrice: Number(p.basePrice), baseLeadDays: p.baseLeadDays, isActive: p.isActive,
+      basePrice: Number(p.basePrice), baseLeadDays: p.baseLeadDays,
+      warrantyMonths: p.warrantyMonths, isActive: p.isActive,
       // What it costs to make is not the showroom's business — a rep who
       // knows the margin is a rep who can be argued down to it.
       ...(showCost ? { cost: Number(p.cost) } : {}),
@@ -419,6 +420,7 @@ export default async function adminRoutes(app: FastifyInstance) {
       categoryId: z.string(), basePrice: z.number().nonnegative(),
       cost: z.number().nonnegative().default(0),
       baseLeadDays: z.number().int().positive().default(14),
+      warrantyMonths: z.number().int().min(0).max(240).optional(),
       kind: z.enum(["STANDARD", "CUSTOMIZABLE"]).default("STANDARD"),
       description: z.string().max(500).optional(),
     }).parse(req.body);
@@ -446,6 +448,8 @@ export default async function adminRoutes(app: FastifyInstance) {
       basePrice: z.number().nonnegative().optional(),
       cost: z.number().nonnegative().optional(),
       baseLeadDays: z.number().int().positive().optional(),
+      /// How long this model is covered for, from the day it is delivered.
+      warrantyMonths: z.number().int().min(0).max(240).optional(),
       kind: z.enum(["STANDARD", "CUSTOMIZABLE"]).optional(),
       description: z.string().max(500).nullable().optional(),
       isActive: z.boolean().optional(),
@@ -472,6 +476,7 @@ export default async function adminRoutes(app: FastifyInstance) {
         ...(b.basePrice !== undefined ? { basePrice: String(b.basePrice) } : {}),
         ...(b.cost !== undefined ? { cost: String(b.cost) } : {}),
         ...(b.baseLeadDays !== undefined ? { baseLeadDays: b.baseLeadDays } : {}),
+        ...(b.warrantyMonths !== undefined ? { warrantyMonths: b.warrantyMonths } : {}),
         ...(b.kind ? { kind: b.kind } : {}),
         ...(b.description !== undefined ? { description: b.description } : {}),
         ...(b.isActive !== undefined ? { isActive: b.isActive } : {}),

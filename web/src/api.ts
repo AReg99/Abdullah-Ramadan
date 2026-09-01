@@ -217,6 +217,30 @@ export const api = {
     req<Record<string, string>>("/settings", { method: "PUT", body: JSON.stringify(b) }),
   invoice: (id: string) => req<Invoice>(`/orders/${id}/invoice`),
 
+  // ---- warranty & after-sales ----
+  warrantyOf: (orderLineId: string) => req<Warranty>(`/service/warranty/${orderLineId}`),
+  bySerial: (serial: string) => req<Warranty & { serial: string }>(`/service/by-serial/${serial}`),
+  tickets: (q?: { status?: string; kind?: string; mine?: boolean }) =>
+    req<Ticket[]>(`/service/tickets${q && (q.status || q.kind || q.mine)
+      ? `?${new URLSearchParams({ ...(q.status ? { status: q.status } : {}),
+                                  ...(q.kind ? { kind: q.kind } : {}),
+                                  ...(q.mine ? { mine: "1" } : {}) })}` : ""}`),
+  ticket: (id: string) => req<Ticket>(`/service/tickets/${id}`),
+  technicians: () => req<{ id: string; nameAr: string; nameEn: string; role: string }[]>(
+    "/service/technicians"),
+  addTicket: (b: { orderLineId: string; serial?: string; description: string;
+                   defectTypeId?: string; promisedDate?: string; assignedToId?: string }) =>
+    req<Ticket>("/service/tickets", { method: "POST", body: JSON.stringify(b) }),
+  patchTicket: (id: string, b: Record<string, unknown>) =>
+    req<Ticket>(`/service/tickets/${id}`, { method: "PATCH", body: JSON.stringify(b) }),
+  addVisit: (id: string, b: { outcome: string; note?: string; photoPath?: string }) =>
+    req<Ticket>(`/service/tickets/${id}/visits`, { method: "POST", body: JSON.stringify(b) }),
+  closeTicket: (id: string, b: { resolution: string; rejected?: boolean;
+                                 costAmount?: number; chargeAmount?: number; kind?: string }) =>
+    req<Ticket>(`/service/tickets/${id}/close`, { method: "POST", body: JSON.stringify(b) }),
+  serviceReport: (from?: string, to?: string) =>
+    req<ServiceReport>(`/service/report${from ? `?from=${from}&to=${to ?? ""}` : ""}`),
+
   // ---- planning ----
   planningBoard: () => req<PlanBoard>("/planning/board"),
   setPriority: (id: string, b: { level: "NORMAL" | "URGENT" | "CRITICAL"; note?: string }) =>
@@ -498,6 +522,41 @@ export type Summary = {
   lowStock: { id: string; name: string; unit: string; onHand: number;
               reorderLevel: number; value: number }[];
   byExpense: Record<string, number>;
+};
+export type Warranty = {
+  orderLineId: string;
+  order: { id: string; code: string };
+  customer: { name: string; phone: string; address?: string | null };
+  product: { nameAr: string; nameEn: string; sku: string };
+  deliveredAt: string | null; delivered: boolean;
+  months: number; until: string | null; inWarranty: boolean; daysLeft: number | null;
+};
+export type Ticket = {
+  id: string; number: string;
+  status: "OPEN" | "SCHEDULED" | "IN_REPAIR" | "DONE" | "REJECTED";
+  kind: "WARRANTY" | "PAID" | "GOODWILL";
+  description: string;
+  defect: { id: string; nameAr: string; nameEn: string } | null;
+  underWarranty: boolean; warrantyUntil: string | null; serial: string | null;
+  order: { id: string; code: string }; orderLineId: string;
+  customer: { name: string; phone: string; address: string | null };
+  product: { nameAr: string; nameEn: string; sku: string };
+  deliveredAt: string | null;
+  reportedBy: string | null; assignedTo: string | null; assignedToId: string | null;
+  promisedDate: string | null; resolution: string | null; closedAt: string | null;
+  /** Absent for a technician: what a repair cost is the office's business. */
+  costAmount?: number; chargeAmount?: number;
+  createdAt: string;
+  visits: { id: string; outcome: string; note: string | null; photoPath: string | null;
+            by: string | null; occurredAt: string }[];
+};
+export type ServiceReport = {
+  totals: { tickets: number; open: number; underWarranty: number; paid: number;
+            goodwill: number; rejected: number; cost: number; charged: number;
+            repeatVisits: number; avgDaysToClose: number | null };
+  byProduct: { name: string; count: number; cost: number }[];
+  byDefect: { name: string; count: number; cost: number }[];
+  rows: Ticket[];
 };
 export type PlanRow = {
   id: string; code: string; qty: number;
