@@ -77,6 +77,19 @@ export const DEFAULTS = {
   "costing.overheadPct": "15",
   /** Below this margin a model is flagged. Percent of the selling price. */
   "costing.minMarginPct": "25",
+  /**
+   * Days of slack on top of the calculated date.
+   *
+   * The calculation assumes every station works every day at its full rate and
+   * nothing goes wrong, which is never true. A promise with no slack in it is
+   * a promise broken by the first machine that stops.
+   */
+  "promise.bufferDays": "2",
+  /**
+   * Days the factory does not work, as JavaScript weekday numbers
+   * (0 = Sunday … 6 = Saturday). Friday here, which is why 5.
+   */
+  "promise.restDays": "5",
 } as const;
 
 export type SettingKey = keyof typeof DEFAULTS;

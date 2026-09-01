@@ -1,9 +1,10 @@
 import { useEffect, useState } from "react";
 import { useApp } from "../app-context";
-import { api, type PlanBoard, type PlanRow, type StationLoad } from "../api";
+import { api, type PlanBoard, type PlanRow, type PromiseWatch,
+         type StationLoad } from "../api";
 
-type Tab = "queue" | "load";
-const TABS: Tab[] = ["queue", "load"];
+type Tab = "queue" | "load" | "promises";
+const TABS: Tab[] = ["queue", "load", "promises"];
 const LEVELS = ["NORMAL", "URGENT", "CRITICAL"] as const;
 
 /**
@@ -30,7 +31,7 @@ export default function Planning() {
           </button>
         ))}
       </div>
-      {tab === "queue" ? <Queue /> : <Load />}
+      {tab === "queue" ? <Queue /> : tab === "load" ? <Load /> : <Promises />}
     </>
   );
 }
@@ -320,6 +321,96 @@ function Load() {
           </div>
         );
       })}
+    </>
+  );
+}
+
+/**
+ * الوعود المهددة — dates already given that the factory can no longer meet.
+ *
+ * The early warning the business never had. "Late" used to arrive as a fact on
+ * the day it happened; this says it a fortnight earlier, while there is still a
+ * phone call that helps — which is why the customer's number is on every row.
+ */
+function Promises() {
+  const { t, lang } = useApp();
+  const ar = lang === "ar";
+  const [w, setW] = useState<PromiseWatch | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [only, setOnly] = useState<"" | "risk" | "none">("risk");
+
+  useEffect(() => {
+    api.promiseWatch().then(setW).catch(() => setW(null)).finally(() => setLoading(false));
+  }, []);
+
+  const num = (v: number) => v.toLocaleString(ar ? "ar-EG" : "en-GB");
+  const when = (d: string) =>
+    new Date(d).toLocaleDateString(ar ? "ar-EG" : "en-GB", { day: "2-digit", month: "short" });
+
+  if (loading) return <div className="empty">{t("loading")}</div>;
+  if (!w) return <p className="note">{t("noRows")}</p>;
+
+  const rows = w.rows.filter((r) =>
+    only === "risk" ? r.atRisk : only === "none" ? r.noPromise : true);
+
+  return (
+    <>
+      <div className="tiles g3">
+        <Tile k={t("promiseAtRisk")} v={num(w.totals.atRisk)}
+              tone={w.totals.atRisk ? "bad" : "ok"}
+              on={() => setOnly(only === "risk" ? "" : "risk")} lit={only === "risk"} />
+        <Tile k={t("noPromiseYet")} v={num(w.totals.noPromise)}
+              tone={w.totals.noPromise ? "warn" : undefined}
+              on={() => setOnly(only === "none" ? "" : "none")} lit={only === "none"} />
+        <Tile k={t("worstSlip")}
+              v={`${num(w.totals.worstSlipDays)} ${t("daysShort")}`}
+              tone={w.totals.worstSlipDays > 0 ? "bad" : "ok"} />
+        <Tile k={t("late")} v={num(w.totals.alreadyLate)}
+              tone={w.totals.alreadyLate ? "bad" : "ok"} />
+        <Tile k={t("openPieces")} v={num(w.totals.open)}
+              on={() => setOnly("")} lit={only === ""} />
+      </div>
+
+      <p className="note" style={{ marginTop: 12 }}>{t("promiseWatchHint")}</p>
+      {rows.length === 0 && <p className="note">{t("nothingHere")}</p>}
+
+      {rows.map((r) => (
+        <div className="card" key={r.id} style={{
+          borderInlineStartWidth: r.atRisk ? 3 : undefined,
+          borderInlineStartColor: r.atRisk ? "var(--bad)" : undefined,
+        }}>
+          <div className="between">
+            <span style={{ flex: 1 }}>
+              <span className="nm">{ar ? r.product.nameAr : r.product.nameEn}</span>
+              <span className="sub">{r.customer} · {num(r.qty)} {t("qty")}</span>
+              <span className="sub mono">{r.orderCode}</span>
+            </span>
+            {r.atRisk && r.slipDays != null && (
+              <span className="pill bad">+{num(r.slipDays)} {t("daysShort")}</span>
+            )}
+            {r.noPromise && <span className="pill warn">{t("noPromiseYet")}</span>}
+          </div>
+
+          <p className="note">
+            {r.promisedDate
+              ? <>{t("promisedFor")} <b>{when(r.promisedDate)}</b></>
+              : t("nobodySaidADate")}
+            {r.canDoBy && (
+              <> · {t("canDoBy")}{" "}
+                <b style={{ color: r.atRisk ? "var(--bad)" : "var(--ok)" }}>
+                  {when(r.canDoBy)}
+                </b>
+              </>
+            )}
+            {r.workingDaysLeft != null && <> · {num(r.workingDaysLeft)} {t("workingDaysShort")}</>}
+          </p>
+
+          {/* The whole point of knowing early is that there is still a call
+              worth making. */}
+          <a className="btn sec sm toggle" href={`tel:${r.customerPhone}`}
+             style={{ textDecoration: "none", marginTop: 8 }}>{t("callCustomer")}</a>
+        </div>
+      ))}
     </>
   );
 }

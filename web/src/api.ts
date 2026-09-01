@@ -302,6 +302,9 @@ export const api = {
     req<{ id: string; priority: number; level: string }>(
       `/planning/work-orders/${id}/priority`, { method: "POST", body: JSON.stringify(b) }),
   stationLoad: () => req<StationLoad>("/planning/load"),
+  promiseFor: (lines: { productId?: string; qty: number }[]) =>
+    req<PromiseDate>("/planning/promise", { method: "POST", body: JSON.stringify({ lines }) }),
+  promiseWatch: () => req<PromiseWatch>("/planning/promises"),
   setCapacity: (id: string, dailyCapacityMinutes: number) =>
     req<{ id: string; dailyCapacityMinutes: number }>(
       `/planning/stations/${id}/capacity`,
@@ -712,6 +715,28 @@ export type PlanBoard = {
   totals: { open: number; late: number; atRisk: number; notStarted: number;
             blocked: number; urgent: number; remainingHours: number };
   rows: PlanRow[];
+};
+export type PromiseDate = {
+  date: string | null;
+  workingDays: number | null;
+  bufferDays: number;
+  totalWorkingDays?: number;
+  restDays?: number[];
+  reason?: string;
+  bottleneck?: string | null;
+  lines: { qty: number; workingDays: number | null;
+           steps: { stage: string; station: string | null; waitDays: number;
+                    ownDays: number; readyDay: number }[] }[];
+};
+export type PromiseWatch = {
+  totals: { open: number; atRisk: number; noPromise: number;
+            alreadyLate: number; worstSlipDays: number };
+  rows: { id: string; orderId: string; orderCode: string; customer: string;
+          customerPhone: string; product: { nameAr: string; nameEn: string };
+          qty: number; status: string;
+          promisedDate: string | null; noPromise: boolean;
+          canDoBy: string | null; workingDaysLeft: number | null;
+          slipDays: number | null; atRisk: boolean }[];
 };
 export type StationLoad = {
   totals: { queuedHours: number; capacityHoursPerDay: number; stations: number };

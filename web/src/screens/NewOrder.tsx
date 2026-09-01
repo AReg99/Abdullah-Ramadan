@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useApp } from "../app-context";
 import { api, ApiError, type Approval, type LocationRow, type MyLimits,
-         type ProductRow } from "../api";
+         type ProductRow, type PromiseDate } from "../api";
 
 type Line = { productId: string; qty: string; unitPrice: string; discount: string;
               warehouseId: string; specNotes: string; lineKind: "STANDARD" | "CUSTOM" };
@@ -31,6 +31,8 @@ export default function NewOrder() {
   const [using, setUsing] = useState<Approval | null>(null);
   const [blocked, setBlocked] = useState<
     { allowed: number; asked: number; limitPct: number } | null>(null);
+  const [soonest, setSoonest] = useState<PromiseDate | null>(null);
+  const [showSteps, setShowSteps] = useState(false);
 
   useEffect(() => { api.products().then(setProducts).catch(() => toast("error")); }, []);
   // What this person may take off on their own, and any permission already
@@ -50,6 +52,25 @@ export default function NewOrder() {
       .then((ls) => setStores(ls.filter((l) => l.type !== "FACTORY")))
       .catch(() => setStores([]));
   }, []);
+
+  /**
+   * The soonest the factory could actually finish this basket.
+   *
+   * A promise date used to be a guess, or a fixed fourteen days that knew
+   * nothing about the eleven days of work standing in front of cutting. This
+   * is asked while the customer is at the counter, before anything is written.
+   */
+  const basket = lines.filter((l) => l.productId && Number(l.qty) > 0)
+    .map((l) => `${l.productId}:${l.qty}`).join(",");
+  useEffect(() => {
+    if (!basket) { setSoonest(null); return; }
+    let live = true;
+    api.promiseFor(basket.split(",").map((x) => {
+      const [productId, qty] = x.split(":");
+      return { productId, qty: Number(qty) };
+    })).then((d) => { if (live) setSoonest(d); }).catch(() => { if (live) setSoonest(null); });
+    return () => { live = false; };
+  }, [basket]);
 
   const priceOf = (id: string) => products.find((p) => p.id === id)?.basePrice ?? 0;
   const photosOf = (id: string) => products.find((p) => p.id === id)?.photos ?? [];
@@ -89,6 +110,53 @@ export default function NewOrder() {
         <div style={{ height: 11 }} />
         <span className="k">{t("promisedDate")}</span>
         <input type="date" value={promisedDate} onChange={(e) => setPromisedDate(e.target.value)} style={{ marginTop: 8 }} />
+
+        {soonest?.date && (
+          <>
+            <p className="note" style={{ marginTop: 8 }}>
+              {t("soonestIs")}{" "}
+              <b>{new Date(soonest.date).toLocaleDateString(lang === "ar" ? "ar-EG" : "en-GB",
+                    { day: "2-digit", month: "long", year: "numeric" })}</b>
+              {" — "}{soonest.totalWorkingDays} {t("workingDaysShort")}
+              {soonest.bottleneck && <> · {t("waitingOn")} {soonest.bottleneck}</>}
+            </p>
+            <div className="row wrap" style={{ marginTop: 7 }}>
+              <button className="btn sec sm toggle"
+                      onClick={() => setPromisedDate(soonest.date!.slice(0, 10))}>
+                {t("useThisDate")}
+              </button>
+              <button className="btn sec sm toggle"
+                      onClick={() => setShowSteps(!showSteps)}>
+                {showSteps ? t("hideWorkings") : t("howItAdds")}
+              </button>
+            </div>
+            {/* The rep is about to argue about a week either way; showing the
+                arithmetic is what makes the date defensible at the counter. */}
+            {showSteps && soonest.lines[0] && (
+              <>
+                {soonest.lines[0].steps.map((st, i) => (
+                  <div className="evt" key={i}>
+                    <span style={{ flex: 1 }}>
+                      <b>{st.station ?? st.stage}</b>
+                      <span className="sub">
+                        {t("waits")} {st.waitDays} · {t("takes")} {st.ownDays}
+                      </span>
+                    </span>
+                    <b className="mono">{st.readyDay}</b>
+                  </div>
+                ))}
+                <p className="note">
+                  {t("plusBuffer")} {soonest.bufferDays} {t("daysShort")}
+                </p>
+              </>
+            )}
+            {/* A rep can still promise sooner. They are told, not stopped —
+                sometimes the owner has already decided to move something. */}
+            {promisedDate && new Date(promisedDate) < new Date(soonest.date) && (
+              <p className="note" style={{ color: "var(--warn)" }}>{t("earlierThanPossible")}</p>
+            )}
+          </>
+        )}
       </div>
 
       {lines.map((l, i) => (

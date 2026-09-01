@@ -4,6 +4,11 @@ import { db } from "../../db.js";
 import { guard } from "../../auth/jwt.js";
 import { PLANNING } from "../../auth/scopes.js";
 import { record } from "../../lib/events.js";
+import { SELL } from "../../auth/scopes.js";
+import {
+  addToQueues, addWorkingDays, daysLeftFor, defaultRouting,
+  promiseSettings, stationQueues, workingDaysFor,
+} from "../../lib/promise-date.js";
 
 /**
  * التخطيط — the production manager's job.
@@ -243,6 +248,147 @@ export default async function planningRoutes(app: FastifyInstance) {
       // the bottleneck; the bottleneck is the reason they opened the screen.
       bottleneck: worst && (worst.daysOfQueue ?? 0) > 0 ? worst.id : null,
       rows,
+    };
+  });
+
+  /**
+   * أقرب موعد تسليم — the date the factory can actually stand behind.
+   *
+   * Asked while the customer is at the counter, before anything is written.
+   * A promise date used to be a guess, or a fixed fourteen days that knew
+   * nothing about the eleven days of work standing in front of cutting.
+   *
+   * The showroom asks this, not the factory: it is the counter that makes the
+   * promise, and a date only the factory can see is a date nobody quotes.
+   */
+  app.post("/planning/promise", { preHandler: guard([...new Set([...PLANNING, ...SELL])]) },
+    async (req, reply) => {
+      const b = z.object({
+        lines: z.array(z.object({
+          productId: z.string().optional(),
+          qty: z.number().int().positive().default(1),
+        })).min(1),
+      }).parse(req.body);
+
+      const [routing, q, cfg] = await Promise.all([
+        defaultRouting(), stationQueues(), promiseSettings(),
+      ]);
+      if (!routing || routing.stages.length === 0) {
+        return reply.code(400).send({ error: "no_routing_configured" });
+      }
+
+      // Each line is quoted against the queue the lines before it just added:
+      // three wardrobes are not three separate pieces alone in the factory.
+      const extra = new Map<string, number>();
+      const lines = b.lines.map((l) => {
+        const r = workingDaysFor(routing, l.qty, q, extra);
+        addToQueues(routing, l.qty, extra);
+        return { qty: l.qty, workingDays: r.days, steps: r.steps };
+      });
+
+      const worst = lines.reduce<number | null>(
+        (m, l) => (l.workingDays == null || m == null ? null : Math.max(m, l.workingDays)), 0);
+      if (worst == null) {
+        // A station with no capacity cannot be scheduled through, and a made-up
+        // number here is a date nobody could defend.
+        return { date: null, workingDays: null, bufferDays: cfg.bufferDays,
+                 reason: "no_capacity", lines };
+      }
+      const withBuffer = worst + cfg.bufferDays;
+      return {
+        date: addWorkingDays(new Date(), withBuffer, cfg.restDays),
+        workingDays: Math.ceil(worst),
+        bufferDays: cfg.bufferDays,
+        totalWorkingDays: Math.ceil(withBuffer),
+        restDays: cfg.restDays,
+        // The station the date is really waiting on. Everything else is noise
+        // to whoever is about to argue about a week either way.
+        bottleneck: (() => {
+          const st = lines[0].steps;
+          const worstStep = st.reduce((a, x) => (x.waitDays > (a?.waitDays ?? -1) ? x : a),
+                                      st[0] ?? null);
+          return worstStep && worstStep.waitDays > 0.5 ? worstStep.station : null;
+        })(),
+        lines,
+      };
+    });
+
+  /**
+   * الوعود المهددة — dates already given that the factory can no longer meet.
+   *
+   * The early warning the business never had. "Late" arrived as a fact on the
+   * day it happened; this says it a fortnight earlier, while there is still a
+   * phone call that helps.
+   *
+   * Measured from the work **left** on each piece, not from a fresh order's
+   * lead time — a piece three stages in has three stages behind it, and
+   * judging it as though it were new would call the whole factory late.
+   */
+  app.get("/planning/promises", { preHandler: guard(PLANNING) }, async () => {
+    const [q, cfg, lines] = await Promise.all([
+      stationQueues(), promiseSettings(),
+      db.orderLine.findMany({
+        where: { status: { notIn: ["DELIVERED", "CANCELLED"] } },
+        include: {
+          product: true,
+          order: { include: { customer: true } },
+          workOrders: {
+            where: { status: { notIn: ["CANCELLED"] } },
+            include: { stages: { include: { routingStage: true } } },
+          },
+        },
+        take: 300,
+      }),
+    ]);
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const rows = lines.map((l) => {
+      const wo = l.workOrders[0];
+      const left = wo
+        ? daysLeftFor(wo.stages as any,
+                      { id: wo.id, qty: wo.qty, code: wo.code, priority: wo.priority,
+                        orderLine: { promisedDate: l.promisedDate,
+                                     order: { promisedDate: l.order.promisedDate } } },
+                      q)
+        : null;
+      const canDo = left == null ? null
+        : addWorkingDays(today, left + cfg.bufferDays, cfg.restDays);
+      const promised = l.promisedDate ?? l.order.promisedDate;
+      const slipDays = promised && canDo
+        ? Math.ceil((canDo.getTime() - promised.getTime()) / 86_400_000) : null;
+
+      return {
+        id: l.id, orderId: l.orderId, orderCode: l.order.code,
+        customer: l.order.customer.name,
+        customerPhone: l.order.customer.phone,
+        product: { nameAr: l.product.nameAr, nameEn: l.product.nameEn },
+        qty: l.qty, status: l.status,
+        promisedDate: promised,
+        // Nothing was promised, so nothing can slip — but somebody should say
+        // a date, and that is its own thing to see.
+        noPromise: promised == null,
+        canDoBy: canDo,
+        workingDaysLeft: left == null ? null : Math.ceil(left),
+        slipDays,
+        atRisk: slipDays != null && slipDays > 0,
+      };
+    });
+
+    const at = rows.filter((r) => r.atRisk);
+    return {
+      totals: {
+        open: rows.length,
+        atRisk: at.length,
+        noPromise: rows.filter((r) => r.noPromise).length,
+        alreadyLate: rows.filter((r) => r.promisedDate
+          && r.promisedDate.getTime() < today.getTime()).length,
+        worstSlipDays: at.length ? Math.max(...at.map((r) => r.slipDays ?? 0)) : 0,
+      },
+      // Worst slip first: the one to ring about today.
+      rows: rows.sort((a, b) =>
+        (b.slipDays ?? -9e9) - (a.slipDays ?? -9e9)
+        || (a.promisedDate?.getTime() ?? 9e15) - (b.promisedDate?.getTime() ?? 9e15)),
     };
   });
 

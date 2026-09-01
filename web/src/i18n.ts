@@ -576,6 +576,20 @@ const ar = {
   marginFloor: "أقل ربح مقبول",
   marginFloorHint: "بالنسبة من سعر البيع. اللي تحته بيتعلّم عليه في القايمة.",
   no_bom: "الموديل ده مالوش قايمة مكونات",
+  // ── مواعيد التسليم
+  plan_promises: "الوعود",
+  soonestIs: "أقرب موعد ممكن:", workingDaysShort: "يوم شغل",
+  waitingOn: "مستني", useThisDate: "خد الموعد ده", howItAdds: "الموعد جه منين؟",
+  hideWorkings: "اخفي الحسبة", waits: "يستنى", takes: "ياخد",
+  plusBuffer: "زائد احتياطي",
+  earlierThanPossible:
+    "الموعد اللي كتبته أقرب من اللي المصنع يقدر عليه. لو مصمم، لازم حاجة تتقدّم قبله.",
+  promiseAtRisk: "وعود مهددة", noPromiseYet: "من غير موعد",
+  worstSlip: "أكبر تأخير متوقع",
+  promiseWatchHint:
+    "المحسوب من الشغل الباقي على القطعة، مش من مدة طلب جديد. اللي هيتأخر أكتر فوق — ده اللي تكلّم عميله النهارده.",
+  promisedFor: "اتوعد بـ", canDoBy: "ممكن يخلص", nobodySaidADate: "محدش قال موعد",
+  no_capacity: "في محطة طاقتها صفر — مينفعش يتحسب موعد",
 };
 
 const en: Record<keyof typeof ar, string> = {
@@ -1151,6 +1165,20 @@ const en: Record<keyof typeof ar, string> = {
   marginFloor: "Minimum margin",
   marginFloorHint: "A percent of the selling price. Anything below it is flagged on the list.",
   no_bom: "That model has no bill of materials",
+  // ── promise dates
+  plan_promises: "Promises",
+  soonestIs: "Soonest possible:", workingDaysShort: "working days",
+  waitingOn: "waiting on", useThisDate: "Use this date", howItAdds: "Where does it come from?",
+  hideWorkings: "Hide the workings", waits: "waits", takes: "takes",
+  plusBuffer: "plus slack of",
+  earlierThanPossible:
+    "The date you entered is sooner than the factory can manage. If you mean it, something has to be moved up first.",
+  promiseAtRisk: "Promises at risk", noPromiseYet: "No date given",
+  worstSlip: "Worst expected slip",
+  promiseWatchHint:
+    "Worked out from what is left on each piece, not from a fresh order's lead time. Worst slip first — that is the customer to ring today.",
+  promisedFor: "Promised", canDoBy: "could be ready", nobodySaidADate: "Nobody gave a date",
+  no_capacity: "A station has no capacity — no date can be worked out",
 };
 
 export const DICT = { ar, en };

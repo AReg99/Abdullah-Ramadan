@@ -92,6 +92,7 @@ web/   React + Vite — worker app and owner console, RTL-first
 | [19 — Warranty & after-sales](docs/19-warranty-and-after-sales.md) | When cover runs out, the complaint, the visits, and which models come back |
 | [20 — Leads & quotations](docs/20-leads-and-quotations.md) | Who came in, the price in writing, and how many walk-ins became sales |
 | [21 — Cost accounting](docs/21-cost-accounting.md) | What a piece really costs, the margin on it, and telling the counter when a price moves |
+| [22 — Promise dates](docs/22-promise-dates.md) | A delivery date built from the real queue, and a warning before a promise slips |
 | [**User guide**](docs/guide/README.md) | How to actually use the app, one short guide per role, in Arabic and English |
 
 ## Design principles
