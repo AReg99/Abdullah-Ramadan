@@ -20,8 +20,9 @@
  * Anything that needs the set of roles reads it from here.
  */
 export const ROLE_KEYS = [
-  "OWNER", "FACTORY_MANAGER", "PRODUCTION_MANAGER", "SUPERVISOR", "GROUP_LEADER",
-  "QC", "STOREKEEPER", "SHOWROOM_MANAGER", "SALES_REP", "DRIVER", "ACCOUNTANT",
+  "OWNER", "FACTORY_MANAGER", "PRODUCTION_MANAGER", "COST_ACCOUNTANT", "SUPERVISOR",
+  "GROUP_LEADER", "QC", "STOREKEEPER", "SHOWROOM_MANAGER", "SALES_REP", "DRIVER",
+  "ACCOUNTANT",
 ] as const;
 export type RoleKey = (typeof ROLE_KEYS)[number];
 
@@ -45,6 +46,7 @@ const GRANTS: Record<string, string[]> = {
   OWNER: [...ROLE_KEYS],
   FACTORY_MANAGER: ["PRODUCTION_MANAGER", "SUPERVISOR", "GROUP_LEADER", "QC",
                     "STOREKEEPER", "DRIVER"],
+  // Costing is a money job, so staffing it stops with the owner.
 };
 
 /** Roles this person may create, and equally: whose accounts they may edit. */
@@ -75,7 +77,31 @@ export const LEAD_REPORT = [...new Set([...SELL, "ACCOUNTANT"])];
  * arrived and what it goes for. Destroying a product stays with the owner
  * (SETUP), because that is not a correction, it is a decision.
  */
-export const CATALOGUE = [...new Set([...SETUP, ...SELL])];
+export const CATALOGUE = [...new Set([...SETUP, ...SELL, "COST_ACCOUNTANT"])];
+
+/**
+ * Costing: what a piece takes to make, what it therefore has to sell for, and
+ * what the margin on it actually is.
+ *
+ * Deliberately not BOOKS. The accountant keeps the drawer — did we get paid —
+ * and the cost accountant answers a different question: was it worth making.
+ * Handing either of them the other's screens is how a small business ends up
+ * with one person doing both badly.
+ */
+export const COSTING = ["OWNER", "COST_ACCOUNTANT"];
+
+/**
+ * Reading what the costing found, without being able to move a price. The
+ * factory manager wants to know which models are losing money on his floor.
+ */
+export const COSTING_READ = [...new Set([...COSTING, "FACTORY_MANAGER",
+                                         "PRODUCTION_MANAGER", "ACCOUNTANT"])];
+
+/**
+ * Being told a price moved. The counter is where a price that changed without
+ * anybody saying so turns into an argument with a customer.
+ */
+export const PRICE_NOTICES = [...new Set([...COSTING, ...SELL])];
 
 /** Running the factory: the floor, the queue, the handover. */
 export const PRODUCTION = ["OWNER", "FACTORY_MANAGER", "PRODUCTION_MANAGER", "SUPERVISOR"];
@@ -141,13 +167,14 @@ export const READ_ORDERS = [...new Set([...PRODUCTION, ...MONEY])];
  * office may touch is stock nobody records.
  */
 export const STOCK = ["OWNER", "FACTORY_MANAGER", "PRODUCTION_MANAGER", "SUPERVISOR",
-                      "STOREKEEPER", "SHOWROOM_MANAGER", "SALES_REP", "ACCOUNTANT"];
+                      "STOREKEEPER", "SHOWROOM_MANAGER", "SALES_REP", "ACCOUNTANT",
+                      "COST_ACCOUNTANT"];
 
 /**
  * Setting up what is tracked, and what it is worth. Costs are on a stock item,
  * so this is narrower than moving goods around.
  */
-export const STOCK_ADMIN = ["OWNER", "FACTORY_MANAGER", "ACCOUNTANT"];
+export const STOCK_ADMIN = ["OWNER", "FACTORY_MANAGER", "ACCOUNTANT", "COST_ACCOUNTANT"];
 
 /**
  * Taking the register. Whoever is on the floor at seven in the morning has to

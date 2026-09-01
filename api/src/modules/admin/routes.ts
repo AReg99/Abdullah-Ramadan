@@ -453,6 +453,8 @@ export default async function adminRoutes(app: FastifyInstance) {
       kind: z.enum(["STANDARD", "CUSTOMIZABLE"]).optional(),
       description: z.string().max(500).nullable().optional(),
       isActive: z.boolean().optional(),
+      /** Why the price moved. The counter reads it. */
+      reason: z.string().max(300).optional(),
     }).parse(req.body);
 
     const exists = await db.product.findUnique({ where: { id } });
@@ -466,7 +468,7 @@ export default async function adminRoutes(app: FastifyInstance) {
     if ((b.isActive ?? exists.isActive) && price <= 0) {
       return reply.code(400).send({ error: "price_required_to_activate" });
     }
-    return db.product.update({
+    const saved = await db.product.update({
       where: { id },
       data: {
         ...(b.sku ? { sku: b.sku } : {}),
@@ -482,6 +484,26 @@ export default async function adminRoutes(app: FastifyInstance) {
         ...(b.isActive !== undefined ? { isActive: b.isActive } : {}),
       },
     });
+
+    /**
+     * A price or a cost moving is written down here, in the one route every
+     * screen goes through — not by whoever remembers to. Prices were a column
+     * somebody overwrote: nothing said what a wardrobe used to cost, when it
+     * changed or what for, and the showroom found out from a customer.
+     */
+    const moved = Number(saved.basePrice) !== Number(exists.basePrice)
+               || Number(saved.cost) !== Number(exists.cost);
+    if (moved) {
+      await db.priceChange.create({
+        data: {
+          productId: id,
+          oldPrice: exists.basePrice, newPrice: saved.basePrice,
+          oldCost: exists.cost, newCost: saved.cost,
+          reason: b.reason ?? null, actorId: (req as any).user.id,
+        },
+      });
+    }
+    return saved;
   });
 
   // ---------------------------------------------------------------- routings

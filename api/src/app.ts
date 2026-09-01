@@ -24,6 +24,7 @@ import approvalRoutes from "./modules/approvals/routes.js";
 import planningRoutes from "./modules/planning/routes.js";
 import serviceRoutes from "./modules/service/routes.js";
 import leadRoutes from "./modules/leads/routes.js";
+import costingRoutes from "./modules/costing/routes.js";
 
 export async function build() {
   const app = Fastify({ logger: { level: "warn" } });
@@ -89,6 +90,7 @@ export async function build() {
   await app.register(planningRoutes);
   await app.register(serviceRoutes);
   await app.register(leadRoutes);
+  await app.register(costingRoutes);
 
   return app;
 }

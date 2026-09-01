@@ -16,7 +16,8 @@ export default function Setup() {
   const { t, lang, toast, me } = useApp();
   // Each half of Setup belongs to different people: the factory's crews and
   // staff to whoever runs the factory, the catalogue to whoever sells from it.
-  const catalogue = ["OWNER", "SHOWROOM_MANAGER", "SALES_REP"].includes(me?.role ?? "");
+  const catalogue = ["OWNER", "SHOWROOM_MANAGER", "SALES_REP",
+                     "COST_ACCOUNTANT"].includes(me?.role ?? "");
   const factory = ["OWNER", "FACTORY_MANAGER"].includes(me?.role ?? "");
   // A tax rate and the name on the invoice are the owner's alone.
   const owner = me?.role === "OWNER";

@@ -64,6 +64,19 @@ export const DEFAULTS = {
    * the customer holds you to next year, after the timber has moved twice.
    */
   "quote.validDays": "14",
+  /**
+   * What an hour on the floor costs, all in. Multiplied by the routing's
+   * standard minutes to price the labour in a piece.
+   *
+   * A figure rather than a calculation off the payroll on purpose: wages are
+   * weekly and by attendance, and a cost that moves every Saturday is a cost
+   * nobody can quote against.
+   */
+  "costing.labourRate": "40",
+  /** Rent, power, glue, the things no bill of materials lists. Percent. */
+  "costing.overheadPct": "15",
+  /** Below this margin a model is flagged. Percent of the selling price. */
+  "costing.minMarginPct": "25",
 } as const;
 
 export type SettingKey = keyof typeof DEFAULTS;

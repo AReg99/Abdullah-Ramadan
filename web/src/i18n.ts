@@ -542,6 +542,40 @@ const ar = {
   quotation: "عرض سعر", quotationFor: "عرض سعر لـ",
   validUntilLabel: "صالح لحد", quoteFooter:
     "الأسعار دي صالحة لحد التاريخ المذكور. بعد كده لازم عرض جديد.",
+  // ── محاسبة التكاليف
+  costing: "التكاليف", COST_ACCOUNTANT: "محاسب تكاليف",
+  cost_prices: "قائمة الأسعار", cost_margin: "الربح الفعلي",
+  cost_changes: "تغييرات الأسعار", cost_rates: "المعدلات",
+  models: "الموديلات", belowFloor: "تحت الحد الأدنى", costDrifted: "التكلفة اتغيرت",
+  noRecipe: "مفيش مكونات", soldBelowCost: "بيتباع بخسارة", avgMargin: "متوسط الربح",
+  priceListHint:
+    "أقل ربح فوق. آخر لستة مرتبة أبجدياً هو المكان اللي الخسائر بتقعد فيه ومحدش بيوصله.",
+  costs: "بيكلّف",
+  storedAt: "متسجل بـ", actuallyCosts: "بيكلّف فعلاً",
+  belowCostWarn: "السعر أقل من التكلفة — كل قطعة بتتباع خسارة.",
+  noRecipeHint: "الموديل ده مالوش قايمة مكونات، فالتكلفة مش هتتحسب. ضيفها من المخزن.",
+  materials: "الخامات", materialsTotal: "إجمالي الخامات",
+  labourCost: "المصنعية", minutesShort: "د", overhead: "مصاريف غير مباشرة",
+  priceForFloor: "السعر اللي يوصلك لـ",
+  newPrice: "سعر جديد", savePrice: "احفظ السعر",
+  whyPriceMoved: "ليه؟ (المعرض هيقراها)",
+  priceMoveHint: "أي تغيير في السعر بيوصل المعرض على طول — عشان محدش يعرف بيه من العميل.",
+  adoptCost: "اعتمد التكلفة الجديدة", passItOn: "اعتمدها وزوّد السعر",
+  priceHistory: "تاريخ الأسعار",
+  realisedMargin: "الربح الفعلي",
+  realisedHint:
+    "قائمة الأسعار بتقول المفروض تكسب كام. دي بتقول كسبت كام فعلاً — الخصم اللي اتعمل على البيع بيبان هنا بس.",
+  revenue: "المبيعات", costOfSales: "تكلفة المبيعات", profit: "الربح",
+  losingModels: "موديل بيتباع بخسارة",
+  noPriceChanges: "مفيش تغييرات أسعار",
+  changesHint: "كل تغيير في سعر أو تكلفة بيتكتب هنا لوحده — مش لما حد يفتكر.",
+  markAllRead: "قريتهم", readBy: "قراه:",
+  labourRate: "سعر ساعة العمل",
+  labourRateHint: "بالجنيه للساعة، شامل كل حاجة. بيتضرب في الزمن المعياري للموديل.",
+  overheadHint: "نسبة على الخامات والمصنعية — إيجار وكهربا وغراء واللي مفيش فاتورة بيه.",
+  marginFloor: "أقل ربح مقبول",
+  marginFloorHint: "بالنسبة من سعر البيع. اللي تحته بيتعلّم عليه في القايمة.",
+  no_bom: "الموديل ده مالوش قايمة مكونات",
 };
 
 const en: Record<keyof typeof ar, string> = {
@@ -1083,6 +1117,40 @@ const en: Record<keyof typeof ar, string> = {
   quotation: "Quotation", quotationFor: "Quotation for",
   validUntilLabel: "Valid until", quoteFooter:
     "These prices hold until the date shown. After that a new quotation is needed.",
+  // ── cost accounting
+  costing: "Costing", COST_ACCOUNTANT: "Cost accountant",
+  cost_prices: "Price list", cost_margin: "Realised margin",
+  cost_changes: "Price changes", cost_rates: "Rates",
+  models: "Models", belowFloor: "Below the floor", costDrifted: "Cost has moved",
+  noRecipe: "No recipe", soldBelowCost: "Sold at a loss", avgMargin: "Average margin",
+  priceListHint:
+    "Worst margin first. The bottom of an alphabetical list is where the losses sit and nobody scrolls that far.",
+  costs: "costs",
+  storedAt: "stored at", actuallyCosts: "actually costs",
+  belowCostWarn: "The price is under the cost — every piece is sold at a loss.",
+  noRecipeHint: "This model has no bill of materials, so nothing can be costed. Add one from the store.",
+  materials: "Materials", materialsTotal: "Materials",
+  labourCost: "Labour", minutesShort: "min", overhead: "Overhead",
+  priceForFloor: "The price that clears",
+  newPrice: "New price", savePrice: "Save the price",
+  whyPriceMoved: "Why? (the showroom reads this)",
+  priceMoveHint: "Any price change reaches the showroom immediately — so nobody learns about it from a customer.",
+  adoptCost: "Take the new cost", passItOn: "Take it and move the price",
+  priceHistory: "Price history",
+  realisedMargin: "Realised margin",
+  realisedHint:
+    "The price list says what a model should make. This says what it did — a discount given at the counter shows up here and nowhere else.",
+  revenue: "Revenue", costOfSales: "Cost of sales", profit: "Profit",
+  losingModels: "models sold at a loss",
+  noPriceChanges: "No price changes",
+  changesHint: "Every price or cost move is written here by itself — not when somebody remembers.",
+  markAllRead: "Mark all read", readBy: "Read by",
+  labourRate: "Hourly labour rate",
+  labourRateHint: "All in, per hour. Multiplied by the model's standard minutes.",
+  overheadHint: "A percent on materials and labour — rent, power, glue, the things no bill lists.",
+  marginFloor: "Minimum margin",
+  marginFloorHint: "A percent of the selling price. Anything below it is flagged on the list.",
+  no_bom: "That model has no bill of materials",
 };
 
 export const DICT = { ar, en };

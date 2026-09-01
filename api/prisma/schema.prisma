@@ -25,6 +25,10 @@ enum RoleKey {
   /// missed. Distinct from the factory manager, who staffs it and answers for
   /// it — in a furniture shop these are two people and two jobs.
   PRODUCTION_MANAGER
+  /// Works out what a piece actually costs to make, and therefore what it has
+  /// to sell for. Distinct from the accountant, who keeps the drawer: one
+  /// answers "did we get paid", the other "was it worth making".
+  COST_ACCOUNTANT
   SUPERVISOR
   GROUP_LEADER
   QC
@@ -134,6 +138,8 @@ model User {
   leadsOwned  Lead[]       @relation("LeadOwner")
   leadNotes   LeadNote[]   @relation("LeadNoteAuthor")
   quotes      Quotation[]  @relation("QuoteAuthor")
+  priceChanges     PriceChange[] @relation("PriceChangeAuthor")
+  priceChangesSeen PriceChange[] @relation("PriceChangeSeen")
 }
 
 /// A crew working one station under one leader.
@@ -260,6 +266,7 @@ model Product {
   stockItem  StockItem?
   bom        BomLine[]
   quotationLines QuotationLine[]
+  priceChanges PriceChange[]
 }
 
 // ---------------------------------------------------------------- sales
@@ -1674,4 +1681,41 @@ model QuotationLine {
   unitPrice   Decimal   @db.Decimal(14, 2)
   discount    Decimal   @default(0) @db.Decimal(14, 2)
   specNotes   String?
+}
+
+// --------------------------------------------------------------- costing
+
+/// A price or a cost moving, and why.
+///
+/// Prices were a column somebody overwrote. Nothing said what a wardrobe used
+/// to cost, when it changed, who changed it or what for — so "the margin on
+/// this collapsed in March" was not a question the system could answer, and
+/// the showroom found out a price had moved when a customer argued about it.
+///
+/// Written by the product route itself rather than by whoever remembers, so a
+/// change made from any screen is on the record.
+model PriceChange {
+  id        String  @id @default(uuid())
+  productId String
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  oldPrice Decimal @db.Decimal(14, 2)
+  newPrice Decimal @db.Decimal(14, 2)
+  oldCost  Decimal @db.Decimal(14, 2)
+  newCost  Decimal @db.Decimal(14, 2)
+  reason   String?
+
+  actorId String?
+  actor   User?   @relation("PriceChangeAuthor", fields: [actorId], references: [id])
+
+  /// The showroom has read it. A price that moved without the counter knowing
+  /// is an argument with a customer.
+  seenAt   DateTime?
+  seenById String?
+  seenBy   User?     @relation("PriceChangeSeen", fields: [seenById], references: [id])
+
+  createdAt DateTime @default(now())
+
+  @@index([productId, createdAt])
+  @@index([seenAt])
 }

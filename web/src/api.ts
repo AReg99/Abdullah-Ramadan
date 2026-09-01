@@ -120,6 +120,7 @@ export const api = {
   addCategory: (b: { nameAr: string }) => req<any>("/admin/categories", { method: "POST", body: JSON.stringify(b) }),
   products: () => req<ProductRow[]>("/admin/products"),
   updateProduct: (id: string, b: Partial<{ nameAr: string; sku: string; basePrice: number;
+      cost: number; warrantyMonths: number; reason: string;
       baseLeadDays: number; categoryId: string; description: string | null; isActive: boolean }>) =>
     req<ProductRow>(`/admin/products/${id}`, { method: "PATCH", body: JSON.stringify(b) }),
   addProductPhoto: (productId: string, file: File) => {
@@ -216,6 +217,23 @@ export const api = {
   saveSettings: (b: Record<string, string>) =>
     req<Record<string, string>>("/settings", { method: "PUT", body: JSON.stringify(b) }),
   invoice: (id: string) => req<Invoice>(`/orders/${id}/invoice`),
+
+  // ---- costing ----
+  priceList: () => req<PriceList>("/costing/price-list"),
+  costOf: (id: string) => req<ProductCosting>(`/costing/products/${id}`),
+  adoptCost: (id: string, b: { reason?: string; holdMargin?: boolean }) =>
+    req<{ id: string; cost: number; basePrice: number }>(
+      `/costing/products/${id}/adopt`, { method: "POST", body: JSON.stringify(b) }),
+  costRates: (b: { labourRate?: number; overheadPct?: number; minMarginPct?: number }) =>
+    req<CostRates>("/costing/rates", { method: "PUT", body: JSON.stringify(b) }),
+  priceChanges: (unseen?: boolean) =>
+    req<PriceChange[]>(`/costing/changes${unseen ? "?unseen=1" : ""}`),
+  unseenPrices: () => req<{ count: number }>("/costing/changes/unseen"),
+  markPricesSeen: (ids?: string[]) =>
+    req<{ marked: number }>("/costing/changes/seen",
+      { method: "POST", body: JSON.stringify(ids ? { ids } : {}) }),
+  realisedMargin: (from?: string, to?: string) =>
+    req<MarginReport>(`/costing/margin${from ? `?from=${from}&to=${to ?? ""}` : ""}`),
 
   // ---- leads & quotations ----
   leads: (q?: { status?: string; mine?: boolean; due?: boolean }) =>
@@ -559,6 +577,50 @@ export type Summary = {
   lowStock: { id: string; name: string; unit: string; onHand: number;
               reorderLevel: number; value: number }[];
   byExpense: Record<string, number>;
+};
+export type CostRates = { labourRate: number; overheadPct: number; minMarginPct: number };
+export type PriceRow = {
+  id: string; sku: string; nameAr: string; nameEn: string;
+  category: string; isActive: boolean;
+  price: number; storedCost: number;
+  computed: { materials: number; labour: number; overhead: number;
+              total: number; minutes: number };
+  drift: number; margin: number | null;
+  belowFloor: boolean; belowCost: boolean; hasBom: boolean;
+};
+export type PriceList = {
+  rates: CostRates;
+  totals: { products: number; noBom: number; belowFloor: number; belowCost: number;
+            driftedUp: number; avgMargin: number | null };
+  rows: PriceRow[];
+};
+export type ProductCosting = {
+  product: { id: string; sku: string; nameAr: string; nameEn: string;
+             category: string; isActive: boolean; price: number; storedCost: number };
+  rates: CostRates;
+  materials: { stockItemId: string; name: string; sku: string; unit: string;
+               qty: number; unitCost: number; total: number }[];
+  stages: { name: string; station: string | null; minutes: number; cost: number }[];
+  computed: { materials: number; labour: number; overhead: number;
+              total: number; minutes: number };
+  drift: number; margin: number | null; suggestedPrice: number | null;
+  history: { id: string; oldPrice: number; newPrice: number; oldCost: number;
+             newCost: number; reason: string | null; by: string | null;
+             seenAt: string | null; at: string }[];
+};
+export type PriceChange = {
+  id: string;
+  product: { id: string; nameAr: string; nameEn: string; sku: string };
+  oldPrice: number; newPrice: number; priceMoved: number;
+  oldCost: number; newCost: number;
+  reason: string | null; by: string | null;
+  seenAt: string | null; seenBy: string | null; at: string;
+};
+export type MarginReport = {
+  totals: { lines: number; revenue: number; cost: number; profit: number;
+            margin: number | null; losingModels: number };
+  rows: { id: string; name: string; sku: string; qty: number; revenue: number;
+          cost: number; profit: number; margin: number | null }[];
 };
 export type Lead = {
   id: string; number: string; name: string; phone: string; whatsapp: string | null;

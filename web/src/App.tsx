@@ -34,6 +34,7 @@ import Approvals from "./screens/Approvals";
 import Planning from "./screens/Planning";
 import Service from "./screens/Service";
 import Leads from "./screens/Leads";
+import Costing from "./screens/Costing";
 import QuoteDoc from "./screens/QuoteDoc";
 import Money from "./screens/Money";
 import { onSyncChange, queued } from "./outbox";
@@ -59,7 +60,7 @@ const NAVS: Record<string, Tab[]> = {
     ["/quality", "◎", "quality"], ["/run", "⇢", "run"],
     ["/purchasing", "⇩", "purchasing"], ["/approvals", "✓", "approvals"],
     ["/leads", "☏", "leadsTab"], ["/service", "⚒", "service"],
-    ["/setup", "⚙", "setup"],
+    ["/costing", "%", "costing"], ["/setup", "⚙", "setup"],
   ],
   // Runs the factory. Not the business: setup and order entry are the owner's,
   // and the showroom's, and money never appears on these screens.
@@ -69,7 +70,7 @@ const NAVS: Record<string, Tab[]> = {
     ["/orders", "▤", "orders"], ["/labels", "⌗", "labels"], ["/stock", "▥", "stock"],
     ["/attendance", "✓", "attendance"], ["/quality", "◎", "quality"],
     ["/purchasing", "⇩", "purchasing"], ["/service", "⚒", "service"],
-    ["/setup", "⚙", "setup"],
+    ["/costing", "%", "costing"], ["/setup", "⚙", "setup"],
   ],
   // Plans the work rather than running the plant. No setup, no staff form, no
   // money: the queue, the load, and everything needed to judge them — what is
@@ -81,6 +82,13 @@ const NAVS: Record<string, Tab[]> = {
     ["/quality", "◎", "quality"], ["/attendance", "✓", "attendance"],
     ["/stock", "▥", "stock"], ["/purchasing", "⇩", "purchasing"],
     ["/service", "⚒", "service"],
+  ],
+  // Works out what a piece takes to make and what it therefore has to sell
+  // for. The catalogue and the store's costs are theirs; the cash box is the
+  // accountant's, and hiring is nobody's but the owner's.
+  COST_ACCOUNTANT: [
+    ["/costing", "%", "costing"], ["/stock", "▥", "stock"],
+    ["/orders", "▤", "orders"], ["/setup", "⚙", "setup"],
   ],
   SUPERVISOR: [
     ["/today", "◧", "today"], ["/floor", "▦", "floor"], ["/dispatch", "⇥", "dispatch"],
@@ -94,12 +102,12 @@ const NAVS: Record<string, Tab[]> = {
   SHOWROOM_MANAGER: [["/showroom", "⌂", "showroom"], ["/run", "⇢", "run"],
                      ["/orders", "▤", "orders"], ["/new-order", "✎", "newOrder"],
                      ["/leads", "☏", "leadsTab"], ["/stock", "▥", "stock"],
-                     ["/service", "⚒", "service"], ["/approvals", "✓", "approvals"],
-                     ["/setup", "⚙", "setup"]],
+                     ["/service", "⚒", "service"], ["/costing", "%", "cost_changes"],
+                     ["/approvals", "✓", "approvals"], ["/setup", "⚙", "setup"]],
   SALES_REP: [["/leads", "☏", "leadsTab"], ["/showroom", "⌂", "showroom"],
               ["/orders", "▤", "orders"], ["/new-order", "✎", "newOrder"],
-              ["/service", "⚒", "service"], ["/approvals", "✓", "approvals"],
-              ["/setup", "⚙", "setup"]],
+              ["/costing", "%", "cost_changes"], ["/service", "⚒", "service"],
+              ["/approvals", "✓", "approvals"], ["/setup", "⚙", "setup"]],
   // On the road between the factory and the showroom: what is on the van, and
   // signing it in when it lands.
   DRIVER: [["/run", "⇢", "run"], ["/service", "⚒", "service"],
@@ -108,7 +116,7 @@ const NAVS: Record<string, Tab[]> = {
   // the accountant at it landed them on a 403 the moment they signed in.
   // The books are the whole job: the cash box, the invoices, what is owed.
   ACCOUNTANT: [["/summary", "◈", "summary"], ["/money", "₤", "money"],
-               ["/leads", "☏", "leadsTab"],
+               ["/costing", "%", "costing"], ["/leads", "☏", "leadsTab"],
                ["/payroll", "☰", "payroll"], ["/attendance", "✓", "attendance"],
                ["/stock", "▥", "stock"], ["/purchasing", "⇩", "purchasing"],
                ["/approvals", "✓", "approvals"], ["/orders", "▤", "orders"]],
@@ -125,6 +133,7 @@ export default function App() {
   const [pending, setPending] = useState(0);
   const [online, setOnline] = useState(navigator.onLine);
   const [waiting, setWaiting] = useState(0);
+  const [priceNews, setPriceNews] = useState(0);
 
   useEffect(() => {
     const off = onSyncChange((n, on) => { setPending(n); setOnline(on); });
@@ -144,6 +153,17 @@ export default function App() {
   useEffect(() => {
     if (me?.role !== "OWNER") return;
     api.waiting().then((w) => setWaiting(w.total)).catch(() => setWaiting(0));
+  }, [me?.role, loc.pathname]);
+
+  /**
+   * Prices that moved and the counter has not read.
+   *
+   * Same reason as the approvals count: a notice nobody is nudged towards is a
+   * notice read after the customer has already argued about the price.
+   */
+  useEffect(() => {
+    if (!["SHOWROOM_MANAGER", "SALES_REP"].includes(me?.role ?? "")) return;
+    api.unseenPrices().then((r) => setPriceNews(r.count)).catch(() => setPriceNews(0));
   }, [me?.role, loc.pathname]);
 
   if (!ready) return <div className="empty">{t("loading")}</div>;
@@ -198,6 +218,7 @@ export default function App() {
           <Route path="/planning" element={<Planning />} />
           <Route path="/service" element={<Service />} />
           <Route path="/leads" element={<Leads />} />
+          <Route path="/costing" element={<Costing />} />
           <Route path="/quote/:id" element={<QuoteDoc />} />
           <Route path="/run" element={<Run />} />
           <Route path="/money" element={<Money />} />
@@ -217,6 +238,7 @@ export default function App() {
             <span className="ic">
               {ic}
               {to === "/approvals" && waiting > 0 && <span className="badge">{waiting}</span>}
+              {to === "/costing" && priceNews > 0 && <span className="badge">{priceNews}</span>}
             </span>{t(key as any)}
           </NavLink>
         ))}
