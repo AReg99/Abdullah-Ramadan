@@ -36,15 +36,25 @@ export default function Setup() {
   // read all of it, and one refusal should leave the rest of the page working
   // rather than blanking it.
   const soft = <T,>(p: Promise<T>, fallback: T) => p.catch(() => fallback);
+  /**
+   * Only what this person's own tabs need.
+   *
+   * Asking for all of it regardless meant every role but the owner fired three
+   * or four requests that came straight back as 403 — wasted round trips on a
+   * phone, and a server log that cries wolf.
+   */
+  const only = <T,>(when: boolean, p: () => Promise<T>, fallback: T) =>
+    when ? soft(p(), fallback) : Promise.resolve(fallback);
   const load = async () => {
     const [st, gr, pe, pr, ca, lo, ro] = await Promise.all([
-      soft(api.stations(), [] as Station[]),
-      soft(api.groups(), [] as GroupRow[]),
-      soft(api.people(), [] as PersonRow[]),
-      soft(api.products(), [] as ProductRow[]),
-      soft(api.categories(), [] as { id: string; nameAr: string; nameEn: string }[]),
+      only(factory, () => api.stations(), [] as Station[]),
+      only(factory, () => api.groups(), [] as GroupRow[]),
+      only(factory, () => api.people(), [] as PersonRow[]),
+      only(catalogue, () => api.products(), [] as ProductRow[]),
+      only(catalogue, () => api.categories(),
+           [] as { id: string; nameAr: string; nameEn: string }[]),
       soft(api.locations(), [] as LocationRow[]),
-      soft(api.grantableRoles(), [] as string[]),
+      only(factory, () => api.grantableRoles(), [] as string[]),
     ]);
     setStations(st); setGroups(gr); setPeople(pe);
     setProducts(pr); setCats(ca); setLocations(lo); setRoles(ro);
@@ -62,7 +72,10 @@ export default function Setup() {
 
   return (
     <>
-      <div className="row" style={{ marginBottom: 16 }}>
+      {/* Five tabs whose labels are whole Arabic phrases ("الشركة والضريبة")
+          ran off the side of the phone and took the page with them — the whole
+          screen scrolled sideways, nav bar included. */}
+      <div className="tabs">
         {factory && (
           <>
             <button className={`btn sm ${tab === "crews" ? "pri" : "sec"}`} onClick={() => setTab("crews")}>{t("crewsTab")}</button>

@@ -26,9 +26,9 @@ export default function Service() {
 
   return (
     <>
-      <div className="row wrap" style={{ marginBottom: 14 }}>
+      <div className="tabs">
         {TABS.map((x) => (
-          <button key={x} className={`btn sm toggle ${tab === x ? "pri" : "sec"}`}
+          <button key={x} className={`btn sm ${tab === x ? "pri" : "sec"}`}
                   style={{ whiteSpace: "nowrap" }} onClick={() => setTab(x)}>
             {t(`srv_${x}` as any)}
           </button>
@@ -68,7 +68,7 @@ function List({ openOnly }: { openOnly: boolean }) {
   const live = openOnly
     ? rows.filter((r) => !["DONE", "REJECTED"].includes(r.status))
     : rows;
-  if (live.length === 0) return <p className="note">{t("noTickets")}</p>;
+  if (live.length === 0) return <p className="empty">{t("noTickets")}</p>;
 
   return <>{live.map((r) => <Card key={r.id} tk={r} onDone={load} />)}</>;
 }
@@ -461,7 +461,7 @@ function Report() {
   const num = (v: number) =>
     v.toLocaleString(ar ? "ar-EG" : "en-GB", { maximumFractionDigits: 1 });
   if (loading) return <div className="empty">{t("loading")}</div>;
-  if (!r) return <p className="note">{t("noRows")}</p>;
+  if (!r) return <p className="empty">{t("noRows")}</p>;
 
   return (
     <>

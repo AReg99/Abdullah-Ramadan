@@ -1,7 +1,7 @@
 import type { FastifyInstance } from "fastify";
 import { db } from "../../db.js";
 import { guard } from "../../auth/jwt.js";
-import { PRODUCTION } from "../../auth/scopes.js";
+import { LABELS } from "../../auth/scopes.js";
 import { record } from "../../lib/events.js";
 
 /**
@@ -9,7 +9,7 @@ import { record } from "../../lib/events.js";
  * attached to the piece, and scanned at every stage until installation.
  */
 export default async function labelRoutes(app: FastifyInstance) {
-  app.get("/labels", { preHandler: guard(PRODUCTION) }, async () => {
+  app.get("/labels", { preHandler: guard(LABELS) }, async () => {
     const labels = await db.unitLabel.findMany({
       orderBy: { serial: "asc" },
       include: {
@@ -32,7 +32,7 @@ export default async function labelRoutes(app: FastifyInstance) {
     }));
   });
 
-  app.post("/labels/:id/printed", { preHandler: guard(PRODUCTION) },
+  app.post("/labels/:id/printed", { preHandler: guard(LABELS) },
     async (req, reply) => {
       const { id } = req.params as { id: string };
       const label = await db.unitLabel.findUnique({

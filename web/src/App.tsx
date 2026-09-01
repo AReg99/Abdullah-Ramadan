@@ -88,7 +88,7 @@ const NAVS: Record<string, Tab[]> = {
   // accountant's, and hiring is nobody's but the owner's.
   COST_ACCOUNTANT: [
     ["/costing", "%", "costing"], ["/stock", "▥", "stock"],
-    ["/orders", "▤", "orders"], ["/setup", "⚙", "setup"],
+    ["/setup", "⚙", "setup"],
   ],
   SUPERVISOR: [
     ["/today", "◧", "today"], ["/floor", "▦", "floor"], ["/dispatch", "⇥", "dispatch"],
@@ -96,9 +96,10 @@ const NAVS: Record<string, Tab[]> = {
     ["/attendance", "✓", "attendance"], ["/quality", "◎", "quality"],
     ["/purchasing", "⇩", "purchasing"],
   ],
+  // The dispatch board is their queue, and a scanned label names the piece in
+  // their hand. The whole order book is not part of the job.
   STOREKEEPER: [["/dispatch", "⇥", "dispatch"], ["/stock", "▥", "stock"],
-                ["/purchasing", "⇩", "purchasing"],
-                ["/labels", "⌗", "labels"], ["/orders", "▤", "orders"]],
+                ["/purchasing", "⇩", "purchasing"], ["/labels", "⌗", "labels"]],
   SHOWROOM_MANAGER: [["/showroom", "⌂", "showroom"], ["/run", "⇢", "run"],
                      ["/orders", "▤", "orders"], ["/new-order", "✎", "newOrder"],
                      ["/leads", "☏", "leadsTab"], ["/stock", "▥", "stock"],
@@ -127,6 +128,39 @@ const NAVS: Record<string, Tab[]> = {
 
 const FLOOR: Tab[] = [["/work", "▤", "work"], ["/scan", "⌗", "scan"], ["/myday", "◔", "myday"]];
 
+/**
+ * Five tabs, and everything else behind one more.
+ *
+ * The owner's nav had grown to twenty-one. A phone shows about five, so the
+ * other sixteen lived in a horizontal scroll nobody knew to drag — screens that
+ * exist, that the person is entitled to, and that they will never find.
+ *
+ * The first four of a role's list are their day; the fifth button opens the
+ * whole index. The order inside NAVS is already deliberate, so nothing else has
+ * to be decided here.
+ */
+const DAILY = 4;
+
+/**
+ * Which part of the business a screen belongs to, for the index.
+ *
+ * A grid of twenty icons is as unfindable as a scroll of twenty tabs. Grouped,
+ * somebody looking for the cash box knows which third of the screen to look at.
+ */
+const AREA: Record<string, string> = {
+  "/today": "area_floor", "/floor": "area_floor", "/planning": "area_floor",
+  "/work": "area_floor", "/scan": "area_floor", "/myday": "area_floor",
+  "/labels": "area_floor", "/quality": "area_floor", "/attendance": "area_floor",
+  "/showroom": "area_sell", "/orders": "area_sell", "/new-order": "area_sell",
+  "/leads": "area_sell", "/dispatch": "area_sell", "/run": "area_sell",
+  "/service": "area_sell",
+  "/summary": "area_money", "/money": "area_money", "/payroll": "area_money",
+  "/costing": "area_money", "/approvals": "area_money",
+  "/stock": "area_store", "/purchasing": "area_store",
+  "/setup": "area_admin",
+};
+const AREAS = ["area_floor", "area_sell", "area_store", "area_money", "area_admin"];
+
 export default function App() {
   const { me, ready, lang, setLang, t, signOut } = useApp();
   const loc = useLocation();
@@ -134,6 +168,9 @@ export default function App() {
   const [online, setOnline] = useState(navigator.onLine);
   const [waiting, setWaiting] = useState(0);
   const [priceNews, setPriceNews] = useState(0);
+  const [more, setMore] = useState(false);
+
+  useEffect(() => { setMore(false); }, [loc.pathname]);
 
   useEffect(() => {
     const off = onSyncChange((n, on) => { setPending(n); setOnline(on); });
@@ -172,6 +209,13 @@ export default function App() {
   const tabs = NAVS[me.role] ?? FLOOR;
   const office = tabs !== FLOOR;
   const home = tabs[0][0];
+
+  const badgeOf = (to: string) =>
+    to === "/approvals" ? waiting : to === "/costing" ? priceNews : 0;
+  // Four of their own, then everything else behind the fifth.
+  const shown = tabs.length <= 5 ? tabs : tabs.slice(0, DAILY);
+  const rest = tabs.length <= 5 ? [] : tabs.slice(DAILY);
+  const restBadges = rest.reduce((n, [to]) => n + badgeOf(to), 0);
 
   return (
     <div className={`shell${office ? " wide" : ""}`}>
@@ -232,16 +276,84 @@ export default function App() {
         </Routes>
       </div>
 
+      {more && (
+        <MoreSheet tabs={tabs} badgeOf={badgeOf} onClose={() => setMore(false)} />
+      )}
+
       <div className="nav">
-        {tabs.map(([to, ic, key]) => (
-          <NavLink key={to} to={to} className={loc.pathname.startsWith(to) ? "on" : ""}>
+        {shown.map(([to, ic, key]) => (
+          <NavLink key={to} to={to} className={loc.pathname.startsWith(to) ? "on" : ""}
+                   onClick={() => setMore(false)}>
             <span className="ic">
               {ic}
-              {to === "/approvals" && waiting > 0 && <span className="badge">{waiting}</span>}
-              {to === "/costing" && priceNews > 0 && <span className="badge">{priceNews}</span>}
-            </span>{t(key as any)}
+              {badgeOf(to) > 0 && <span className="badge">{badgeOf(to)}</span>}
+            </span><span className="lbl">{t(key as any)}</span>
           </NavLink>
         ))}
+        {rest.length > 0 && (
+          <button className={`navmore${more ? " on" : ""}`} onClick={() => setMore(!more)}>
+            <span className="ic">
+              {/* The index is a grid of tiles, and this glyph sits at cap height
+                  with the rest of the bar — a midline ellipsis dropped to the
+                  baseline and read as three small dots beside the badge. */}
+              {more ? "✕" : "⊞"}
+              {/* Anything waiting behind the button has to be visible on it,
+                  or the button is where notices go to be missed. */}
+              {restBadges > 0 && !more && <span className="badge">{restBadges}</span>}
+            </span><span className="lbl">{more ? t("close") : t("moreTab")}</span>
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * كل الشاشات — the whole index, grouped.
+ *
+ * Everything the person may open, in one place, at a size a thumb can hit.
+ * Including the four already on the bar: this is a map, and a map with holes in
+ * it sends people back to hunting.
+ */
+function MoreSheet({ tabs, badgeOf, onClose }: {
+  tabs: Tab[]; badgeOf: (to: string) => number; onClose: () => void;
+}) {
+  const { t } = useApp();
+  const groups = AREAS
+    .map((area) => [area, tabs.filter(([to]) => (AREA[to] ?? "area_admin") === area)] as const)
+    .filter(([, list]) => list.length > 0);
+  const loose = tabs.filter(([to]) => !AREA[to]);
+
+  return (
+    <div className="sheet" onClick={onClose}>
+      <div className="sheet-in" onClick={(e) => e.stopPropagation()}>
+        {groups.map(([area, list]) => (
+          <div key={area} className="sheet-grp">
+            <span className="k">{t(area as any)}</span>
+            <div className="grid">
+              {list.map(([to, ic, key]) => (
+                <NavLink key={to} to={to} className="gridit" onClick={onClose}>
+                  <span className="ic">
+                    {ic}
+                    {badgeOf(to) > 0 && <span className="badge">{badgeOf(to)}</span>}
+                  </span>
+                  <span>{t(key as any)}</span>
+                </NavLink>
+              ))}
+            </div>
+          </div>
+        ))}
+        {loose.length > 0 && (
+          <div className="sheet-grp">
+            <div className="grid">
+              {loose.map(([to, ic, key]) => (
+                <NavLink key={to} to={to} className="gridit" onClick={onClose}>
+                  <span className="ic">{ic}</span><span>{t(key as any)}</span>
+                </NavLink>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

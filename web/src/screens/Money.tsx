@@ -54,7 +54,7 @@ export default function Money() {
 
   return (
     <>
-      <div className="row scroll-x" style={{ marginBottom: 14 }}>
+      <div className="tabs">
         {TABS.map((x) => (
           <button key={x} className={`btn sm ${tab === x ? "pri" : "sec"}`}
                   style={{ whiteSpace: "nowrap" }} onClick={() => setTab(x)}>
@@ -653,7 +653,7 @@ function CashBoxDesk({ onDone }: { onDone: () => void }) {
 
   if (!open) {
     return (
-      <div className="row scroll-x" style={{ marginBottom: 11 }}>
+      <div className="tabs" style={{ marginBottom: 11 }}>
         <button className="btn sec sm" style={{ whiteSpace: "nowrap" }} onClick={() => setOpen("in")}>
           {t("cashIn")}
         </button>

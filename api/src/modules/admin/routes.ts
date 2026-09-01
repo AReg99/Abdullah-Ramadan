@@ -4,7 +4,7 @@ import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import { db } from "../../db.js";
 import { guard } from "../../auth/jwt.js";
-import { BOOKS, CATALOGUE, ROLE_KEYS, SELL, SETUP, STAFF_ADMIN,
+import { BOOKS, CATALOGUE, READ_LOCATIONS, ROLE_KEYS, SELL, SETUP, STAFF_ADMIN,
          canGrant, grantableBy } from "../../auth/scopes.js";
 import { record } from "../../lib/events.js";
 import { applyVat, vatPolicy } from "../../lib/settings.js";
@@ -52,7 +52,7 @@ export default async function adminRoutes(app: FastifyInstance) {
   // ---------------------------------------------------------------- locations
   // The accountant needs the store list too: a purchase invoice has to say
   // which one took the goods in.
-  app.get("/admin/locations", { preHandler: guard([...new Set([...CATALOGUE, ...BOOKS])]) },
+  app.get("/admin/locations", { preHandler: guard(READ_LOCATIONS) },
     async () => db.location.findMany({ orderBy: { type: "asc" } }));
 
   app.post("/admin/locations", { preHandler: guard(SETUP) }, async (req) => {

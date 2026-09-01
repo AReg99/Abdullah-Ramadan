@@ -32,9 +32,9 @@ export default function Leads() {
   return (
     <>
       {tabs.length > 1 && (
-        <div className="row wrap" style={{ marginBottom: 14 }}>
+        <div className="tabs">
           {tabs.map((x) => (
-            <button key={x} className={`btn sm toggle ${tab === x ? "pri" : "sec"}`}
+            <button key={x} className={`btn sm ${tab === x ? "pri" : "sec"}`}
                     style={{ whiteSpace: "nowrap" }} onClick={() => setTab(x)}>
               {t(`lead_${x}` as any)}
             </button>
@@ -66,7 +66,7 @@ function Board() {
 
   const num = (v: number) => v.toLocaleString(ar ? "ar-EG" : "en-GB");
   if (loading) return <div className="empty">{t("loading")}</div>;
-  if (!b) return <p className="note">{t("noRows")}</p>;
+  if (!b) return <p className="empty">{t("noRows")}</p>;
 
   const rows = b.rows.filter((l) =>
     only === "due" ? l.dueNow
@@ -514,7 +514,7 @@ function Quotes() {
   const num = (v: number) => v.toLocaleString(ar ? "ar-EG" : "en-GB");
 
   if (loading) return <div className="empty">{t("loading")}</div>;
-  if (rows.length === 0) return <p className="note">{t("noQuotes")}</p>;
+  if (rows.length === 0) return <p className="empty">{t("noQuotes")}</p>;
 
   return (
     <>
@@ -621,7 +621,7 @@ function Report() {
   const num = (v: number) =>
     v.toLocaleString(ar ? "ar-EG" : "en-GB", { maximumFractionDigits: 1 });
   if (loading) return <div className="empty">{t("loading")}</div>;
-  if (!r) return <p className="note">{t("noRows")}</p>;
+  if (!r) return <p className="empty">{t("noRows")}</p>;
 
   return (
     <>

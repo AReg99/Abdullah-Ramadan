@@ -29,9 +29,9 @@ export default function Purchasing() {
 
   return (
     <>
-      <div className="row wrap" style={{ marginBottom: 14 }}>
+      <div className="tabs">
         {TABS.map((x) => (
-          <button key={x} className={`btn sm toggle ${tab === x ? "pri" : "sec"}`}
+          <button key={x} className={`btn sm ${tab === x ? "pri" : "sec"}`}
                   style={{ whiteSpace: "nowrap" }} onClick={() => setTab(x)}>
             {t(`buy_${x}` as any)}
           </button>
@@ -74,7 +74,7 @@ function Suggest() {
   const chosen = (s?.rows ?? []).filter((r) => picked[r.id]);
 
   if (loading) return <div className="empty">{t("loading")}</div>;
-  if (!s) return <p className="note">{t("noRows")}</p>;
+  if (!s) return <p className="empty">{t("noRows")}</p>;
 
   return (
     <>
@@ -888,7 +888,7 @@ function Receipts() {
     new Date(d).toLocaleDateString(ar ? "ar-EG" : "en-GB", { day: "2-digit", month: "short" });
 
   if (loading) return <div className="empty">{t("loading")}</div>;
-  if (rows.length === 0) return <p className="note">{t("noReceiptsYet")}</p>;
+  if (rows.length === 0) return <p className="empty">{t("noReceiptsYet")}</p>;
 
   return (
     <>

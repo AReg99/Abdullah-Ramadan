@@ -158,7 +158,14 @@ export const COLLECT = ["OWNER", "ACCOUNTANT", "SHOWROOM_MANAGER", "SALES_REP"];
 /** May see prices, order values and takings. */
 export const MONEY = ["OWNER", "ACCOUNTANT", "SHOWROOM_MANAGER", "SALES_REP"];
 
-/** Anyone who looks at orders at all, whether or not they see the money on them. */
+/**
+ * Anyone who looks at orders at all, whether or not they see the money on them.
+ *
+ * Not the storekeeper: their queue is the dispatch board, and the piece in
+ * their hand is identified by scanning its label. The whole order book, with
+ * every customer in it, is more than the job needs — the rule this file exists
+ * for is that a person sees the work they do.
+ */
 export const READ_ORDERS = [...new Set([...PRODUCTION, ...MONEY])];
 
 /**
@@ -175,6 +182,19 @@ export const STOCK = ["OWNER", "FACTORY_MANAGER", "PRODUCTION_MANAGER", "SUPERVI
  * so this is narrower than moving goods around.
  */
 export const STOCK_ADMIN = ["OWNER", "FACTORY_MANAGER", "ACCOUNTANT", "COST_ACCOUNTANT"];
+/**
+ * Reading the branches and stores. Everybody who moves goods needs the list —
+ * a stock movement with no warehouse to pick is a movement nobody can record.
+ * Creating and renaming them stays with SETUP.
+ */
+export const READ_LOCATIONS = [...new Set([...CATALOGUE, ...BOOKS, ...STOCK])];
+
+/**
+ * Printing and reprinting the label that rides on the piece. Whoever handles it
+ * physically: the floor that makes it, and the store that packs and ships it —
+ * a storekeeper whose label has fallen off has to be able to print another.
+ */
+export const LABELS = [...new Set([...PRODUCTION, "STOREKEEPER"])];
 
 /**
  * Taking the register. Whoever is on the floor at seven in the morning has to

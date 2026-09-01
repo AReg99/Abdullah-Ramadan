@@ -43,7 +43,7 @@ export default function Stock() {
 
   return (
     <>
-      <div className="row scroll-x" style={{ marginBottom: 14 }}>
+      <div className="tabs">
         {TABS.map((x) => (
           <button key={x} className={`btn sm ${tab === x ? "pri" : "sec"}`}
                   style={{ whiteSpace: "nowrap" }} onClick={() => setTab(x)}>
@@ -207,7 +207,7 @@ function MoveDesk({ items, stores, onDone }: { items: StockItem[]; stores: Locat
 
   if (!open) {
     return (
-      <div className="row scroll-x" style={{ margin: "11px 0" }}>
+      <div className="tabs" style={{ margin: "11px 0" }}>
         <button className="btn sec sm" style={{ whiteSpace: "nowrap" }}
                 onClick={() => { setF({ ...f, reason: "PURCHASE" }); setOpen("in"); }}>
           {t("goodsIn")}

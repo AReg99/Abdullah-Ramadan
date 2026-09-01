@@ -260,7 +260,13 @@ export default async function qualityRoutes(app: FastifyInstance) {
    * Grouped by fault, by station and by crew, because a total with nobody
    * attached to it changes nothing on the floor.
    */
-  app.get("/quality/report", { preHandler: guard(PRODUCTION) }, async (req) => {
+  /**
+   * The report. QUALITY as well as PRODUCTION: the inspector's own findings,
+   * and a tab their nav offers them — one that refused them was a screen the
+   * person who filled it in could not open.
+   */
+  app.get("/quality/report",
+    { preHandler: guard([...new Set([...PRODUCTION, ...QUALITY])]) }, async (req) => {
     const q = z.object({ from: z.string().optional(), to: z.string().optional() })
       .parse(req.query ?? {});
     const to = q.to ? new Date(q.to) : new Date();

@@ -88,7 +88,7 @@ export default function Attendance() {
                   <span className="sub mono">{t(l.role as any)} · {num(l.dayRate)}</span>
                 </span>
               </div>
-              <div className="row scroll-x" style={{ marginTop: 9 }}>
+              <div className="tabs" style={{ marginTop: 9, marginBottom: 0 }}>
                 {STATUSES.map((st) => (
                   <button key={st} style={{ whiteSpace: "nowrap" }}
                           className={`btn sm ${edits[l.userId] === st

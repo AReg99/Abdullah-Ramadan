@@ -397,3 +397,60 @@ production it should be outlines regardless.
 The brand book's droplet pattern is a nice fit for the customer tracking page
 header and the quotation footer, at very low opacity. It must not appear behind
 operational screens, where it would compete with the data.
+
+---
+
+## 12. Navigation, as built
+
+The sections above are the system. This one records what the shipped app
+actually does, because two of its decisions were forced by real screens rather
+than chosen on paper.
+
+### The bar is five, and the fifth is the index
+
+The owner can open twenty-one screens. Twenty-one tabs became a horizontal
+scroll, and a horizontal scroll with no edge fade is a row where everything past
+the fourth tab does not exist: nobody drags a bar they cannot see the end of.
+
+So the bar carries the four screens that role opens daily, and a fifth button —
+**المزيد** — that opens a full-screen index of everything they may open, grouped
+by part of the business: المصنع · البيع والتسليم · المخزن والمشتريات · الفلوس ·
+الإعداد. A role with five tabs or fewer keeps them all on the bar and gets no
+index button, because nothing is hidden.
+
+Three rules the index has to keep:
+
+- **The button that opens it closes it.** The bar sits above the sheet
+  (`z-index`), so the fifth button is in the same place with the same meaning
+  both ways round. Tapping outside closes it too.
+- **Anything waiting behind it is visible on it.** The counts on المزيد are the
+  sum of the counts on the tabs it hides — an approval nobody can see is an
+  approval somebody is waiting on all afternoon.
+- **The index never offers a screen the API refuses.** Checked by signing in as
+  every role and opening every tab in its own index; see below.
+
+### No screen scrolls sideways
+
+A page wider than the phone takes the navigation bar off the edge with it, so
+this is a whole-app rule, not a per-screen one:
+
+- A **strip of tabs** uses `.tabs` — it wraps onto a second line, and each tab is
+  only as wide as its own label. It never scrolls sideways. (The exception is a
+  calendar week strip, where scrolling is what the control is.)
+- A **row** (`.row`) lets its children shrink below their content
+  (`min-width:0`), so two date inputs sharing a line squeeze instead of pushing.
+- A **list row** (`.evt`) wraps its trailing buttons under the name rather than
+  running off the side.
+
+### How both are checked
+
+Three browser passes, run against every role:
+
+| Pass | Asks |
+| --- | --- |
+| `nav` | Is the bar five? Does the index hold everything, grouped and named? Does it open, navigate and close? |
+| `audit` | For all twelve roles, does every tab in that role's index actually open, or does the API refuse it? |
+| `overflow` | On a 360 px phone, does any of the ninety-eight role/screen combinations scroll sideways? |
+
+The audit exists because the same bug kept coming back in a new place: a nav
+that offers a screen the server will not serve. It has found six of them.

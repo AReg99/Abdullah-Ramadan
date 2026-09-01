@@ -23,9 +23,9 @@ export default function Planning() {
 
   return (
     <>
-      <div className="row wrap" style={{ marginBottom: 14 }}>
+      <div className="tabs">
         {TABS.map((x) => (
-          <button key={x} className={`btn sm toggle ${tab === x ? "pri" : "sec"}`}
+          <button key={x} className={`btn sm ${tab === x ? "pri" : "sec"}`}
                   style={{ whiteSpace: "nowrap" }} onClick={() => setTab(x)}>
             {t(`plan_${x}` as any)}
           </button>
@@ -55,7 +55,7 @@ function Queue() {
 
   const num = (v: number) => v.toLocaleString(ar ? "ar-EG" : "en-GB");
   if (loading) return <div className="empty">{t("loading")}</div>;
-  if (!b) return <p className="note">{t("noRows")}</p>;
+  if (!b) return <p className="empty">{t("noRows")}</p>;
 
   const rows = b.rows.filter((r) =>
     only === "late" ? r.late
@@ -232,7 +232,7 @@ function Load() {
   const num = (v: number) => v.toLocaleString(ar ? "ar-EG" : "en-GB",
                                               { maximumFractionDigits: 1 });
   if (loading) return <div className="empty">{t("loading")}</div>;
-  if (!l) return <p className="note">{t("noRows")}</p>;
+  if (!l) return <p className="empty">{t("noRows")}</p>;
 
   const worst = Math.max(...l.rows.map((r) => r.daysOfQueue ?? 0), 0);
 
@@ -348,7 +348,7 @@ function Promises() {
     new Date(d).toLocaleDateString(ar ? "ar-EG" : "en-GB", { day: "2-digit", month: "short" });
 
   if (loading) return <div className="empty">{t("loading")}</div>;
-  if (!w) return <p className="note">{t("noRows")}</p>;
+  if (!w) return <p className="empty">{t("noRows")}</p>;
 
   const rows = w.rows.filter((r) =>
     only === "risk" ? r.atRisk : only === "none" ? r.noPromise : true);

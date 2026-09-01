@@ -590,6 +590,10 @@ const ar = {
     "المحسوب من الشغل الباقي على القطعة، مش من مدة طلب جديد. اللي هيتأخر أكتر فوق — ده اللي تكلّم عميله النهارده.",
   promisedFor: "اتوعد بـ", canDoBy: "ممكن يخلص", nobodySaidADate: "محدش قال موعد",
   no_capacity: "في محطة طاقتها صفر — مينفعش يتحسب موعد",
+  // ── التنقل
+  moreTab: "المزيد", close: "اقفل",
+  area_floor: "المصنع", area_sell: "البيع والتسليم", area_store: "المخزن والمشتريات",
+  area_money: "الفلوس", area_admin: "الإعداد",
 };
 
 const en: Record<keyof typeof ar, string> = {
@@ -1179,6 +1183,10 @@ const en: Record<keyof typeof ar, string> = {
     "Worked out from what is left on each piece, not from a fresh order's lead time. Worst slip first — that is the customer to ring today.",
   promisedFor: "Promised", canDoBy: "could be ready", nobodySaidADate: "Nobody gave a date",
   no_capacity: "A station has no capacity — no date can be worked out",
+  // ── navigation
+  moreTab: "More", close: "Close",
+  area_floor: "The floor", area_sell: "Selling & delivery", area_store: "Store & buying",
+  area_money: "Money", area_admin: "Setup",
 };
 
 export const DICT = { ar, en };

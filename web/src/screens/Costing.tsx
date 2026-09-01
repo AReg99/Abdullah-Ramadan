@@ -32,9 +32,9 @@ export default function Costing() {
   return (
     <>
       {tabs.length > 1 && (
-      <div className="row wrap" style={{ marginBottom: 14 }}>
+      <div className="tabs">
         {tabs.map((x) => (
-          <button key={x} className={`btn sm toggle ${tab === x ? "pri" : "sec"}`}
+          <button key={x} className={`btn sm ${tab === x ? "pri" : "sec"}`}
                   style={{ whiteSpace: "nowrap" }} onClick={() => setTab(x)}>
             {t(`cost_${x}` as any)}
           </button>
@@ -70,7 +70,7 @@ function Prices() {
   const num = (v: number) => v.toLocaleString(ar ? "ar-EG" : "en-GB",
                                               { maximumFractionDigits: 0 });
   if (loading) return <div className="empty">{t("loading")}</div>;
-  if (!l) return <p className="note">{t("noRows")}</p>;
+  if (!l) return <p className="empty">{t("noRows")}</p>;
 
   const rows = l.rows.filter((x) =>
     only === "floor" ? x.belowFloor
@@ -326,7 +326,7 @@ function Margin() {
   const num = (v: number) => v.toLocaleString(ar ? "ar-EG" : "en-GB",
                                               { maximumFractionDigits: 0 });
   if (loading) return <div className="empty">{t("loading")}</div>;
-  if (!r) return <p className="note">{t("noRows")}</p>;
+  if (!r) return <p className="empty">{t("noRows")}</p>;
 
   return (
     <>
@@ -423,7 +423,7 @@ function Changes() {
     new Date(s).toLocaleDateString(ar ? "ar-EG" : "en-GB", { day: "2-digit", month: "short" });
 
   if (loading) return <div className="empty">{t("loading")}</div>;
-  if (rows.length === 0) return <p className="note">{t("noPriceChanges")}</p>;
+  if (rows.length === 0) return <p className="empty">{t("noPriceChanges")}</p>;
   const unseen = rows.filter((x) => !x.seenAt);
 
   return (

@@ -26,19 +26,57 @@ a{color:var(--p)}
 .wordmark{display:inline-flex;align-items:center;gap:5px;color:var(--p);
   font-family:'Poppins',sans-serif;font-weight:300;line-height:1}
 
+/* The ground is a shade below the cards, so a card reads as a thing on a
+   surface rather than a rectangle drawn on the same sheet. */
 .shell{max-width:520px;margin:0 auto;min-height:100%;display:flex;flex-direction:column;
-  background:var(--g1);border-inline:1px solid var(--g3)}
+  background:var(--g0);border-inline:1px solid var(--g3)}
 .wide{max-width:1100px}
 .top{display:flex;align-items:center;gap:10px;padding:13px 16px;border-bottom:1px solid var(--g3);
-  position:sticky;top:0;background:var(--g1);z-index:5}
+  position:sticky;top:0;background:var(--g0);z-index:5}
 .top .ttl{font-weight:600;font-size:.98rem}
 .sp{flex:1}
 .body{flex:1;padding:16px}
-.nav{display:flex;border-top:1px solid var(--g3);position:sticky;bottom:0;background:var(--g1)}
-.nav a{flex:1;padding:11px 4px 14px;display:flex;flex-direction:column;align-items:center;gap:4px;
-  font-size:.72rem;color:var(--g6);text-decoration:none;min-height:60px}
-.nav a.on{color:var(--p);font-weight:600}
-.nav .ic{font-size:1.15rem;line-height:1;position:relative}
+/* Five items, so nothing lives in a horizontal scroll nobody knows to drag.
+   The safe-area padding keeps the last row of a long page above the home bar
+   on a phone with no physical button. It sits above the index, so the button
+   that opened the index is the button that closes it — a sheet you can only
+   dismiss by guessing where its edge is, is a sheet people back out of with
+   the browser's back button. */
+.nav{display:flex;border-top:1px solid var(--g3);position:sticky;bottom:0;background:var(--g1);
+  padding-bottom:env(safe-area-inset-bottom,0);z-index:41}
+.nav a,.nav .navmore{flex:1;padding:9px 4px 12px;display:flex;flex-direction:column;
+  align-items:center;gap:5px;font-size:.72rem;color:var(--g6);text-decoration:none;
+  min-height:60px;min-width:0}
+/* The label, and only the label: this used to be span:last-child, which — the
+   label being a bare text node — matched the icon instead and clipped the
+   badge sitting on it. */
+.nav .lbl{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:100%}
+.nav a.on,.nav .navmore.on{color:var(--p);font-weight:600}
+/* The current tab is marked on the rail as well as in colour: colour alone is
+   the one signal a bright showroom and a colour-blind eye both lose. */
+.nav a.on::before,.nav .navmore.on::before{content:"";position:absolute;top:0;
+  inset-inline:22%;height:2px;background:var(--p);border-radius:0 0 2px 2px}
+.nav a,.nav .navmore{position:relative}
+.nav .ic{font-size:1.2rem;line-height:1;position:relative}
+
+/* The index: everything this person may open, at a size a thumb can hit. */
+.sheet{position:fixed;inset:0;z-index:40;background:rgba(0,0,0,.35);
+  display:flex;align-items:flex-end;justify-content:center}
+.sheet-in{width:100%;max-width:520px;max-height:78vh;overflow-y:auto;background:var(--g1);
+  border:1px solid var(--g3);border-bottom:0;border-radius:var(--rl) var(--rl) 0 0;
+  /* Clear of the bar, which sits on top of it. */
+  padding:18px 16px calc(74px + env(safe-area-inset-bottom,0));
+  box-shadow:0 -8px 32px rgba(0,0,0,.18)}
+.wide .sheet-in{max-width:1100px}
+.sheet-grp+.sheet-grp{margin-top:18px}
+.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:9px;margin-top:9px}
+@media(max-width:400px){.grid{grid-template-columns:repeat(3,1fr)}}
+.gridit{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:7px;
+  min-height:82px;padding:10px 6px;border:1px solid var(--g3);border-radius:var(--r);
+  background:var(--g0);color:var(--g9);text-decoration:none;font-size:.76rem;
+  text-align:center;line-height:1.25}
+.gridit .ic{font-size:1.45rem;line-height:1;position:relative;color:var(--p)}
+.gridit.active{border-color:var(--p);background:var(--muted)}
 /* How many decisions are standing still. An inbox you have to remember to
    open is one somebody is waiting on all afternoon. */
 .badge{position:absolute;top:-6px;inset-inline-start:100%;margin-inline-start:-6px;
@@ -57,14 +95,27 @@ a{color:var(--p)}
 .btn.sec{background:var(--g1);color:var(--g9);border-color:var(--g3)}
 .btn.dang{background:var(--badS);color:var(--bad);border-color:var(--bad)}
 .btn.sm{min-height:44px;font-size:.9rem}
-.btn:disabled{opacity:.45}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+/* A phone has no hover, so pressing is the only feedback there is. */
+.btn:active:not(:disabled),.chip:active,.gridit:active{transform:scale(.985)}
+.btn,.chip,.gridit,.tile{transition:transform .06s ease,border-color .12s ease,
+  background-color .12s ease}
 /* A yes/no switch sitting at the end of a row. Without this the button takes
    its default full width and squeezes the label it belongs to into a column. */
 .btn.toggle{width:auto;flex:0 0 auto;min-width:66px;padding-inline:16px}
+/* A strip of tabs across the top of a screen. It wraps rather than scrolling
+   sideways — a scrolling strip hides its last tab off the edge with nothing to
+   say it is there — and each tab is only as wide as its own label, so five of
+   them sit on two lines instead of five. */
+.tabs{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px}
+.tabs .btn{width:auto;flex:0 1 auto;min-height:42px;padding-inline:16px;font-size:.88rem}
+
 .row{display:flex;gap:9px}
-/* Buttons whose labels are whole Arabic phrases: a scrolling row clips the
-   last one to a single letter and reads as broken. Wrapping keeps them all
-   legible on a phone. */
+/* A flex child will not shrink below its content by default, so two date
+   inputs sharing a row pushed the whole page wider than the phone. */
+.row>*{min-width:0}
+/* Lets a row of buttons fall onto a second line rather than squeezing every
+   label. A strip of tabs wants .tabs instead. */
 .row.wrap{flex-wrap:wrap}
 .between{display:flex;justify-content:space-between;align-items:center;gap:10px}
 .divide{border-top:1px solid var(--g3);margin:13px 0}
@@ -106,13 +157,20 @@ a{color:var(--p)}
 @media(max-width:560px){.tiles.g3{grid-template-columns:repeat(2,1fr)}}
 .tile{background:var(--g1);border:1px solid var(--g3);border-radius:var(--rl);padding:13px}
 .tile .big{font-size:1.5rem}
-.evt{display:flex;gap:10px;padding:9px 0;font-size:.84rem;border-bottom:1px solid var(--g3)}
+/* A name, then whatever buttons that row carries. On a narrow phone the
+   buttons wrap under the name rather than pushing the page off the side. */
+.evt{display:flex;flex-wrap:wrap;align-items:center;gap:10px;padding:9px 0;font-size:.84rem;
+  border-bottom:1px solid var(--g3)}
+.evt>*{min-width:0}
 .evt:last-child{border-bottom:0}
 .evt .t{font-family:"IBM Plex Mono",monospace;font-size:.7rem;color:var(--g6);flex:none}
 .note{font-size:.82rem;color:var(--g6);line-height:1.55;margin-top:10px}
 .empty{text-align:center;padding:44px 20px;color:var(--g6)}
 input,select{width:100%;min-height:54px;padding:0 14px;font-size:1.05rem;border-radius:var(--r);
   border:1px solid var(--g3);background:var(--g1);color:var(--g9)}
+input:focus,select:focus{outline:none;border-color:var(--p);
+  box-shadow:0 0 0 3px color-mix(in srgb,var(--p) 22%,transparent)}
+input::placeholder{color:var(--g6);opacity:.85}
 input.mono{font-family:"IBM Plex Mono",monospace}
 .grid2{display:grid;grid-template-columns:1fr 1fr;gap:11px}
 @media(max-width:700px){.grid2{grid-template-columns:1fr}}
@@ -121,8 +179,16 @@ input.mono{font-family:"IBM Plex Mono",monospace}
 .stationcard.blocked{border-color:var(--bad)}
 .toast{position:fixed;inset-inline:0;bottom:80px;display:flex;justify-content:center;pointer-events:none;z-index:99}
 .toast div{background:var(--g9);color:var(--g0);padding:12px 20px;border-radius:24px;font-size:.9rem;font-weight:600}
-.chip{font-family:"IBM Plex Mono",monospace;font-size:.66rem;font-weight:600;border:1px solid var(--g3);
-  padding:5px 9px;border-radius:20px;color:var(--g6);min-height:30px}
+.chip{font-family:"IBM Plex Mono",monospace;font-size:.68rem;font-weight:600;border:1px solid var(--g3);
+  padding:8px 12px;border-radius:20px;color:var(--g6);min-height:36px;
+  display:inline-flex;align-items:center;justify-content:center;white-space:nowrap}
+/* The bar is short and its chips are one word each: let the title give up the
+   room rather than break a word in half. */
+.top .chip{flex:none}
+/* IBM Plex Mono has no Arabic, so an Arabic chip fell through to whatever the
+   phone had — a different face on the one control that sits beside the
+   wordmark. In Arabic a chip is just a small label in the page's own font. */
+[dir="rtl"] .chip{font-family:inherit;font-size:.74rem}
 /* A chip that is a choice rather than a link: it has to look picked. */
 .chip.on{background:var(--p);border-color:var(--p);color:var(--on)}
 .stage-row{display:flex;align-items:center;gap:9px;padding:8px 0;border-bottom:1px solid var(--g3);font-size:.88rem}
@@ -165,11 +231,18 @@ input.mono{font-family:"IBM Plex Mono",monospace}
 .crewchip.out{border-color:var(--g3);background:var(--g1);color:var(--g6);
   text-decoration:line-through;opacity:.7}
 .crewchip.on{cursor:default}
-select{appearance:none;background-image:none}
-.nav{overflow-x:auto;scrollbar-width:none}
-.nav::-webkit-scrollbar{display:none}
-.nav a{min-width:74px}
-
+/* The native arrow was stripped and nothing put back, so every dropdown in the
+   app looked exactly like a text box — the one thing that tells somebody a
+   field opens a list rather than takes typing. */
+select{appearance:none;padding-inline-end:40px;
+  background-image:url("data:image/svg+xml;charset=utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1.5 6 6.5 11 1.5' fill='none' stroke='%236F6559' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat:no-repeat;background-size:12px 8px;
+  background-position:right 15px center}
+[dir="rtl"] select{background-position:left 15px center;
+  padding-inline-end:40px;padding-inline-start:14px}
+@media (prefers-color-scheme: dark){
+  select{background-image:url("data:image/svg+xml;charset=utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1.5 6 6.5 11 1.5' fill='none' stroke='%23A79A8B' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")}
+}
 /* Order progress, as the showroom reads it to a customer. */
 .bar{margin-top:11px;height:7px;border-radius:4px;background:var(--g3);overflow:hidden}
 .bar>span{display:block;height:100%;background:var(--p);border-radius:4px;
