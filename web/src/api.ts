@@ -217,6 +217,43 @@ export const api = {
     req<Record<string, string>>("/settings", { method: "PUT", body: JSON.stringify(b) }),
   invoice: (id: string) => req<Invoice>(`/orders/${id}/invoice`),
 
+  // ---- leads & quotations ----
+  leads: (q?: { status?: string; mine?: boolean; due?: boolean }) =>
+    req<LeadBoard>(`/leads${q && (q.status || q.mine || q.due)
+      ? `?${new URLSearchParams({ ...(q.status ? { status: q.status } : {}),
+                                  ...(q.mine ? { mine: "1" } : {}),
+                                  ...(q.due ? { due: "1" } : {}) })}` : ""}`),
+  lead: (id: string) => req<Lead>(`/leads/${id}`),
+  addLead: (b: { name: string; phone: string; whatsapp?: string; source?: string;
+                 interest?: string; estimateValue?: number; nextFollowUp?: string;
+                 note?: string }) =>
+    req<Lead>("/leads", { method: "POST", body: JSON.stringify(b) }),
+  patchLead: (id: string, b: Record<string, unknown>) =>
+    req<Lead>(`/leads/${id}`, { method: "PATCH", body: JSON.stringify(b) }),
+  addLeadNote: (id: string, b: { note: string; nextFollowUp?: string | null }) =>
+    req<Lead>(`/leads/${id}/notes`, { method: "POST", body: JSON.stringify(b) }),
+  lostLead: (id: string, b: { reason: string; note?: string }) =>
+    req<Lead>(`/leads/${id}/lost`, { method: "POST", body: JSON.stringify(b) }),
+  leadReport: (from?: string, to?: string) =>
+    req<LeadReport>(`/leads/report${from ? `?from=${from}&to=${to ?? ""}` : ""}`),
+  quotes: (q?: { leadId?: string; status?: string }) =>
+    req<Quote[]>(`/quotes${q && (q.leadId || q.status)
+      ? `?${new URLSearchParams({ ...(q.leadId ? { leadId: q.leadId } : {}),
+                                  ...(q.status ? { status: q.status } : {}) })}` : ""}`),
+  quote: (id: string) => req<Quote & { company: Invoice["company"] }>(`/quotes/${id}`),
+  addQuote: (b: { leadId?: string; customerId?: string; validUntil?: string;
+                  note?: string; approvalId?: string;
+                  lines: { productId: string; qty: number; unitPrice?: number;
+                           discount?: number; specNotes?: string }[] }) =>
+    req<Quote>("/quotes", { method: "POST", body: JSON.stringify(b) }),
+  quoteSent: (id: string) => req<Quote>(`/quotes/${id}/sent`, { method: "POST" }),
+  quoteRejected: (id: string) => req<Quote>(`/quotes/${id}/rejected`, { method: "POST" }),
+  convertQuote: (id: string) =>
+    req<{ customerId: string; quotationId: string; leadId: string | null;
+          lines: { productId: string; qty: number; unitPrice: number;
+                   discount: number; specNotes?: string }[] }>(
+      `/quotes/${id}/convert`, { method: "POST" }),
+
   // ---- warranty & after-sales ----
   warrantyOf: (orderLineId: string) => req<Warranty>(`/service/warranty/${orderLineId}`),
   bySerial: (serial: string) => req<Warranty & { serial: string }>(`/service/by-serial/${serial}`),
@@ -452,7 +489,7 @@ export type ProductRow = { cost?: number; id: string; sku: string; nameAr: strin
 export type NewProduct = { cost?: number; sku: string; nameAr: string; nameEn?: string; categoryId: string;
   basePrice: number; baseLeadDays?: number; kind?: string; description?: string };
 export type NewOrder = { customerId?: string; customerName?: string; customerPhone?: string;
-  promisedDate?: string; approvalId?: string;
+  promisedDate?: string; approvalId?: string; quotationId?: string;
   lines: { productId: string; qty: number; unitPrice?: number;
     discount?: number; warehouseId?: string; specNotes?: string; lineKind?: string }[] };
 export type LabelRow = { id: string; serial: string; printedAt: string | null; workOrderCode: string;
@@ -522,6 +559,46 @@ export type Summary = {
   lowStock: { id: string; name: string; unit: string; onHand: number;
               reorderLevel: number; value: number }[];
   byExpense: Record<string, number>;
+};
+export type Lead = {
+  id: string; number: string; name: string; phone: string; whatsapp: string | null;
+  source: string; status: "NEW" | "QUOTED" | "NEGOTIATING" | "WON" | "LOST";
+  interest: string | null; estimateValue: number | null;
+  showroom: string | null; owner: string | null; ownerId: string;
+  customerId: string | null;
+  nextFollowUp: string | null; dueNow: boolean;
+  lostReason: string | null; lostNote: string | null;
+  wonOrderId: string | null; createdAt: string;
+  notes: { id: string; note: string; by: string | null; at: string }[];
+  quotes: { id: string; number: string; status: string; total: number;
+            validUntil: string; createdAt: string }[];
+};
+export type LeadBoard = {
+  totals: { open: number; due: number; won: number; lost: number; noFollowUp: number };
+  rows: Lead[];
+};
+export type Quote = {
+  id: string; number: string;
+  status: "DRAFT" | "SENT" | "ACCEPTED" | "REJECTED" | "EXPIRED"; stored: string;
+  lead: { id: string; number: string; name: string } | null;
+  customer: { id: string; name: string } | null;
+  who: string; phone: string | null;
+  validUntil: string; expired: boolean; daysLeft: number;
+  subtotal: number; discountTotal: number; taxRate: number; taxTotal: number; total: number;
+  note: string | null; by: string | null;
+  order: { id: string; code: string } | null;
+  createdAt: string;
+  lines: { id: string; productId: string;
+           product: { nameAr: string; nameEn: string; sku: string };
+           qty: number; unitPrice: number; discount: number; lineTotal: number;
+           specNotes: string | null }[];
+};
+export type LeadReport = {
+  totals: { leads: number; open: number; won: number; lost: number;
+            conversion: number | null; wonValue: number; avgDaysToWin: number | null };
+  bySource: { name: string; total: number; won: number; value: number; rate: number | null }[];
+  byRep: { name: string; total: number; won: number; value: number; rate: number | null }[];
+  lostReasons: { name: string; count: number }[];
 };
 export type Warranty = {
   orderLineId: string;

@@ -524,6 +524,12 @@ export default async function adminRoutes(app: FastifyInstance) {
        * one was needed and granted.
        */
       approvalId: z.string().optional(),
+      /**
+       * The written price this order is honouring, where there was one. Linked
+       * here rather than in a second call, so a client that dies between the
+       * two cannot leave an order nobody can trace back to its quote.
+       */
+      quotationId: z.string().optional(),
     }).parse(req.body);
 
     if (!b.customerId && !b.customerName) {
@@ -614,6 +620,23 @@ export default async function adminRoutes(app: FastifyInstance) {
         trackingToken: randomUUID(),
       },
     });
+
+    if (b.quotationId) {
+      const qu = await db.quotation.findUnique({ where: { id: b.quotationId } });
+      // Not fatal: the order is real and the customer is standing there. The
+      // link is a record, and refusing the sale over it would be absurd.
+      if (qu && !qu.orderId) {
+        await db.quotation.update({
+          where: { id: qu.id }, data: { status: "ACCEPTED", orderId: order.id },
+        });
+        if (qu.leadId) {
+          await db.lead.update({
+            where: { id: qu.leadId },
+            data: { status: "WON", wonOrderId: order.id, nextFollowUp: null },
+          });
+        }
+      }
+    }
 
     if (approval) {
       // Spent only now the order exists. Consuming it earlier would burn a

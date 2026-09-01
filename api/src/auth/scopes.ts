@@ -56,6 +56,19 @@ export const canGrant = (actorRole: string, target: string) =>
 export const SELL = ["OWNER", "SHOWROOM_MANAGER", "SALES_REP"];
 
 /**
+ * Somebody who came in and has not bought yet, and the price we put in front
+ * of them. The showroom's own work — the factory has no view of it, and the
+ * accountant's ledger starts at the order.
+ */
+export const LEADS = [...SELL];
+
+/**
+ * How many walk-ins became sales, by source and by rep. Wider than working the
+ * leads: the owner reads it and never touches one.
+ */
+export const LEAD_REPORT = [...new Set([...SELL, "ACCOUNTANT"])];
+
+/**
  * The catalogue: what exists and what it costs.
  *
  * Maintained by the people who sell — they are the ones who know a new model

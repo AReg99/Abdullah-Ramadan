@@ -51,12 +51,19 @@ export const DEFAULTS = {
   "series.goodsReceipt": "GRN",
   "series.approval": "APR",
   "series.service": "SRV",
+  "series.lead": "LEAD",
+  "series.quote": "QUO",
   /**
    * The warranty a model carries when its own is not set. Months, from the
    * day the customer took it — not from the order, which can be six weeks
    * earlier and is not when they got anything.
    */
   "warranty.months": "24",
+  /**
+   * How long a written price stays true. A quote with no end date is a price
+   * the customer holds you to next year, after the timber has moved twice.
+   */
+  "quote.validDays": "14",
 } as const;
 
 export type SettingKey = keyof typeof DEFAULTS;

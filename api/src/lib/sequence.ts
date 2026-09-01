@@ -13,7 +13,7 @@ import { allSettings } from "./settings.js";
  * So the counter is a row, and it is incremented inside a transaction.
  */
 export async function nextNumber(
-  series: "INV" | "RV" | "PV" | "PR" | "PO" | "GRN" | "APR" | "SRV",
+  series: "INV" | "RV" | "PV" | "PR" | "PO" | "GRN" | "APR" | "SRV" | "LEAD" | "QUO",
   year = new Date().getFullYear(),
 ) {
   const s = await allSettings();
@@ -21,6 +21,7 @@ export async function nextNumber(
     INV: s["series.invoice"], RV: s["series.receipt"], PV: s["series.payment"],
     PR: s["series.request"], PO: s["series.order"], GRN: s["series.goodsReceipt"],
     APR: s["series.approval"], SRV: s["series.service"],
+    LEAD: s["series.lead"], QUO: s["series.quote"],
   }[series];
   const key = `${series}-${year}`;
 

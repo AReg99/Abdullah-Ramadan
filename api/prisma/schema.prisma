@@ -131,6 +131,9 @@ model User {
   serviceReported   ServiceTicket[] @relation("ServiceReporter")
   serviceAssigned   ServiceTicket[] @relation("ServiceAssignee")
   serviceVisits     ServiceVisit[]  @relation("ServiceTechnician")
+  leadsOwned  Lead[]       @relation("LeadOwner")
+  leadNotes   LeadNote[]   @relation("LeadNoteAuthor")
+  quotes      Quotation[]  @relation("QuoteAuthor")
 }
 
 /// A crew working one station under one leader.
@@ -199,6 +202,7 @@ model Location {
   requests    PurchaseRequest[]
   purchaseOrders PurchaseOrder[]
   receipts    GoodsReceipt[]
+  leads Lead[] @relation("LeadShowroom")
 }
 
 model Station {
@@ -255,6 +259,7 @@ model Product {
   photos     ProductPhoto[]
   stockItem  StockItem?
   bom        BomLine[]
+  quotationLines QuotationLine[]
 }
 
 // ---------------------------------------------------------------- sales
@@ -268,6 +273,8 @@ model Customer {
   address  String?
   locale   Locale  @default(ar)
   orders   Order[]
+  leads Lead[]
+  quotations Quotation[]
 }
 
 enum OrderKind {
@@ -354,6 +361,8 @@ model Order {
 
   @@index([status, promisedDate])
   approvals Approval[]
+  wonFromLead Lead?      @relation("LeadWonOrder")
+  fromQuotation Quotation? @relation("QuoteOrder")
 }
 
 /**
@@ -1516,4 +1525,153 @@ model ServiceVisit {
   createdAt    DateTime       @default(now())
 
   @@index([ticketId])
+}
+
+// -------------------------------------------------- leads & quotations
+
+enum LeadSource {
+  WALK_IN
+  PHONE
+  WHATSAPP
+  INSTAGRAM
+  FACEBOOK
+  REFERRAL
+  OTHER
+}
+
+enum LeadStatus {
+  NEW
+  QUOTED
+  NEGOTIATING
+  WON
+  LOST
+}
+
+/// Why a customer did not buy. Six answers rather than a free text box: a
+/// reason nobody can count is a reason nobody acts on, and "the price" being
+/// half of them is a different business decision from "the lead time".
+enum LostReason {
+  PRICE
+  LEAD_TIME
+  BOUGHT_ELSEWHERE
+  CHANGED_MIND
+  NO_CONTACT
+  OTHER
+}
+
+/// عميل محتمل — somebody who came in, or rang, and has not bought yet.
+///
+/// The showroom could record exactly one thing: a confirmed order. A customer
+/// who walked in, was given a price and said they would think about it left no
+/// trace at all — so nobody could be followed up, nobody knew how many walk-ins
+/// became sales, and the next quote was retyped from nothing.
+model Lead {
+  id     String     @id @default(uuid())
+  number String     @unique
+  name   String
+  phone  String
+  whatsapp String?
+  /// Linked once they buy, or from the start when they are already on the books.
+  customerId String?
+  customer   Customer? @relation(fields: [customerId], references: [id])
+
+  source LeadSource @default(WALK_IN)
+  status LeadStatus @default(NEW)
+  /// What they are after, in the rep's own words. Not a spec.
+  interest String?
+  /// Roughly what it is worth, before anything is priced. A guess the rep is
+  /// happy to make and nobody should treat as a figure.
+  estimateValue Decimal? @db.Decimal(14, 2)
+
+  showroomId String?
+  showroom   Location? @relation("LeadShowroom", fields: [showroomId], references: [id])
+  /// The rep whose customer this is. Following up is somebody's job or it is
+  /// nobody's.
+  ownerId String
+  owner   User   @relation("LeadOwner", fields: [ownerId], references: [id])
+
+  /// When to ring them. The single field that turns a list of names into work.
+  nextFollowUp DateTime?
+  lostReason   LostReason?
+  lostNote     String?
+  /// The order it became, where it did.
+  wonOrderId String? @unique
+  wonOrder   Order?  @relation("LeadWonOrder", fields: [wonOrderId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  notes  LeadNote[]
+  quotes Quotation[]
+
+  @@index([status, nextFollowUp])
+}
+
+/// One conversation. Append-only: what was said in March is not edited in May.
+model LeadNote {
+  id      String   @id @default(uuid())
+  leadId  String
+  lead    Lead     @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  actorId String?
+  actor   User?    @relation("LeadNoteAuthor", fields: [actorId], references: [id])
+  note    String
+  at      DateTime @default(now())
+
+  @@index([leadId])
+}
+
+enum QuoteStatus {
+  DRAFT
+  SENT
+  ACCEPTED
+  REJECTED
+  /// Past its date. Nobody sets this: it is what the date says.
+  EXPIRED
+}
+
+/// عرض سعر — a price put in writing, with a date it stops being true.
+model Quotation {
+  id     String      @id @default(uuid())
+  number String      @unique
+  status QuoteStatus @default(DRAFT)
+
+  leadId     String?
+  lead       Lead?     @relation(fields: [leadId], references: [id])
+  /// A price for somebody already on the books, with no lead behind it.
+  customerId String?
+  customer   Customer? @relation(fields: [customerId], references: [id])
+
+  /// A price with no end date is a price the customer holds you to next year.
+  validUntil DateTime
+
+  subtotal      Decimal @default(0) @db.Decimal(14, 2)
+  discountTotal Decimal @default(0) @db.Decimal(14, 2)
+  taxRate       Decimal @default(0) @db.Decimal(5, 2)
+  taxTotal      Decimal @default(0) @db.Decimal(14, 2)
+  total         Decimal @default(0) @db.Decimal(14, 2)
+  currency      String  @default("EGP")
+
+  note      String?
+  actorId   String?
+  actor     User?   @relation("QuoteAuthor", fields: [actorId], references: [id])
+  /// The order it turned into. A quote is converted once.
+  orderId   String? @unique
+  order     Order?  @relation("QuoteOrder", fields: [orderId], references: [id])
+  createdAt DateTime @default(now())
+
+  lines QuotationLine[]
+
+  @@index([status, validUntil])
+}
+
+model QuotationLine {
+  id          String    @id @default(uuid())
+  quotationId String
+  quotation   Quotation @relation(fields: [quotationId], references: [id], onDelete: Cascade)
+  productId   String
+  product     Product   @relation(fields: [productId], references: [id])
+  qty         Int       @default(1)
+  unitPrice   Decimal   @db.Decimal(14, 2)
+  discount    Decimal   @default(0) @db.Decimal(14, 2)
+  specNotes   String?
 }

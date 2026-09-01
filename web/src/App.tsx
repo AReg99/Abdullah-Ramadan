@@ -33,6 +33,8 @@ import Purchasing from "./screens/Purchasing";
 import Approvals from "./screens/Approvals";
 import Planning from "./screens/Planning";
 import Service from "./screens/Service";
+import Leads from "./screens/Leads";
+import QuoteDoc from "./screens/QuoteDoc";
 import Money from "./screens/Money";
 import { onSyncChange, queued } from "./outbox";
 import { startSyncLoop } from "./sync";
@@ -56,7 +58,8 @@ const NAVS: Record<string, Tab[]> = {
     ["/attendance", "✓", "attendance"], ["/payroll", "☰", "payroll"],
     ["/quality", "◎", "quality"], ["/run", "⇢", "run"],
     ["/purchasing", "⇩", "purchasing"], ["/approvals", "✓", "approvals"],
-    ["/service", "⚒", "service"], ["/setup", "⚙", "setup"],
+    ["/leads", "☏", "leadsTab"], ["/service", "⚒", "service"],
+    ["/setup", "⚙", "setup"],
   ],
   // Runs the factory. Not the business: setup and order entry are the owner's,
   // and the showroom's, and money never appears on these screens.
@@ -90,11 +93,13 @@ const NAVS: Record<string, Tab[]> = {
                 ["/labels", "⌗", "labels"], ["/orders", "▤", "orders"]],
   SHOWROOM_MANAGER: [["/showroom", "⌂", "showroom"], ["/run", "⇢", "run"],
                      ["/orders", "▤", "orders"], ["/new-order", "✎", "newOrder"],
-                     ["/stock", "▥", "stock"], ["/service", "⚒", "service"],
-                     ["/approvals", "✓", "approvals"], ["/setup", "⚙", "setup"]],
-  SALES_REP: [["/showroom", "⌂", "showroom"], ["/orders", "▤", "orders"],
-              ["/new-order", "✎", "newOrder"], ["/service", "⚒", "service"],
-              ["/approvals", "✓", "approvals"], ["/setup", "⚙", "setup"]],
+                     ["/leads", "☏", "leadsTab"], ["/stock", "▥", "stock"],
+                     ["/service", "⚒", "service"], ["/approvals", "✓", "approvals"],
+                     ["/setup", "⚙", "setup"]],
+  SALES_REP: [["/leads", "☏", "leadsTab"], ["/showroom", "⌂", "showroom"],
+              ["/orders", "▤", "orders"], ["/new-order", "✎", "newOrder"],
+              ["/service", "⚒", "service"], ["/approvals", "✓", "approvals"],
+              ["/setup", "⚙", "setup"]],
   // On the road between the factory and the showroom: what is on the van, and
   // signing it in when it lands.
   DRIVER: [["/run", "⇢", "run"], ["/service", "⚒", "service"],
@@ -103,6 +108,7 @@ const NAVS: Record<string, Tab[]> = {
   // the accountant at it landed them on a 403 the moment they signed in.
   // The books are the whole job: the cash box, the invoices, what is owed.
   ACCOUNTANT: [["/summary", "◈", "summary"], ["/money", "₤", "money"],
+               ["/leads", "☏", "leadsTab"],
                ["/payroll", "☰", "payroll"], ["/attendance", "✓", "attendance"],
                ["/stock", "▥", "stock"], ["/purchasing", "⇩", "purchasing"],
                ["/approvals", "✓", "approvals"], ["/orders", "▤", "orders"]],
@@ -191,6 +197,8 @@ export default function App() {
           <Route path="/approvals" element={<Approvals />} />
           <Route path="/planning" element={<Planning />} />
           <Route path="/service" element={<Service />} />
+          <Route path="/leads" element={<Leads />} />
+          <Route path="/quote/:id" element={<QuoteDoc />} />
           <Route path="/run" element={<Run />} />
           <Route path="/money" element={<Money />} />
           <Route path="/dispatch" element={<Dispatch />} />
