@@ -1,0 +1,1570 @@
+<title>Aura Handbook</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Readex+Pro:wght@300;400;500;600;700&family=Literata:ital,opsz,wght@0,7..72,400;0,7..72,600;1,7..72,400&family=IBM+Plex+Mono:wght@400;600&display=swap">
+
+<style>
+/* ============================================================
+   Aura Handbook
+   Palette, faces and neutrals are the app's own brand tokens
+   (assets/brand/brand.json — Tol Barad, Horizon Grey). A guide
+   that looks like the product is a guide that teaches it.
+   ============================================================ */
+
+:root{
+  --p:#6B5033;          /* Tol Barad */
+  --p-deep:#4A3726;
+  --p-muted:#EDE3D5;
+  --on-p:#FFFFFF;
+  --horizon:#B1A697;
+  --sage:#A9B6B1;
+
+  --g0:#F2EDE7;         /* ground */
+  --g1:#FAF8F4;         /* card */
+  --g2:#EBE4DA;
+  --g3:#DDD4C7;         /* rules */
+  --g6:#6F6559;         /* secondary ink */
+  --g9:#2A211A;         /* ink */
+
+  --ok:#2E7D5B;   --ok-s:#DEEDE5;
+  --warn:#8F5A00; --warn-s:#FAECD4;
+  --bad:#B3341F;  --bad-s:#F7E2DC;
+
+  --shadow:0 1px 2px rgba(42,33,26,.05), 0 8px 24px -14px rgba(42,33,26,.22);
+  --r:10px; --r-l:18px;
+
+  --sans:"Readex Pro","Segoe UI",system-ui,sans-serif;
+  --serif:"Literata",Georgia,"Times New Roman",serif;
+  --mono:"IBM Plex Mono",ui-monospace,"SFMono-Regular",Menlo,monospace;
+}
+
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --p:#C9A87C;
+    --p-deep:#E0C39B;
+    --p-muted:#2A2019;
+    --on-p:#1A1411;
+    --horizon:#8A8075;
+    --sage:#7E8C87;
+
+    --g0:#1A1411;
+    --g1:#241C17;
+    --g2:#2E2520;
+    --g3:#3A2F28;
+    --g6:#A79A8B;
+    --g9:#F2EDE7;
+
+    --ok:#7FC2A3;   --ok-s:#1D2A24;
+    --warn:#D9A54A; --warn-s:#2E2417;
+    --bad:#E08871;  --bad-s:#33211C;
+
+    --shadow:0 1px 2px rgba(0,0,0,.3), 0 10px 28px -14px rgba(0,0,0,.6);
+  }
+}
+:root[data-theme="dark"]{
+  --p:#C9A87C;
+  --p-deep:#E0C39B;
+  --p-muted:#2A2019;
+  --on-p:#1A1411;
+  --horizon:#8A8075;
+  --sage:#7E8C87;
+
+  --g0:#1A1411;
+  --g1:#241C17;
+  --g2:#2E2520;
+  --g3:#3A2F28;
+  --g6:#A79A8B;
+  --g9:#F2EDE7;
+
+  --ok:#7FC2A3;   --ok-s:#1D2A24;
+  --warn:#D9A54A; --warn-s:#2E2417;
+  --bad:#E08871;  --bad-s:#33211C;
+
+  --shadow:0 1px 2px rgba(0,0,0,.3), 0 10px 28px -14px rgba(0,0,0,.6);
+}
+
+*{box-sizing:border-box}
+
+body{
+  margin:0;
+  background:var(--g0);
+  color:var(--g9);
+  font-family:var(--serif);
+  font-size:17px;
+  line-height:1.65;
+  -webkit-font-smoothing:antialiased;
+}
+
+#page[dir="rtl"]{font-family:var(--sans);line-height:1.9}
+
+/* ---------------------------------------------------- shell */
+.wrap{max-width:1180px;margin:0 auto;padding:0 20px}
+
+header.top{
+  position:sticky;top:0;z-index:20;
+  background:color-mix(in srgb,var(--g0) 92%,transparent);
+  backdrop-filter:blur(10px);
+  border-bottom:1px solid var(--g3);
+}
+.top-in{
+  max-width:1180px;margin:0 auto;padding:13px 20px;
+  display:flex;align-items:center;gap:14px;
+}
+.mark{display:inline-flex;align-items:center;gap:9px;color:var(--p);text-decoration:none}
+.mark svg{width:22px;height:22px;flex:none}
+.mark b{
+  font-family:var(--sans);font-weight:300;font-size:1.3rem;
+  letter-spacing:.04em;line-height:1;
+}
+.mark span{
+  font-family:var(--sans);font-weight:500;font-size:.72rem;
+  color:var(--g6);letter-spacing:.1em;text-transform:uppercase;
+  border-inline-start:1px solid var(--g3);padding-inline-start:11px;
+}
+.spacer{flex:1}
+
+.toggle{
+  display:inline-flex;border:1px solid var(--g3);border-radius:22px;
+  overflow:hidden;background:var(--g1);
+}
+.toggle button{
+  font-family:var(--sans);font-size:.78rem;font-weight:600;
+  border:0;background:none;color:var(--g6);
+  padding:8px 15px;min-height:38px;cursor:pointer;
+  transition:background-color .14s ease,color .14s ease;
+}
+.toggle button[aria-pressed="true"]{background:var(--p);color:var(--on-p)}
+.toggle button:focus-visible{outline:2px solid var(--p);outline-offset:-2px}
+
+/* ---------------------------------------------------- hero */
+.hero{padding:52px 0 30px;border-bottom:1px solid var(--g3)}
+.hero h1{
+  font-family:var(--sans);font-weight:600;
+  font-size:clamp(2rem,5.2vw,3.1rem);
+  line-height:1.12;margin:0 0 14px;text-wrap:balance;
+  color:var(--p-deep);letter-spacing:-.015em;
+}
+#page[dir="rtl"] .hero h1{letter-spacing:0}
+.hero p{
+  margin:0;max-width:60ch;font-size:1.08rem;color:var(--g6);
+}
+.eyebrow{
+  font-family:var(--sans);font-size:.72rem;font-weight:600;
+  letter-spacing:.14em;text-transform:uppercase;color:var(--p);
+  margin:0 0 14px;
+}
+#page[dir="rtl"] .eyebrow{letter-spacing:.04em}
+
+/* ---------------------------------------------------- rules */
+.rules{padding:38px 0 8px}
+.rules-grid{
+  display:grid;gap:16px;
+  grid-template-columns:repeat(auto-fit,minmax(260px,1fr));
+  margin-top:20px;
+}
+.rule{
+  background:var(--g1);border:1px solid var(--g3);border-radius:var(--r-l);
+  padding:20px 21px;box-shadow:var(--shadow);
+}
+.rule h3{
+  font-family:var(--sans);font-weight:600;font-size:1.06rem;
+  margin:0 0 9px;color:var(--p-deep);line-height:1.35;
+}
+.rule p{margin:0;font-size:.95rem;color:var(--g6)}
+.rule p+p{margin-top:9px}
+.rule .say{color:var(--g9);font-weight:600}
+
+/* ---------------------------------------------------- basics */
+.basics{
+  display:grid;gap:16px;margin-top:22px;
+  grid-template-columns:repeat(auto-fit,minmax(240px,1fr));
+}
+.basic{
+  border-inline-start:3px solid var(--p);
+  padding-inline-start:15px;
+}
+.basic h4{
+  font-family:var(--sans);font-weight:600;font-size:.95rem;
+  margin:0 0 6px;color:var(--g9);
+}
+.basic p{margin:0;font-size:.92rem;color:var(--g6)}
+
+/* ---------------------------------------------------- layout */
+.body-grid{
+  display:grid;gap:38px;padding:38px 0 70px;
+  grid-template-columns:250px minmax(0,1fr);
+  align-items:start;
+}
+@media(max-width:900px){
+  .body-grid{grid-template-columns:1fr;gap:22px}
+}
+
+/* role rail */
+nav.roles{position:sticky;top:74px}
+@media(max-width:900px){
+  nav.roles{
+    position:static;
+    margin:0 -20px;padding:0 20px 4px;
+    overflow-x:auto;-webkit-overflow-scrolling:touch;
+    scrollbar-width:none;
+  }
+  nav.roles::-webkit-scrollbar{display:none}
+}
+.roles-label{
+  font-family:var(--sans);font-size:.7rem;font-weight:600;
+  letter-spacing:.13em;text-transform:uppercase;color:var(--g6);
+  margin:0 0 11px;
+}
+#page[dir="rtl"] .roles-label{letter-spacing:.03em}
+@media(max-width:900px){.roles-label{display:none}}
+
+.role-list{display:flex;flex-direction:column;gap:3px}
+@media(max-width:900px){
+  .role-list{flex-direction:row;gap:8px;padding-bottom:6px}
+}
+.role-btn{
+  font-family:var(--sans);font-size:.9rem;font-weight:500;
+  text-align:start;border:1px solid transparent;background:none;
+  color:var(--g6);padding:9px 12px;border-radius:var(--r);
+  cursor:pointer;min-height:42px;white-space:nowrap;
+  display:flex;align-items:center;gap:9px;
+  transition:background-color .14s ease,color .14s ease,border-color .14s ease;
+}
+@media(max-width:900px){
+  .role-btn{border-color:var(--g3);background:var(--g1);flex:none}
+}
+.role-btn:hover{background:var(--g2);color:var(--g9)}
+.role-btn[aria-current="true"]{
+  background:var(--p);color:var(--on-p);border-color:var(--p);font-weight:600;
+}
+.role-btn:focus-visible{outline:2px solid var(--p);outline-offset:2px}
+
+/* ---------------------------------------------------- article */
+article{max-width:70ch}
+article[hidden]{display:none}
+/* Jumping to a role must not park its heading behind the sticky header. */
+article{scroll-margin-top:86px}
+
+article>h2{
+  font-family:var(--sans);font-weight:600;
+  font-size:clamp(1.6rem,3.4vw,2.15rem);line-height:1.2;
+  margin:0 0 6px;color:var(--p-deep);text-wrap:balance;
+}
+.role-strap{
+  font-size:1.03rem;color:var(--g6);margin:0 0 26px;
+  padding-bottom:20px;border-bottom:1px solid var(--g3);
+}
+article h3{
+  font-family:var(--sans);font-weight:600;font-size:1.16rem;
+  margin:34px 0 11px;color:var(--g9);line-height:1.35;text-wrap:balance;
+}
+article h4{
+  font-family:var(--sans);font-weight:600;font-size:.98rem;
+  margin:22px 0 8px;color:var(--p);
+}
+article p{margin:0 0 14px}
+article ul,article ol{margin:0 0 16px;padding-inline-start:22px}
+article li{margin-bottom:7px}
+article li::marker{color:var(--horizon)}
+article strong{font-weight:600;color:var(--g9)}
+#page[dir="rtl"] article strong{font-weight:600}
+
+kbd,.ui{
+  font-family:var(--sans);font-size:.88em;font-weight:600;
+  background:var(--p-muted);color:var(--p-deep);
+  padding:2px 8px;border-radius:6px;white-space:nowrap;
+  border:1px solid color-mix(in srgb,var(--p) 22%,transparent);
+}
+code,.mono{font-family:var(--mono);font-size:.88em}
+
+/* callouts — each says something different, so each looks different */
+.note{
+  background:var(--g1);border:1px solid var(--g3);border-radius:var(--r);
+  padding:15px 17px;margin:0 0 18px;font-size:.95rem;
+}
+.note>:last-child{margin-bottom:0}
+.note.why{border-inline-start:3px solid var(--horizon)}
+.note.trap{
+  background:var(--bad-s);border-color:color-mix(in srgb,var(--bad) 35%,transparent);
+  color:var(--bad);
+}
+.note.trap strong{color:var(--bad)}
+.note.care{
+  background:var(--warn-s);border-color:color-mix(in srgb,var(--warn) 35%,transparent);
+  color:var(--warn);
+}
+.note.care strong{color:var(--warn)}
+.note-k{
+  display:block;font-family:var(--sans);font-size:.68rem;font-weight:700;
+  letter-spacing:.12em;text-transform:uppercase;margin-bottom:7px;opacity:.85;
+}
+#page[dir="rtl"] .note-k{letter-spacing:.03em}
+
+/* the two-language machinery */
+.en,.ar{display:none}
+#page[data-lang="en"] .en{display:block}
+#page[data-lang="ar"] .ar{display:block}
+li.en,li.ar,span.en,span.ar{display:none}
+#page[data-lang="en"] li.en{display:list-item}
+#page[data-lang="ar"] li.ar{display:list-item}
+#page[data-lang="en"] span.en{display:inline}
+#page[data-lang="ar"] span.ar{display:inline}
+
+/* steps — a real sequence, so it is numbered */
+ol.steps{list-style:none;padding:0;counter-reset:s;margin:0 0 18px}
+ol.steps>li{
+  counter-increment:s;position:relative;
+  padding-inline-start:42px;margin-bottom:15px;
+}
+ol.steps>li::before{
+  content:counter(s);position:absolute;inset-inline-start:0;top:1px;
+  width:28px;height:28px;border-radius:50%;
+  background:var(--p);color:var(--on-p);
+  font-family:var(--mono);font-size:.8rem;font-weight:600;
+  display:flex;align-items:center;justify-content:center;
+}
+
+/* comparison table */
+.tbl-wrap{overflow-x:auto;margin:0 0 18px}
+table{border-collapse:collapse;width:100%;font-size:.93rem;min-width:380px}
+th,td{
+  text-align:start;padding:10px 13px;border-bottom:1px solid var(--g3);
+  vertical-align:top;
+}
+th{
+  font-family:var(--sans);font-weight:600;font-size:.78rem;
+  letter-spacing:.06em;text-transform:uppercase;color:var(--g6);
+}
+#page[dir="rtl"] th{letter-spacing:0;text-transform:none;font-size:.85rem}
+td.num{font-family:var(--mono);font-variant-numeric:tabular-nums}
+
+footer{
+  border-top:1px solid var(--g3);padding:26px 0 44px;
+  font-size:.88rem;color:var(--g6);
+}
+
+@media (prefers-reduced-motion: reduce){
+  *{transition:none !important;animation:none !important;scroll-behavior:auto !important}
+}
+</style>
+
+<div id="page" dir="rtl" data-lang="ar">
+
+  <header class="top">
+    <div class="top-in">
+      <a class="mark" href="#top">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M12 2.5c4.2 5.1 6.6 8.6 6.6 11.6A6.6 6.6 0 0 1 12 20.7a6.6 6.6 0 0 1-6.6-6.6c0-3 2.4-6.5 6.6-11.6Z"
+                fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>
+        </svg>
+        <b>aura</b>
+        <span class="ar">الدليل</span><span class="en">Handbook</span>
+      </a>
+      <div class="spacer"></div>
+      <div class="toggle" role="group" aria-label="Language">
+        <button id="btn-ar" aria-pressed="true">ع</button>
+        <button id="btn-en" aria-pressed="false">EN</button>
+      </div>
+    </div>
+  </header>
+
+  <div class="wrap" id="top">
+
+    <section class="hero">
+      <p class="eyebrow"><span class="ar">دليل استخدام أورا</span><span class="en">Aura user guide</span></p>
+      <div class="ar">
+        <h1>اختار شغلك، واقرا صفحتك بس.</h1>
+        <p>مش محتاج تقرا الدليل كله. كل وظيفة ليها صفحة واحدة قصيرة — فيها اللي بتعمله كل يوم، والغلطات اللي بتكلّف فلوس.</p>
+      </div>
+      <div class="en">
+        <h1>Find your job. Read one page.</h1>
+        <p>Nobody needs the whole guide. Every job has one short page — what you do daily, and the mistakes that cost money.</p>
+      </div>
+    </section>
+
+    <section class="rules">
+      <p class="eyebrow"><span class="ar">تلات قواعد تخص الكل</span><span class="en">Three rules for everyone</span></p>
+      <div class="rules-grid">
+
+        <div class="rule">
+          <div class="ar">
+            <h3>امسح الملصق في كل مرحلة</h3>
+            <p>أول ما تبدأ، وأول ما تخلّص. كل تقرير، وكل ميعاد بيتقال لعميل، وإنتاج كل مجموعة — كله متبني على المسحات دي.</p>
+            <p class="say">المرحلة اللي بتتعمل من غير مسح، الشركة كلها مش شايفاها.</p>
+          </div>
+          <div class="en">
+            <h3>Scan the label at every stage</h3>
+            <p>Starting and finishing. Every report, every date given to a customer and every crew's output is built from those scans.</p>
+            <p class="say">A stage that is worked but not scanned is invisible to the entire company.</p>
+          </div>
+        </div>
+
+        <div class="rule">
+          <div class="ar">
+            <h3>مفيش حاجة بتتمسح — بتتعكس</h3>
+            <p>القيد الغلط، الحركة الغلط، الفاتورة الغلط: مافيش واحدة فيهم بتتمسح. بتكتب عكسها جنبها والاتنين يفضلوا ظاهرين.</p>
+            <p class="say">ده اللي بيخلّي الدفاتر تنفع تتحاسب عليها.</p>
+          </div>
+          <div class="en">
+            <h3>Nothing is deleted — it is reversed</h3>
+            <p>A wrong payment, a wrong stock movement, a wrong invoice: none are erased. You write the opposite beside it and both stay visible.</p>
+            <p class="say">That is what makes the books worth arguing from.</p>
+          </div>
+        </div>
+
+        <div class="rule">
+          <div class="ar">
+            <h3>اسأل — متخمّنش</h3>
+            <p>لو كارت الشغل مش بيقول اللون ولا القماش ولا الاتجاه: في زرار على الكارت بيسأل المعرض، والرد بيرجع على نفس الكارت.</p>
+            <p class="say">التخمين في اللون معناه القطعة تتعمل مرتين.</p>
+          </div>
+          <div class="en">
+            <h3>Ask — never guess</h3>
+            <p>If the job card does not say what colour, what fabric, which way round: a button on the card asks the showroom, and the answer comes back to the same card.</p>
+            <p class="say">A guess about a colour is a piece made twice.</p>
+          </div>
+        </div>
+
+      </div>
+
+      <div class="basics">
+        <div class="basic">
+          <div class="ar"><h4>الدخول</h4><p>الكل بيدخل برقم وكلمة سر. المالك بالإيميل كمان. اكتب الرقم زي ما بتقوله — التطبيق بيعرفه بأي شكل.</p></div>
+          <div class="en"><h4>Signing in</h4><p>Everyone uses a number and a password; the owner may also use their email. Type the number the way you say it.</p></div>
+        </div>
+        <div class="basic">
+          <div class="ar"><h4>الرقم الأحمر</h4><p>على أي زرار معناه <strong>في حد مستنيك</strong>. موافقة، أو سعر اتغير، أو سؤال من المصنع. افتحه.</p></div>
+          <div class="en"><h4>A red number</h4><p>on any button means <strong>somebody is waiting on you</strong>. An approval, a price that moved, a question from the factory. Open it.</p></div>
+        </div>
+        <div class="basic">
+          <div class="ar"><h4>زرار المزيد</h4><p>الشريط تحت فيه أربع شاشات بتوع كل يوم، و<span class="ui">المزيد</span> بيفتح باقي شاشاتك مرتبة حسب قسم الشغل.</p></div>
+          <div class="en"><h4>The More button</h4><p>The bar holds your four daily screens; <span class="ui">المزيد</span> opens everything else you may open, grouped by part of the business.</p></div>
+        </div>
+        <div class="basic">
+          <div class="ar"><h4>من غير نت</h4><p>شاشات العامل والسائق بتفضل شغالة، وكل حاجة بتترفع لوحدها لما النت يرجع. <strong>متوقفش شغلك.</strong></p></div>
+          <div class="en"><h4>No internet</h4><p>The worker and driver screens keep working and sync by themselves when it returns. <strong>Never stop working.</strong></p></div>
+        </div>
+      </div>
+    </section>
+
+    <div class="body-grid">
+
+      <nav class="roles" aria-label="Roles">
+        <p class="roles-label"><span class="ar">اختار وظيفتك</span><span class="en">Your job</span></p>
+        <div class="role-list" id="roleList"></div>
+      </nav>
+
+      <div id="articles">
+
+        <!-- ============================================ OWNER -->
+        <article id="r-owner">
+          <h2><span class="ar">المالك</span><span class="en">Owner</span></h2>
+          <p class="role-strap">
+            <span class="ar">النظام متعمول عشان تفتحه قليل. الأرقام الحمرا هي اللي بتنده عليك.</span>
+            <span class="en">The system is built so you rarely need to open it. The red numbers are what call you.</span>
+          </p>
+
+          <div class="ar">
+            <h3>خمس شاشات تقراهم فعلاً</h3>
+            <p>مش محتاج تفتح كل شاشة. حدّد ميعاد ثابت — صباح السبت بيمشي كويس — واقرا دول:</p>
+            <ol class="steps">
+              <li><strong>التخطيط ← المواعيد.</strong> كل وعد المصنع على وشك يكسره، <em>قبل</em> ما يكسره. أنفع شاشة في التطبيق.</li>
+              <li><strong>التخطيط ← الحمل.</strong> الشغل مكدّس فين. ده إزاي تزوّد طاقة من غير ما تشتري ماكينة.</li>
+              <li><strong>التكاليف ← قائمة الأسعار.</strong> كل المنتجات، الأقل هامش الأول. اللي بتخسر فوق.</li>
+              <li><strong>الجودة ← التقرير.</strong> العيوب حسب النوع والمحطة والمجموعة. الإجمالي من غير أسماء مابيغيّرش حاجة على الأرض.</li>
+              <li><strong>ما بعد البيع ← التقرير.</strong> أنهي منتجات بترجع. لو موديل واحد تلت الشكاوي، هو بيكلّفك في زيارات أكتر مما بيكسب.</li>
+            </ol>
+            <p>ومرة في الشهر: <span class="ui">الحسابات ← المديونيات</span> (الأسوأ الأول وبالأسماء) و<span class="ui">الأرباح</span>.</p>
+
+            <h3>الموافقات</h3>
+            <p><strong>الرقم الأحمر على التبويبة هو عدد الناس الواقفة مستنياك.</strong> ده السبب الوحيد إنه موجود.</p>
+            <p>نوعين: <strong>خصم فوق حد المندوب</strong>، و<strong>شراء فوق حد المشتري</strong>. كل واحد بيوريك الطلب ومين طلبه والرقم. وافق أو ارفض <strong>وأنت كاتب السبب</strong> — السبب ده هو اللي بيوريك بعدين إن مندوب معين بيخصم في كل صفقة.</p>
+            <div class="note why">
+              <span class="note-k">تلات حاجات تعرفها</span>
+              <ul>
+                <li><strong>الموافقة بتنتهي بعد ٤٨ ساعة.</strong> دي إذن لبيعة معينة وعميل واقف قدامك، مش رصيد دايم.</li>
+                <li><strong>بتتصرف مرة واحدة</strong> على الأوردر اللي اتاخدت عشانه، ومابتتعادش.</li>
+                <li><strong>الحد اللي ماحددتوش مش معناه صفر.</strong> لغاية ما تحط حدود من <span class="ui">الإعدادات ← الحدود</span>، مافيش حاجة متقفولة ومحدش محتاج يستأذن.</li>
+              </ul>
+            </div>
+
+            <h3>الحدود</h3>
+            <p>لكل وظيفة: نسبة الخصم اللي يقدر يديها لوحده، وقيمة الشراء اللي يقدر يلتزم بيها لوحده. حطهم مرة واحدة بقصد.</p>
+            <p>واطيين أوي؟ كل بيعة هتبقى مكالمة ليك. عاليين أوي؟ هتعرف آخر الشهر. <strong>الرقم الصح هو اللي بيخليك تتسأل في الصفقة الاستثنائية مش في العادية.</strong></p>
+
+            <h3>شاشتين الناس بتلخبط بينهم</h3>
+            <div class="tbl-wrap">
+              <table>
+                <thead><tr><th>الشاشة</th><th>بتجاوب على</th><th>بتاعة مين</th></tr></thead>
+                <tbody>
+                  <tr><td><span class="ui">الحسابات</span></td><td>إحنا اتدفعنا؟</td><td>المحاسب</td></tr>
+                  <tr><td><span class="ui">التكاليف</span></td><td>كانت تستاهل نعملها؟</td><td>محاسب التكاليف</td></tr>
+                </tbody>
+              </table>
+            </div>
+            <p>الشغلانة ممكن تكون ممتازة في الأولى، وبتتخرب في السكوت من التانية.</p>
+          </div>
+
+          <div class="en">
+            <h3>Five screens actually worth reading</h3>
+            <p>You do not need every screen. Give these a fixed time — Saturday morning works:</p>
+            <ol class="steps">
+              <li><strong>التخطيط → المواعيد.</strong> Every promise the factory is about to miss, <em>before</em> it misses it. The most useful screen in the app.</li>
+              <li><strong>التخطيط → الحمل.</strong> Where work is piling up. This is how you add capacity without buying a machine.</li>
+              <li><strong>التكاليف → قائمة الأسعار.</strong> Every product, worst margin first. The ones losing money are at the top.</li>
+              <li><strong>الجودة → التقرير.</strong> Defects by fault, station and crew. A total with nobody attached to it changes nothing on the floor.</li>
+              <li><strong>ما بعد البيع → التقرير.</strong> Which products come back. If one model is a third of your complaints, it costs more in service visits than it earns.</li>
+            </ol>
+            <p>And monthly: <span class="ui">المديونيات</span> (worst first, with names) and <span class="ui">الأرباح</span>.</p>
+
+            <h3>Approvals</h3>
+            <p><strong>The red number on the tab is the count of people standing still waiting for you.</strong> That is the only reason it is there.</p>
+            <p>Two kinds: <strong>a discount above a rep's ceiling</strong> and <strong>a purchase above a buyer's ceiling</strong>. Approve or reject <strong>with a reason</strong> — the reason is how you find out later that one rep discounts every deal.</p>
+            <div class="note why">
+              <span class="note-k">Three things to know</span>
+              <ul>
+                <li><strong>An approval expires after 48 hours.</strong> It is permission for a specific sale in front of a specific customer, not a standing allowance.</li>
+                <li><strong>It is spent once</strong>, on the order it was granted for, and cannot be reused.</li>
+                <li><strong>A ceiling you never set is not a ceiling of zero.</strong> Until you set limits, nothing is blocked and nobody has to ask.</li>
+              </ul>
+            </div>
+
+            <h3>Limits</h3>
+            <p>Per role: the discount they may give alone, and the purchase value they may commit alone. Set them once, deliberately.</p>
+            <p>Too low and every sale becomes a phone call to you. Too high and you find out at the month end. <strong>The right number is the one where you are asked about the exceptional deal and not the ordinary one.</strong></p>
+
+            <h3>Two screens people confuse</h3>
+            <div class="tbl-wrap">
+              <table>
+                <thead><tr><th>Screen</th><th>Answers</th><th>Whose</th></tr></thead>
+                <tbody>
+                  <tr><td><span class="ui">الحسابات</span></td><td>Did we get paid?</td><td>Accountant</td></tr>
+                  <tr><td><span class="ui">التكاليف</span></td><td>Was it worth making?</td><td>Cost accountant</td></tr>
+                </tbody>
+              </table>
+            </div>
+            <p>A business can be excellent at the first and quietly ruined by the second.</p>
+          </div>
+        </article>
+
+        <!-- ============================================ FACTORY MANAGER -->
+        <article id="r-factory" hidden>
+          <h2><span class="ar">مدير المصنع والمشرف</span><span class="en">Factory manager &amp; supervisor</span></h2>
+          <p class="role-strap">
+            <span class="ar">إنت بتشغّل المصنع، مش الخزنة. قيم الأوردرات مش بتظهر على شاشاتك خالص.</span>
+            <span class="en">You run the factory, not the till. Order values do not appear anywhere on your screens.</span>
+          </p>
+
+          <div class="ar">
+            <h3>روتين الصبح</h3>
+            <ol class="steps">
+              <li><strong>٧:٣٠ — الواقف.</strong> افتح <span class="ui">المصنع</span> قبل أي حاجة. كل اللي متوقف مرتب بالدقايق الضايعة وبالسبب. الوقفة اللي بتتحل ٧:٣٠ مابتكلّفش حاجة؛ نفسها الساعة ١١ بتكلّف نص يوم.</li>
+              <li><strong>٨:٠٠ — الأوردرات الجديدة.</strong> اقبل أو ارفض اللي المعرض بعته إمبارح.</li>
+              <li><strong>٨:١٥ — التوزيع.</strong> أكّد شغل النهاردة. العمال بيشوفوا قايمتهم أول ما يدخلوا.</li>
+              <li><strong>٨:٢٠ — المواصفات.</strong> افتح <span class="ui">المواصفات</span>. أي حاجة المعرض غيّرها في قطعة بتتعمل بتفضل واقفة هناك لغاية ما حد من المصنع يعلّم إنه شافها.</li>
+            </ol>
+            <div class="note trap">
+              <span class="note-k">التنبيه</span>
+              <p><strong>تغيير محدش شافه معناه قطعة بتتعمل بمواصفات مابقتش صح.</strong> اتأكد إن التبويبة فاضية قبل ما تمشي.</p>
+            </div>
+
+            <h3>الأسئلة الجاية من البنك</h3>
+            <p>رئيس عمال أو مفتش مش عارف القطعة المفروض تبقى إزاي بيضغط <span class="ui">اسأل المعرض</span> على الكارت. السؤال بيروح للمعرض مش ليك — <strong>بس هو مشكلتك لما مايتردش عليه</strong>، لأن ده بنك واقف عندك.</p>
+            <p>السؤال اللي مكتوب عليه <span class="ui">واقف مستني الرد</span> معناه في حد وقف شغل فعلاً. اجري وراهم.</p>
+
+            <h3>الموظفين</h3>
+            <p><span class="ui">الإعدادات ← المجموعات</span> و<span class="ui">الإعدادات ← الموظفين</span> بتوعك: ضيف مشرف، رئيس عمال، مفتش جودة، أمين مخزن، سواق، واعمل كلمات سر جديدة لما حد ينسى.</p>
+            <div class="note why">
+              <p>تقدر تعمل الوظايف اللي بتشرف عليها وبس — مش مالك، ولا مدير معرض، ولا محاسب. <strong>ده مش تقليل منك:</strong> اللي يقدر يعمل حساب مالك يقدر يدّي نفسه كل صلاحية تانية في التطبيق.</p>
+            </div>
+
+            <h3>الدقايق الواقفة</h3>
+            <p>كل وقفة ليها سبب والدقايق اللي وقفتها. <strong>الدقايق دي مابتتحسبش على العامل</strong> — محدش بيتحاسب على انتظار.</p>
+            <p>شوف <strong>العدد</strong> مش الكارت الواحد: تلات قطع واقفة على «مفيش خامة» في نفس المحطة دي مشكلة مشتريات؛ قطعة واحدة واقفة أسبوع دي قطعة اتنسيت.</p>
+          </div>
+
+          <div class="en">
+            <h3>The morning rhythm</h3>
+            <ol class="steps">
+              <li><strong>07:30 — Blockers.</strong> Open <span class="ui">المصنع</span> before anything else. Everything paused, sorted by minutes lost and grouped by reason. A blocker cleared at 07:30 costs nothing; the same one at 11:00 costs half a day.</li>
+              <li><strong>08:00 — Incoming orders.</strong> Accept or reject what the showroom sent yesterday.</li>
+              <li><strong>08:15 — The plan.</strong> Confirm today's assignments. Workers see their list when they sign in.</li>
+              <li><strong>08:20 — Spec changes.</strong> Open <span class="ui">المواصفات</span>. Anything the showroom changed on a piece already being made sits there until somebody on the floor marks it seen.</li>
+            </ol>
+            <div class="note trap">
+              <span class="note-k">The trap</span>
+              <p><strong>An unseen change is a piece being made to a spec that is no longer true.</strong> Check that tab is empty before you go home.</p>
+            </div>
+
+            <h3>Questions from the benches</h3>
+            <p>A group leader or inspector who cannot tell what a piece should be taps <span class="ui">اسأل المعرض</span>. It goes to the showroom, not to you — <strong>but it is your problem when it goes unanswered</strong>, because it is your bench standing still.</p>
+            <p>A question marked <span class="ui">واقف مستني الرد</span> means somebody has actually stopped. Chase those.</p>
+
+            <h3>Your staff list</h3>
+            <p><span class="ui">الإعدادات ← المجموعات</span> and <span class="ui">← الموظفين</span> are yours: add a supervisor, group leader, inspector, storekeeper or driver, and reset passwords.</p>
+            <div class="note why">
+              <p>You can create the jobs you supervise and nothing above or beside them — not an owner, a showroom manager or an accountant. <strong>That is not a slight:</strong> whoever can create an owner can help themselves to every other permission in the app.</p>
+            </div>
+
+            <h3>Blocked minutes</h3>
+            <p>Every block carries a reason and the minutes it has been stopped. <strong>Those minutes are excluded from the worker's output</strong> — nobody is penalised for waiting.</p>
+            <p>Read the <strong>count</strong>, not the individual card: three pieces blocked on "no material" at one station is a purchasing problem; one piece blocked all week is a forgotten piece.</p>
+          </div>
+        </article>
+
+        <!-- ============================================ PRODUCTION MANAGER -->
+        <article id="r-production" hidden>
+          <h2><span class="ar">مدير الإنتاج</span><span class="en">Production manager</span></h2>
+          <p class="role-strap">
+            <span class="ar">شغلك مش إدارة المصنع — ده شغل مدير المصنع. شغلك تحدد إيه اللي يتعمل الأول.</span>
+            <span class="en">Not running the plant — that is the factory manager's. Yours is deciding what gets made in what order.</span>
+          </p>
+
+          <div class="ar">
+            <h3>لوحة التخطيط</h3>
+            <div class="tbl-wrap">
+              <table>
+                <thead><tr><th>التبويبة</th><th>بتوريك إيه</th></tr></thead>
+                <tbody>
+                  <tr><td><strong>الطابور</strong></td><td>كل أوامر الشغل مرتبة زي ما المصنع هيوصلها فعلاً: الأولوية، بعدين الميعاد، بعدين الكود.</td></tr>
+                  <tr><td><strong>الحمل</strong></td><td>دقايق الشغل المستنية على كل محطة مقابل طاقتها اليومية. ده عنق الزجاجة في شاشة واحدة.</td></tr>
+                  <tr><td><strong>المواعيد</strong></td><td>الميعاد اللي اتقال للعميل، والميعاد اللي الطابور الحقيقي بيطلعه، والفرق. <strong>الأحمر معناه هيضيع.</strong></td></tr>
+                  <tr><td><strong>المحطات</strong></td><td>كام دقيقة شغل فعلي في اليوم لكل محطة.</td></tr>
+                </tbody>
+              </table>
+            </div>
+            <div class="note care">
+              <span class="note-k">خد بالك</span>
+              <p>كل المواعيد اللي المعرض بيقولها للعملاء طالعة من أرقام <strong>المحطات</strong>. محطة مكتوب لها ٤٨٠ دقيقة وهي بتعمل ٣٠٠ هتدّي المعرض مواعيد المصنع مايقدرش يمشي عليها. <strong>اكتبها بصدق.</strong></p>
+            </div>
+
+            <h3>رفع الأولوية، وتمنه</h3>
+            <p>من أي سطر في الطابور: <span class="ui">رفع الأولوية</span>. القطعة بتتقدّم على اللي وراها في نفس المحطة.</p>
+            <p><strong>لما بتقدّم قطعة، اللي وراها بيتأخر.</strong> تبويبة المواعيد بتتحدّث فوراً، فتقدر تشوف إنت كسرت إيه قبل ما تسيب الشاشة.</p>
+            <p>لو تقديم القطعة المستعجلة حوّل تلات مواعيد للأحمر، <strong>ده كلام يتقال للمعرض، مش قرار يتاخد في السكوت.</strong></p>
+
+            <h3>المواعيد جاية منين</h3>
+            <p>التطبيق مابيخمّنش مدة تسليم. بيمشي على الطابور الحقيقي: لكل محطة، الشغل اللي <em>قدام</em> القطعة دي، بدقايق المحطة الحقيقية، بترتيب الأولوية.</p>
+            <p><strong>الشغل اللي قدامك بس هو اللي بيتحسب.</strong> أوردر جديد مابيأخّرش وعد قديم. لو شفت وعد اتحرك وهو مالوش سبب، بلّغ المالك — ده عطل مش تقريب.</p>
+          </div>
+
+          <div class="en">
+            <h3>The planning board</h3>
+            <div class="tbl-wrap">
+              <table>
+                <thead><tr><th>Tab</th><th>What it shows</th></tr></thead>
+                <tbody>
+                  <tr><td><strong>الطابور</strong></td><td>Every work order in the order the factory will actually reach them: priority, then promised date, then code.</td></tr>
+                  <tr><td><strong>الحمل</strong></td><td>Minutes of work sitting at each station against its daily capacity. The bottleneck, in one screen.</td></tr>
+                  <tr><td><strong>المواعيد</strong></td><td>The date the customer was given, the date the real queue produces, and the gap. <strong>Red means it will be missed.</strong></td></tr>
+                  <tr><td><strong>المحطات</strong></td><td>How many productive minutes a day each station really has.</td></tr>
+                </tbody>
+              </table>
+            </div>
+            <div class="note care">
+              <span class="note-k">Careful</span>
+              <p>Every promise date the showroom quotes comes out of the <strong>المحطات</strong> numbers. A station set to 480 minutes that really does 300 will hand the showroom dates the factory cannot keep. <strong>Set them honestly.</strong></p>
+            </div>
+
+            <h3>Bumping a piece, and what it costs</h3>
+            <p>On any row in الطابور: <span class="ui">رفع الأولوية</span>. It moves that work order ahead of the others at its station.</p>
+            <p><strong>Bumping one piece pushes out everything behind it.</strong> The المواعيد tab updates immediately, so you can see what you just broke before you leave the screen.</p>
+            <p>If bumping the rush job puts three other promises into red, <strong>that is a conversation with the showroom, not a decision to take quietly.</strong></p>
+
+            <h3>Where the dates come from</h3>
+            <p>The app does not guess a lead time. It walks the real queue: for each station, the work already <em>ahead</em> of this piece, at that station's real daily minutes, in priority order.</p>
+            <p><strong>Only work ahead of a piece counts.</strong> A later order does not push out an earlier promise. If you see a promise move that should not have, tell the owner — that is a bug, not a rounding.</p>
+          </div>
+        </article>
+
+        <!-- ============================================ GROUP LEADER -->
+        <article id="r-leader" hidden>
+          <h2><span class="ar">رئيس العمال</span><span class="en">Group leader</span></h2>
+          <p class="role-strap">
+            <span class="ar">إنت اللي معاك الموبايل والمجموعة بتشتغل معاك. مفيش عامل محتاج تليفون ولا نت.</span>
+            <span class="en">You carry the phone and your crew works with you. No worker needs a phone or a connection.</span>
+          </p>
+
+          <div class="ar">
+            <h3>شغلك كل يوم</h3>
+            <ol class="steps">
+              <li><strong>شوف شغل النهاردة.</strong> أول شاشة — القطع المطلوبة منك مرتبة بالأولوية.</li>
+              <li><strong>امسح الملصق.</strong> وجّه الكاميرا على الكود ← بتفتح بطاقة الشغل.</li>
+              <li><strong>اختار مين موجود.</strong> أسماء مجموعتك تحت وكلهم متحددين. شيل اللي مش موجود النهاردة. <strong>الإنتاج بيتحسب على اللي سايبهم متحددين.</strong></li>
+              <li><strong>دوس «ابدأ»</strong> أول ما الشغل يبدأ فعلاً. العدّاد بيشتغل — متدوسش وتسيب القطعة.</li>
+              <li><strong>دوس «خلّصت»</strong> أول ما تخلص. القطعة بتروح للمرحلة اللي بعدها لوحدها.</li>
+            </ol>
+
+            <h3>بطاقة الشغل فيها إيه</h3>
+            <ul>
+              <li>صورة القطعة، <strong>والرسومات اللي العميل وافق عليها</strong> — كبّرها بصباعك</li>
+              <li><strong>المواصفات بالظبط</strong>: اللون، القماش، المقاس — كل واحدة باسمها وقيمتها</li>
+              <li>العدد، الرقم المسلسل، والزمن المعياري للمرحلة</li>
+            </ul>
+
+            <h3>لو لقيت تنبيه أحمر «المواصفات اتغيرت»</h3>
+            <p>معناه إن المعرض غيّر حاجة في القطعة دي <strong>بعد</strong> ما الشغل فيها ابتدى. التنبيه بيقولك كان إيه، وبقى إيه، وليه.</p>
+            <p>اقراه، اشتغل على الجديد، وبعدين دوس <span class="ui">خلاص شفتها</span>.</p>
+            <div class="note why">
+              <p><strong>التنبيه مش بيروح لوحده، وده مقصود.</strong></p>
+            </div>
+
+            <h3>مش عارف القطعة المفروض تبقى إزاي؟</h3>
+            <p>في الكارت زرار <span class="ui">اسأل المعرض</span>. اكتب سؤالك واضغط. لو إنت واقف مستني الرد عشان ماتقدرش تكمل، علّم <span class="ui">واقف مستني الرد</span> — ده بيخلي سؤالك أول واحد عندهم.</p>
+            <p><strong>الرد بيرجع على نفس الكارت.</strong></p>
+            <div class="note trap">
+              <span class="note-k">أهم سطر في الصفحة</span>
+              <p><strong>متخمّنش أبداً.</strong> التخمين في اللون معناه القطعة تتعمل مرتين، والمرة التانية على حساب المصنع.</p>
+            </div>
+
+            <h3>لو في مشكلة وقّفت الشغل</h3>
+            <p>دوس <span class="ui">في مشكلة</span> واختار السبب من القايمة. الوقت بيتوقف، والمشرف بيشوفها فوراً. <strong>الدقايق دي مش بتتحسب عليك</strong> — عشان كده بلّغ عنها بدل ما تستنى في السكوت.</p>
+          </div>
+
+          <div class="en">
+            <h3>Your day</h3>
+            <ol class="steps">
+              <li><strong>Today's work.</strong> The first screen — the pieces due from you, in priority order.</li>
+              <li><strong>Scan the label.</strong> Point the camera at the code → the job card opens.</li>
+              <li><strong>Pick who is here.</strong> Your crew's names are listed and all ticked. Untick anyone absent. <strong>Output is credited to whoever stays ticked.</strong></li>
+              <li><strong>Press Start</strong> when work actually begins. The timer runs — do not press it and walk away.</li>
+              <li><strong>Press Finish</strong> when you are done. The piece moves to the next stage by itself.</li>
+            </ol>
+
+            <h3>What the job card carries</h3>
+            <ul>
+              <li>The product photo, <strong>and the drawings the customer approved</strong> — pinch to enlarge</li>
+              <li><strong>The exact spec</strong>: colour, fabric, size — each named with its value</li>
+              <li>Quantity, serial, and the standard minutes for the stage</li>
+            </ul>
+
+            <h3>If you see a red "the spec changed" banner</h3>
+            <p>The showroom changed something on this piece <strong>after</strong> work on it had started. The banner says what it was, what it is now, and why.</p>
+            <p>Read it, work to the new one, then press <span class="ui">خلاص شفتها</span>.</p>
+            <div class="note why">
+              <p><strong>It does not clear by itself, and that is deliberate.</strong></p>
+            </div>
+
+            <h3>Not sure what the piece should be?</h3>
+            <p>The card has an <span class="ui">اسأل المعرض</span> button. Write the question and send. If you have stopped because you cannot continue, tick <span class="ui">واقف مستني الرد</span> — that puts your question at the top of their list.</p>
+            <p><strong>The answer comes back to this same card.</strong></p>
+            <div class="note trap">
+              <span class="note-k">The most important line on this page</span>
+              <p><strong>Never guess.</strong> A guess about a colour is a piece made twice, and the second time is at the factory's expense.</p>
+            </div>
+
+            <h3>If something stops the work</h3>
+            <p>Press <span class="ui">في مشكلة</span> and pick the reason. The clock stops and the supervisor sees it immediately. <strong>Those minutes are not counted against you</strong> — which is exactly why you should report it rather than wait quietly.</p>
+          </div>
+        </article>
+
+        <!-- ============================================ QC & STORE -->
+        <article id="r-qc" hidden>
+          <h2><span class="ar">الجودة والمخزن</span><span class="en">Quality &amp; store</span></h2>
+          <p class="role-strap">
+            <span class="ar">الفحص، والمخزون، والملصقات، والتسليم للمعرض.</span>
+            <span class="en">Inspecting, stock, labels, and the handover to the showroom.</span>
+          </p>
+
+          <div class="ar">
+            <h3>الفحص</h3>
+            <ol class="steps">
+              <li>افتح <span class="ui">شغل النهاردة</span> — كل اللي خلّص مرحلة محتاجة فحص.</li>
+              <li><strong>امسح</strong> الملصق. الشيك ليست بتفتح، <strong>ومعاها مواصفات الأوردر بالظبط</strong> — إنت بتفحص على اللي اتباع، مش على اللي إنت فاكره.</li>
+              <li>كل بند: عدّى أو رسب.</li>
+              <li><strong>عدّى</strong> ← القطعة بتروح للمرحلة اللي بعدها لوحدها.</li>
+              <li><strong>رسب</strong> ← صوّر العيب، اختار نوعه، واختار المرحلة اللي هترجع لها.</li>
+            </ol>
+            <div class="note why">
+              <p>لو الشيك ليست مش بتقول القطعة المفروض تبقى إزاي، استخدم <span class="ui">اسأل المعرض</span>. <strong>إنك تمرّر قطعة إنت مش متأكد منها أسوأ من إنك توقفها.</strong></p>
+            </div>
+
+            <h3>المخزن</h3>
+            <ul>
+              <li><strong>صرف خامة</strong> على أمر الشغل — مش «للمصنع». الصرف اللي مالوش أمر شغل تكلفة محدش يعرف يحطها على حاجة.</li>
+              <li><strong>استلام</strong> بضاعة: اكتب <strong>اللي وصل فعلاً</strong>، مش اللي الأمر بيقوله.</li>
+              <li><strong>الجرد</strong>: عدّ فعلي، والفرق بيتكتب بسببه.</li>
+              <li><strong>الحركة الغلط بتتعكس مابتتمسحش</strong> — <span class="ui">عكس القيد</span> وبيسألك السبب.</li>
+            </ul>
+
+            <h3>طباعة الملصقات</h3>
+            <p><span class="ui">الملصقات</span> فيها كل الملصقات. <strong>إنت بتختار اللي هيتطبع</strong> — مش بتطبع الكتاب كله.</p>
+            <ol class="steps">
+              <li>صفّي القايمة: دوّر بالسيريال أو العميل أو المنتج، أو صفّي على <strong>أوردر واحد</strong>، أو على <span class="ui">لسه ماتطبعش</span>.</li>
+              <li><span class="ui">اختار المعروض</span> بيعلّم على كل اللي الفلتر ساب، أو علّم واحد واحد.</li>
+              <li><span class="ui">اطبع المتختار</span> بيبعت دول بس.</li>
+              <li>لما الورق يطلع، رد بـ <span class="ui">أيوه، علّمها اتطبعت</span>. <strong>التطبيق مش شايف الطابعة بتاعتك.</strong></li>
+            </ol>
+            <div class="note why">
+              <p>الملصق المتعلّم بيتطبع <strong>حتى لو صفّيت القايمة بعد كده واختفى من الشاشة</strong>. العدّاد بيقولك كام واحد متعلّم ومش ظاهر، عشان ماتبعتش نص الشغلانة بالغلط.</p>
+              <p>إعادة الطباعة عادية. الملصق اللي اتبلّ ببويه بياخد واحد تاني. <strong>اطبع على ورق صناعي مش ورق عادي.</strong></p>
+            </div>
+          </div>
+
+          <div class="en">
+            <h3>Inspecting</h3>
+            <ol class="steps">
+              <li>Open <span class="ui">شغل النهاردة</span> — everything finished at a stage that needs you.</li>
+              <li><strong>Scan</strong> the label. The checklist opens <strong>with the order's exact spec beside it</strong> — you check against what was sold, not what you assume.</li>
+              <li>Each item: pass or fail.</li>
+              <li><strong>Pass</strong> → the piece moves to the next stage automatically.</li>
+              <li><strong>Fail</strong> → photograph the defect, choose its code, and choose the stage it returns to.</li>
+            </ol>
+            <div class="note why">
+              <p>If the checklist does not say what it should be, use <span class="ui">اسأل المعرض</span>. <strong>Passing a piece you were not sure about is worse than stopping it.</strong></p>
+            </div>
+
+            <h3>The store</h3>
+            <ul>
+              <li><strong>Issue material against the work order</strong>, not "to the factory". An issue with no work order is a cost nobody can attach to anything.</li>
+              <li><strong>Receiving</strong>: enter <strong>what actually arrived</strong>, not what the order said.</li>
+              <li><strong>Stocktake</strong>: a real count; the difference is written with its reason.</li>
+              <li><strong>A wrong movement is reversed, not deleted</strong> — <span class="ui">عكس القيد</span>, and it asks why.</li>
+            </ul>
+
+            <h3>Printing labels</h3>
+            <p><span class="ui">الملصقات</span> lists every label. <strong>You choose which to print</strong> — you do not print the book.</p>
+            <ol class="steps">
+              <li>Narrow it: search by serial, customer or product, filter to <strong>one order</strong>, or to <span class="ui">لسه ماتطبعش</span>.</li>
+              <li><span class="ui">اختار المعروض</span> ticks everything the filter left, or tick them one by one.</li>
+              <li><span class="ui">اطبع المتختار</span> sends only those.</li>
+              <li>When the paper comes out, answer <span class="ui">أيوه، علّمها اتطبعت</span>. <strong>The app cannot see your printer.</strong></li>
+            </ol>
+            <div class="note why">
+              <p>A ticked label still prints <strong>even if you then narrow the list and it disappears off screen</strong>. The count tells you how many are ticked but out of sight, so you never send half a batch by accident.</p>
+              <p>Reprinting is normal — a label soaked in lacquer gets another. <strong>Print on synthetic label stock, not paper.</strong></p>
+            </div>
+          </div>
+        </article>
+
+        <!-- ============================================ PURCHASING -->
+        <article id="r-purchasing" hidden>
+          <h2><span class="ar">المشتريات</span><span class="en">Purchasing</span></h2>
+          <p class="role-strap">
+            <span class="ar">تلات مستندات بالترتيب: طلب شراء ← أمر شراء ← إذن استلام. ومفيش واحد فيهم بيتخطى.</span>
+            <span class="en">Three documents in one order: request → purchase order → goods receipt. None may be skipped.</span>
+          </p>
+
+          <div class="ar">
+            <h3>ليه تلاتة مش واحد</h3>
+            <p>عشان بيجاوبوا على تلات أسئلة مختلفة، بيسألهم تلات ناس في تلات أوقات:</p>
+            <div class="tbl-wrap">
+              <table>
+                <thead><tr><th>المستند</th><th>بيجاوب على</th></tr></thead>
+                <tbody>
+                  <tr><td><strong>طلب شراء</strong></td><td>مين طلب ده، ومين وافق؟</td></tr>
+                  <tr><td><strong>أمر شراء</strong></td><td>إحنا وعدنا ندفع كام، ولمين؟</td></tr>
+                  <tr><td><strong>إذن استلام</strong></td><td>إيه اللي نزل من العربية فعلاً؟</td></tr>
+                </tbody>
+              </table>
+            </div>
+            <p>المورّد اللي بيوصّل تمنية من عشرة وبيحاسب على عشرة بيتمسك بـ<strong>المطابقة الثلاثية</strong> — وده بس لأنهم تلات سجلات منفصلة.</p>
+
+            <h3>النواقص</h3>
+            <p>بتفتح على اللي المخزن قرب يخلص منه، الأسوأ الأول، ومعاه <strong>الكمية المطلوبة فعلاً على أوامر شراء</strong>.</p>
+            <div class="note trap">
+              <p><strong>العمود ده هو اللي الناس بتعديه وبعدين تطلب مرتين. اقراه.</strong></p>
+            </div>
+
+            <h3>الاستلام</h3>
+            <p>اكتب <strong>اللي وصل فعلاً</strong>، سطر سطر. وصل تمنية من عشرة؟ اكتب تمنية.</p>
+            <div class="note trap">
+              <span class="note-k">أغلى تلاتين ثانية في الشغل</span>
+              <p>دي أكتر نقطة الناس بتغش فيها عشان توفر وقت، وهي اللي بتكلّف فلوس: المخزون بيبقى غلط، والمطابقة بتعدي وهي المفروض ماتعديش، والمورّد بياخد فلوس قطعتين محدش استلمهم.</p>
+            </div>
+
+            <h3>فوق حدك</h3>
+            <p>الشاشة بترفض، وبتقولك حدك كام، وطلبت كام، وبتعرض تطلب موافقة. <strong>الرفض ده مش عطل في التطبيق.</strong> ابعت الطلب وكمّل لما يترد عليه.</p>
+          </div>
+
+          <div class="en">
+            <h3>Why three, not one</h3>
+            <p>Because they answer three different questions, asked by three different people at three different times:</p>
+            <div class="tbl-wrap">
+              <table>
+                <thead><tr><th>Document</th><th>Answers</th></tr></thead>
+                <tbody>
+                  <tr><td><strong>طلب شراء</strong></td><td>Who asked for this, and did anyone approve it?</td></tr>
+                  <tr><td><strong>أمر شراء</strong></td><td>What did we promise to pay, and to whom?</td></tr>
+                  <tr><td><strong>إذن استلام</strong></td><td>What actually came off the lorry?</td></tr>
+                </tbody>
+              </table>
+            </div>
+            <p>A supplier who delivers eight of the ten you ordered and invoices for ten is caught by the <strong>three-way match</strong> — and only because those are three separate records.</p>
+
+            <h3>Shortages</h3>
+            <p>Opens on what the store is running out of, worst first, with <strong>how much is already on order</strong>.</p>
+            <div class="note trap">
+              <p><strong>That is the column people ignore and then double-order. Read it.</strong></p>
+            </div>
+
+            <h3>Receiving</h3>
+            <p>Enter <strong>what actually arrived</strong>, line by line. If eight of ten arrived, put eight.</p>
+            <div class="note trap">
+              <span class="note-k">The most expensive thirty seconds in the job</span>
+              <p>This is where people cheat to save time, and it is the one that costs money: the stock is then wrong, the match passes when it should not, and the supplier is paid for two pieces nobody ever received.</p>
+            </div>
+
+            <h3>Above your ceiling</h3>
+            <p>The screen refuses, names your ceiling and what you asked for, and offers to request approval. <strong>The refusal is not a fault in the app.</strong> Send it, and carry on when it is answered.</p>
+          </div>
+        </article>
+
+        <!-- ============================================ SHOWROOM -->
+        <article id="r-showroom" hidden>
+          <h2><span class="ar">المعرض</span><span class="en">Showroom</span></h2>
+          <p class="role-strap">
+            <span class="ar">إنت الوحيد اللي بيتكلم مع العميل قبل ما يلتزم.</span>
+            <span class="en">You are the only person who talks to the customer before they commit.</span>
+          </p>
+
+          <div class="ar">
+            <h3>تلات حاجات أهم من الباقي</h3>
+            <ul>
+              <li><strong>اقول ميعاد المصنع موافق عليه</strong></li>
+              <li><strong>املا المواصفات كاملة</strong></li>
+              <li><strong>رد على المصنع لما يسألك</strong></li>
+            </ul>
+
+            <h3>العملاء المحتملين</h3>
+            <p>كل واحد دخل أو اتصل أو بعت رسالة. <strong>دي مش إجراء شكلي</strong> — دي السجل الوحيد إن العميل ده جه أصلاً، والفرق بين «الشهر كان ضعيف» و«جالنا أربعين عميل وقفلنا تلاتة».</p>
+            <p><strong>اللوحة مرتبة حسب مين فات ميعاد مكالمته</strong>، الأسوأ الأول. ابدأ من فوق.</p>
+            <ul>
+              <li><span class="ui">ملاحظة</span> — كل مكالمة ومعاها ميعاد الجاية. <strong>العميل اللي مالوش ميعاد جاي ده عميل سايبه.</strong></li>
+              <li><span class="ui">ضايع</span> — لما تخلص، قول إنها خلصت وقول ليه. لو نص الخسارة «السعر»، ده قرار تسعير المالك لازم ياخده، مش مشكلة مندوب.</li>
+            </ul>
+
+            <h3>المواصفات — الجزء اللي بيغلط</h3>
+            <p>تحت كل بند في الأوردر، التطبيق بيسأل عن اللي لازم يتحدد في القطعة: اللون، القماش، العرض. <strong>مش هتقدر تأكد الأوردر غير لما كل المطلوب يتجاوب.</strong> الناقص بيبان أحمر وبيقول اسمه.</p>
+            <div class="note why">
+              <p><strong>دي مش تعقيد من التطبيق.</strong> دي اللحظة الوحيدة اللي العميل واقف قدامك ويقدر يجاوب. البديل إن راجل واقف على البنك الأسبوع الجاي ماسك مسدس بوية ومفيش حد يسأله.</p>
+            </div>
+            <p>الاختيارات جاية من قايمة، و<strong>مش هتقدر تكتب حاجة مش فيها</strong> — لأن القايمة دي هي اللي المصنع يقدر يعملها فعلاً. لو العميل عايز لون مش موجود، <strong>ده كلام مع المصنع، مش حاجة تتكتب في الملاحظات وتستنى الخير.</strong></p>
+
+            <h3>الميعاد</h3>
+            <p>اضغط <span class="ui">الموعد جه منين؟</span> والتطبيق يوريك أقرب ميعاد طابور المصنع الحقيقي يقدر يطلعه، وإزاي حسبه. <span class="ui">خد الموعد ده</span> بياخده.</p>
+            <p>تقدر توعد بأقرب — <strong>بس ساعتها تبقى وعدت</strong>، والوعد ده هيبان أحمر عند مدير الإنتاج من اللحظة دي.</p>
+
+            <h3>خصم فوق حدك</h3>
+            <p>الشاشة بترفض، وتقولك حدك كام، وطلبت كام، وتعرض تطلب موافقة. <strong>ده مش عطل.</strong> ابعت الطلب؛ الرد بييجي على شاشتك، والموافقة بتتصرف على الأوردر لوحدها.</p>
+
+            <h3>لما المصنع يسألك</h3>
+            <p>السؤال بينزل في <span class="ui">المواصفات</span>. <span class="ui">واقف مستني الرد</span> معناه في حد وقف شغل فعلاً — دول الأول.</p>
+            <p><strong>السؤال بيترد عليه مرة واحدة بس.</strong> خليك مظبوط أهم من إنك تكون سريع — البنك بيشتغل على اللي إنت قلته.</p>
+
+            <h3>لما العميل يغيّر رأيه</h3>
+            <p>من <span class="ui">المواصفات ← غيّر المواصفات</span> على البند.</p>
+            <ul>
+              <li><strong>قبل ما المصنع يبدأ</strong>: تصحيح عادي.</li>
+              <li><strong>بعد ما القطعة تبقى بتتعمل</strong>: التطبيق بيطلب سبب ومش بيقبل من غيره. السبب بينزل على كارت الشغل والمصنع بيتبلّغ.</li>
+            </ul>
+            <div class="note trap">
+              <p><strong>اعمل ده في التطبيق مش على التليفون.</strong> المكالمة للمصنع هي بالظبط إزاي اللون الغلط بيتعمل: واحد بس بيسمعها، والراجل اللي على البنك مش هو ده.</p>
+            </div>
+
+            <h3>اللوحة والأسعار</h3>
+            <p><span class="ui">وصل المعرض</span> لما العربية تتفرّغ، و<span class="ui">تسليم للعميل</span> لما العميل ياخدها. <strong>القطعة اللي ماتعلّمش عليها وصلت، الشركة كلها فاكراها لسه في المصنع.</strong></p>
+            <p>ورقم على تبويبة <span class="ui">التكاليف</span> معناه سعر اتغير وإنت ماقريتوش. <strong>اقراه قبل عرض السعر الجاي</strong>، مش بعد ما العميل يتخانق معاك وهو ماسك رقم الأسبوع اللي فات.</p>
+          </div>
+
+          <div class="en">
+            <h3>Three things that matter more than the rest</h3>
+            <ul>
+              <li><strong>Give a date the factory has actually agreed to</strong></li>
+              <li><strong>Fill in the spec completely</strong></li>
+              <li><strong>Answer the factory when it asks you something</strong></li>
+            </ul>
+
+            <h3>Leads</h3>
+            <p>Everybody who walked in, rang or messaged. <strong>Not a formality</strong> — it is the only record that a walk-in ever happened, and the difference between "we had a slow month" and "we had forty walk-ins and closed three".</p>
+            <p><strong>The board sorts by who is overdue a call</strong>, worst first. Work down from the top.</p>
+            <ul>
+              <li><span class="ui">ملاحظة</span> — every conversation, with the date of the next call. <strong>A lead with no next call is a lead you have dropped.</strong></li>
+              <li><span class="ui">ضايع</span> — when it is over, say so and say why. If half your losses are "price", that is a pricing decision for the owner, not a rep's problem.</li>
+            </ul>
+
+            <h3>The spec — the part that goes wrong</h3>
+            <p>Under each order line the app asks what has to be decided about that piece: colour, fabric, width. <strong>You cannot confirm the order until every required one is answered.</strong> A blank shows red and names itself.</p>
+            <div class="note why">
+              <p><strong>This is not the app being awkward.</strong> It is the one moment the customer is standing in front of you and can answer. The alternative is a man at a bench next week with a spray gun and nobody to ask.</p>
+            </div>
+            <p>Choices come from a list and <strong>you cannot type something that is not on it</strong> — because the list is what the factory can actually make. If a customer wants a colour that is not there, <strong>that is a conversation with the factory, not something to write into the notes and hope.</strong></p>
+
+            <h3>The date</h3>
+            <p>Tap <span class="ui">الموعد جه منين؟</span> and the app shows the soonest date the factory's real queue can produce, and how it got there. <span class="ui">خد الموعد ده</span> takes it.</p>
+            <p>You can promise something earlier — <strong>but then you have promised it</strong>, and it shows red on the production manager's screen from that moment.</p>
+
+            <h3>Discount above your ceiling</h3>
+            <p>The screen refuses, tells you your ceiling and what you asked for, and offers to request approval. <strong>This is not an error.</strong> Send it; the answer comes back to your screen and the approval is spent on that order automatically.</p>
+
+            <h3>When the factory asks you something</h3>
+            <p>It lands in <span class="ui">المواصفات</span>. <span class="ui">واقف مستني الرد</span> means somebody has actually stopped working — those come first.</p>
+            <p><strong>A question can only be answered once.</strong> Get it right rather than fast; the bench acts on what you say.</p>
+
+            <h3>When the customer changes their mind</h3>
+            <p>From <span class="ui">المواصفات → غيّر المواصفات</span> on the line.</p>
+            <ul>
+              <li><strong>Before the factory has started</strong>: a correction. Change it and move on.</li>
+              <li><strong>Once the piece is being made</strong>: the app requires a reason and will not save without one. It goes onto the job card and the floor is told.</li>
+            </ul>
+            <div class="note trap">
+              <p><strong>Do this in the app, not on the phone.</strong> A phone call to the factory is exactly how the wrong colour gets made — one person hears it, and the man at the bench is not that person.</p>
+            </div>
+
+            <h3>The board, and prices</h3>
+            <p><span class="ui">وصل المعرض</span> when the van is unloaded, <span class="ui">تسليم للعميل</span> when the customer takes it. <strong>A piece not marked arrived is a piece the whole company still thinks is at the factory.</strong></p>
+            <p>A number on the <span class="ui">التكاليف</span> tab means a price moved and you have not read it. <strong>Read it before your next quotation</strong>, not after the customer has argued with you holding last week's number.</p>
+          </div>
+        </article>
+
+        <!-- ============================================ AFTER SALES -->
+        <article id="r-service" hidden>
+          <h2><span class="ar">ما بعد البيع</span><span class="en">After-sales</span></h2>
+          <p class="role-strap">
+            <span class="ar">القطعة في بيت العميل وفيها حاجة غلط.</span>
+            <span class="en">A piece is in somebody's house and something is wrong with it.</span>
+          </p>
+
+          <div class="ar">
+            <h3>هي في الضمان ولا لأ؟</h3>
+            <p>اكتب أو امسح <strong>الرقم المسلسل</strong>. الشاشة بترد فوراً: في الضمان ولا لأ، ولغاية إمتى.</p>
+            <p><strong>الضمان بيبدأ من يوم التسليم</strong> — مش من الأوردر ولا من الفاتورة.</p>
+            <div class="note why">
+              <p>الإجابة بتتنسخ على البلاغ <strong>ساعة ما يتفتح ومابتتحسبش تاني</strong>. لو الشكوى جت في آخر يوم ضمان، تفضل شغل ضمان حتى لو القفل خد تلات أسابيع. <strong>محدش بيخسر ضمانه عشان الورشة كانت مشغولة.</strong></p>
+            </div>
+
+            <h3>البلاغ</h3>
+            <p>العميل، القطعة، و<strong>إيه المشكلة بكلام العميل نفسه</strong>.</p>
+            <div class="note trap">
+              <p><strong>ماتترجمهاش لكود عطل.</strong> «الباب مابيتقفلش» و«الباب بيحك في الحلق» بيبعتوا فنيين مختلفين بعدة مختلفة.</p>
+            </div>
+
+            <h3>الزيارات</h3>
+            <p>كل زيارة بتتسجل: مين راح، إمتى، عمل إيه، وكلّفت كام. <strong>الزيارة اللي ماحلّتش حاجة بتتسجل برضه</strong> — ده اللي بيوريك إن موديل معين بياخد زيارتين في المتوسط، وده عيب في المنتج مش في الفني.</p>
+
+            <h3>الفلوس</h3>
+            <p>رقمين مش نفس الحاجة: <strong>التكلفة</strong> (وقت الفني والقطع) و<strong>المحصّل من العميل</strong>. في الضمان، التاني غالباً صفر والأول لأ — والفرق ده هو التكلفة الحقيقية لشغل الضمان.</p>
+            <div class="note why">
+              <p><strong>الفني مابيشوفش أي رقم منهم.</strong> الفني اللي شايف المبلغ بيبقى مطلوب منه يفاوض.</p>
+            </div>
+
+            <h3>التقرير</h3>
+            <p>أنهي منتجات بترجع، وكام مرة، وليه. <strong>دي أهم شاشة في التطبيق لصاحب مصنع</strong> وهي اللي محدش بيفتحها.</p>
+            <p>لو موديل واحد بيمثل تلت الشكاوي، <strong>ده مش سوء حظ</strong>. ده خامة، أو مورّد، أو مرحلة — وبيكلّف في زيارات أكتر مما بيكسب.</p>
+          </div>
+
+          <div class="en">
+            <h3>Is it under warranty?</h3>
+            <p>Type or scan the <strong>serial</strong>. The screen answers immediately: covered or not, and until when.</p>
+            <p><strong>Warranty runs from the day the piece was delivered</strong> — not from the order and not from the invoice.</p>
+            <div class="note why">
+              <p>The answer is copied onto the ticket <strong>the moment it is opened and never recalculated</strong>. A complaint arriving on the last day of cover stays a warranty job even if it takes three weeks to close. <strong>Nobody loses cover because the workshop was busy.</strong></p>
+            </div>
+
+            <h3>The ticket</h3>
+            <p>The customer, the piece, and <strong>what is wrong in the customer's own words</strong>.</p>
+            <div class="note trap">
+              <p><strong>Do not translate it into a fault code.</strong> "The door does not close" and "the door catches on the frame" send two different people with two different tools.</p>
+            </div>
+
+            <h3>Visits</h3>
+            <p>Every visit is recorded: who went, when, what they did, what it cost. <strong>A visit that solved nothing is still recorded</strong> — that is how you learn a model needs two visits on average, which is a fault in the product, not the technician.</p>
+
+            <h3>The money</h3>
+            <p>Two numbers, not the same: <strong>the cost</strong> (technician's time, parts) and <strong>what the customer paid</strong>. Under warranty the second is usually zero and the first is not — that gap is the real cost of warranty work.</p>
+            <div class="note why">
+              <p><strong>Technicians see neither figure.</strong> A technician who can see the charge is a technician being asked to negotiate.</p>
+            </div>
+
+            <h3>The report</h3>
+            <p>Which products come back, how often, and for what. <strong>The most valuable screen in the app for a factory owner</strong> and the one nobody opens.</p>
+            <p>If one model is a third of all complaints, <strong>that is not bad luck</strong>. It is a material, a supplier, or a stage — and it costs more in service visits than it earns.</p>
+          </div>
+        </article>
+
+        <!-- ============================================ ACCOUNTANT -->
+        <article id="r-accountant" hidden>
+          <h2><span class="ar">المحاسب</span><span class="en">Accountant</span></h2>
+          <p class="role-strap">
+            <span class="ar">الخزنة، اللي عند العملاء، اللي علينا للموردين، المرتبات، والضريبة.</span>
+            <span class="en">The cash box, what customers owe, what we owe suppliers, wages, and VAT.</span>
+          </p>
+
+          <div class="ar">
+            <h3>القاعدة الوحيدة</h3>
+            <p>القيد الغلط مابيتمسحش أبداً. بتكتب عكسه جنبه والاتنين يفضلوا ظاهرين. <span class="ui">عكس القيد</span> بيسألك السبب دايماً، <strong>والسبب جزء من السجل</strong>.</p>
+            <p><strong>لو لقيت نفسك عايز تمسح حاجة، إنت عايز تعكسها.</strong></p>
+
+            <h3>الخزنة</h3>
+            <ul>
+              <li><span class="ui">إيداع في الخزنة</span> — فلوس داخلة مش من عميل</li>
+              <li><span class="ui">تحويل بين الخزن</span> — نقل بين الحسابات، إجراء واحد مش دفعتين</li>
+              <li><span class="ui">رصيد أول المدة</span> — بيتحدد مرة واحدة في البداية</li>
+            </ul>
+            <div class="note trap">
+              <p><strong>الرصيد في الشاشة لازم يساوي الفلوس اللي في الدرج.</strong> لو مش مساوي، في حاجة خرجت أو دخلت من غير ما تتكتب. دوّر عليها في نفس اليوم — الفرق اللي تسيبه أسبوع مش هتعرف تفسّره أبداً.</p>
+            </div>
+
+            <h3>المديونيات</h3>
+            <p>الاتجاهين في شاشة واحدة، مرتبة الأسوأ الأول <strong>وبالأسماء</strong> — الإجمالي من غير أسماء مابيغيّرش حاجة. <strong>الأعمار</strong> بتقسّمها حسب عمر الدين؛ أي حاجة فوق ٩٠ يوم دي قرار لازم حد ياخده.</p>
+
+            <h3>الأرباح والضريبة</h3>
+            <p>التكلفة في تقرير الأرباح هي <strong>تكلفة يوم البيع</strong>، منسوخة على السطر وقتها — مش تكلفة النهاردة.</p>
+            <div class="note why">
+              <p><strong>ربح السنة اللي فاتت مابيتغيّرش لما خشب السنة دي يغلى.</strong> ونفس الحكاية في الضريبة: النسبة بتتنسخ على كل أوردر ساعة ما يتكتب، فتغييرها مابيعيدش كتابة فواتير الشهر اللي فات.</p>
+            </div>
+
+            <h3>المرتبات</h3>
+            <p>نوعين في نفس المسيّر: <strong>شهري</strong> (المكتب) و<strong>يومي</strong> (معظم المصنع، بيتصرف أسبوعي).</p>
+            <p><strong>أسبوع الصرف بيبدأ السبت والجمعة راحة.</strong> الحضور هو المدخل. المسيّر لما يترحّل بيخرّج فلوس من الخزنة، <strong>ومابيترحّلش مرتين لنفس الفترة</strong>.</p>
+          </div>
+
+          <div class="en">
+            <h3>The one rule</h3>
+            <p>A wrong entry is never erased. You write its opposite beside it and both stay visible. <span class="ui">عكس القيد</span> always asks why, <strong>and the reason is part of the record</strong>.</p>
+            <p><strong>If you find yourself wanting to delete something, you want to reverse it.</strong></p>
+
+            <h3>The cash box</h3>
+            <ul>
+              <li><span class="ui">إيداع في الخزنة</span> — money in that is not a customer payment</li>
+              <li><span class="ui">تحويل بين الخزن</span> — moving between accounts; one action, not two payments</li>
+              <li><span class="ui">رصيد أول المدة</span> — the opening balance, set once</li>
+            </ul>
+            <div class="note trap">
+              <p><strong>The balance on this screen must equal the money in the drawer.</strong> If it does not, something was taken or given without being written. Find it the same day — a drift you leave for a week is a drift you will never explain.</p>
+            </div>
+
+            <h3>What is owed</h3>
+            <p>Both directions on one screen, worst first <strong>and with names</strong> — a total with nobody attached to it changes nothing. <strong>Ageing</strong> buckets it by how old the debt is; anything past 90 days is a decision somebody has to take.</p>
+
+            <h3>Profit and VAT</h3>
+            <p>The cost in the profit report is <strong>the cost on the day the piece was sold</strong>, copied onto the line at the time — not today's cost.</p>
+            <div class="note why">
+              <p><strong>Last year's margin does not move when this year's timber does.</strong> Same for VAT: the rate is copied onto every order as it is written, so changing it does not rewrite last month's invoices.</p>
+            </div>
+
+            <h3>Payroll</h3>
+            <p>Two kinds of people in one run: <strong>monthly</strong> (the office) and <strong>daily</strong> (most of the factory, paid weekly).</p>
+            <p><strong>The pay week starts on Saturday and Friday is the rest day.</strong> Attendance is the input. A posted run moves money out of the cash box and <strong>cannot be posted twice for the same period</strong>.</p>
+          </div>
+        </article>
+
+        <!-- ============================================ COST ACCOUNTANT -->
+        <article id="r-costing" hidden>
+          <h2><span class="ar">محاسب التكاليف</span><span class="en">Cost accountant</span></h2>
+          <p class="role-strap">
+            <span class="ar">سؤالك مش «إحنا اتدفعنا» — ده سؤال المحاسب. سؤالك «القطعة دي كانت تستاهل نعملها؟»</span>
+            <span class="en">Your question is not "did we get paid" — that is the accountant's. Yours is "was it worth making".</span>
+          </p>
+
+          <div class="ar">
+            <h3>التطبيق بيحسب إيه</h3>
+            <p><code>التكلفة = الخامات + (الساعات المعيارية × سعر الساعة) + التحميل</code></p>
+            <p>كل ده كان موجود في النظام وماحدش ضربه في بعض قبل كده: قايمة الخامات بتقول القطعة بتاخد إيه، وكل صنف مخزون شايل تكلفته النهاردة، والمسار شايل الدقايق المعيارية.</p>
+
+            <h3>المحسوبة مابتستبدلش المكتوبة</h3>
+            <p>بتشوف الاتنين <strong>جنب بعض</strong>، والفرق بينهم هو الاكتشاف. تحريك الرقم المكتوب قرار بتاخده بزرار — <strong>مابيحصلش لوحده</strong>.</p>
+            <div class="note why">
+              <p>التكلفة اللي بتعيد كتابة نفسها لوحدها <strong>تكلفة محدش يقدر يسعّر عليها</strong>. أسعار المعرض مبنية على الرقم المكتوب، فمينفعش يتحرك من تحتيهم من غير ما حد يختار.</p>
+            </div>
+
+            <h3>قائمة الأسعار</h3>
+            <p>كل المنتجات، <strong>الأقل هامش الأول</strong>. الترتيب ده هو الغرض من الشاشة: المنتجات اللي بتخسر فوق فين ماتقدرش تعديها.</p>
+
+            <h3>جوّه منتج واحد</h3>
+            <ul>
+              <li><strong>الخامات، الأغلى الأول</strong> — الفلوس بتروح فين فعلاً. غالباً سطرين أو تلاتة من خمستاشر بيمثلوا تسعين بالمية</li>
+              <li><strong>المراحل</strong> ودقايقها بسعر الساعة</li>
+              <li><strong>السعر المقترح</strong> على الهامش المستهدف</li>
+            </ul>
+            <p><span class="ui">اعتمد</span> بيكتب التكلفة المحسوبة على المنتج. <span class="ui">مع تثبيت الهامش</span> بيرفع سعر البيع كمان عشان الهامش مايقلّش.</p>
+            <div class="note care">
+              <p><strong>استخدم تثبيت الهامش لما الخشب يغلى. ماتستخدموش لما تكون بتصحح غلطة في التكلفة نفسها.</strong></p>
+            </div>
+
+            <h3>إبلاغ المعرض</h3>
+            <p>كل ما تحرّك سعر، بيتكتب بالسبب، والمعرض بيشوف رقم على التبويبة لغاية ما يقروه.</p>
+            <div class="note trap">
+              <p><strong>اكتب السبب دايماً.</strong> «الخشب غلي ٢٠٪» سبب المندوب يقدر يقوله للعميل. تغيير سعر في السكوت معناه مندوب بيتخانق مع عميل ماسك عرض سعر الأسبوع اللي فات.</p>
+            </div>
+          </div>
+
+          <div class="en">
+            <h3>What the app works out</h3>
+            <p><code>cost = materials + (standard hours × labour rate) + overhead</code></p>
+            <p>Everything in that line was already in the system and had never been multiplied together: the bill of materials says what the piece takes, each stock item carries what that material costs today, and the routing carries the standard minutes.</p>
+
+            <h3>Computed never overwrites stored</h3>
+            <p>You see the two <strong>side by side</strong>, and the gap between them is the finding. Moving the stored figure is a decision you take with a button — <strong>it does not happen by itself</strong>.</p>
+            <div class="note why">
+              <p>A cost that silently rewrites itself is <strong>a cost nobody can quote against</strong>. The showroom's prices are built on the stored number, and it must not move under them without somebody choosing it.</p>
+            </div>
+
+            <h3>The price list</h3>
+            <p>Every product, <strong>worst margin first</strong>. That ordering is the point of the screen — the products losing money are at the top where you cannot miss them.</p>
+
+            <h3>Inside one product</h3>
+            <ul>
+              <li><strong>Materials, dearest first</strong> — where the money actually goes. Usually two or three lines out of fifteen are ninety per cent of it</li>
+              <li><strong>The stages</strong> and their standard minutes at the labour rate</li>
+              <li><strong>The suggested price</strong> at your target margin</li>
+            </ul>
+            <p><span class="ui">اعتمد</span> writes the computed cost onto the product. <span class="ui">مع تثبيت الهامش</span> raises the selling price at the same time so the margin is preserved.</p>
+            <div class="note care">
+              <p><strong>Use hold-margin when timber has gone up. Do not use it when you are correcting an error in the cost itself.</strong></p>
+            </div>
+
+            <h3>Telling the showroom</h3>
+            <p>Every price you move is written down with its reason, and the showroom sees a number on their tab until they have read it.</p>
+            <div class="note trap">
+              <p><strong>Always give a reason.</strong> "Timber up 20%" is a reason a rep can repeat to a customer. A silent price change is a rep arguing with a customer holding last week's quotation.</p>
+            </div>
+          </div>
+        </article>
+
+        <!-- ============================================ DRIVER -->
+        <article id="r-driver" hidden>
+          <h2><span class="ar">السائق والفني</span><span class="en">Driver &amp; installer</span></h2>
+          <p class="role-strap">
+            <span class="ar">إنت آخر واحد العميل بيشوفه. الانطباع الأخير بيفضل.</span>
+            <span class="en">You are the last person the customer sees. The last impression is the one that stays.</span>
+          </p>
+
+          <div class="ar">
+            <h3>قبل ما تتحرك</h3>
+            <ol class="steps">
+              <li>افتح <span class="ui">التسليمات</span> — كل اللي عليك النهاردة بالترتيب.</li>
+              <li><strong>امسح كل قطعة وهي بتتحمّل.</strong> القطعة اللي ماتمسحتش مش على العربية بالنسبة للنظام.</li>
+              <li>شوف المطلوب تحصّله من كل عميل قبل ما تمشي.</li>
+            </ol>
+
+            <h3>عند العميل</h3>
+            <ul>
+              <li><strong>صوّر القطعة بعد التركيب</strong> — دي إثبات التسليم</li>
+              <li><strong>خد التوقيع</strong> على الشاشة</li>
+              <li><strong>حصّل الباقي</strong> لو في باقي، وسجّله فوراً</li>
+            </ul>
+            <div class="note why">
+              <p>التسليم بيظهر على شاشة المالك وعلى صفحة متابعة العميل <strong>في نفس اللحظة</strong>.</p>
+            </div>
+
+            <h3>لو التسليم ماتمّش</h3>
+            <p>سجّل <strong>محاولة فاشلة</strong> بسببها: العميل مش موجود، المكان مش جاهز، القطعة فيها عيب، رفض الاستلام.</p>
+            <div class="note trap">
+              <p><strong>متسجّلش إنها اتسلّمت وهي ماتسلّمتش.</strong> ولا تسيبها من غير تسجيل — المحاولة الفاشلة اللي مش مكتوبة هي عميل بيتصل تاني يوم ومحدش عارف حصل إيه.</p>
+            </div>
+          </div>
+
+          <div class="en">
+            <h3>Before you set off</h3>
+            <ol class="steps">
+              <li>Open <span class="ui">التسليمات</span> — everything due today, in order.</li>
+              <li><strong>Scan every piece as it is loaded.</strong> A piece not scanned is not on the van as far as the system knows.</li>
+              <li>Check what you have to collect from each customer before you leave.</li>
+            </ol>
+
+            <h3>At the customer</h3>
+            <ul>
+              <li><strong>Photograph the piece after installation</strong> — that is the proof of delivery</li>
+              <li><strong>Take the signature</strong> on the screen</li>
+              <li><strong>Collect the balance</strong> if there is one, and record it there and then</li>
+            </ul>
+            <div class="note why">
+              <p>The delivery appears on the owner's screen and the customer's tracking page <strong>at that moment</strong>.</p>
+            </div>
+
+            <h3>If the delivery does not happen</h3>
+            <p>Record a <strong>failed attempt</strong> with its reason: customer absent, the room is not ready, the piece is damaged, refused.</p>
+            <div class="note trap">
+              <p><strong>Never mark it delivered when it was not.</strong> And never leave it unrecorded — an unwritten failed attempt is a customer ringing tomorrow and nobody knowing what happened.</p>
+            </div>
+          </div>
+        </article>
+
+        <!-- ============================================ CUSTOMER -->
+        <article id="r-customer" hidden>
+          <h2><span class="ar">اللي العميل بيشوفه</span><span class="en">What the customer sees</span></h2>
+          <p class="role-strap">
+            <span class="ar">اقرا دي عشان تعرف تشرحها. العملاء بيسألوا الموظفين، مش التطبيق.</span>
+            <span class="en">Read this so you can explain it. Customers ask staff, not the app.</span>
+          </p>
+
+          <div class="ar">
+            <h3>لينك المتابعة</h3>
+            <p>كل عميل بياخد لينك ساعة ما الأوردر يتعمل. <strong>مفيش تطبيق يتحمّل ومفيش تسجيل دخول</strong> — بيفتح في المتصفح على أي موبايل.</p>
+
+            <h3>بيشوف إيه</h3>
+            <ul>
+              <li>كل قطعة وصلت لأنهي مرحلة، وفين من الطريق</li>
+              <li>الميعاد الموعود، وهل في تأخير</li>
+              <li>صور القطعة في المراحل اللي المصنع قرر يوريها</li>
+            </ul>
+
+            <h3>بيشوف إيه؟ لأ</h3>
+            <p>مابيشوفش المراحل اللي مالوش دعوة بيها. القص والسنفرة والتجفيف بتتحسب في نسبة التقدم <strong>بس مابتتذكرش بالاسم</strong>؛ التجميع والتشطيب والجودة والتغليف بيتذكروا.</p>
+            <div class="note why">
+              <p>ده اتحدد <strong>مرة واحدة في المسار</strong> — يعني اللي العميل بيسمعه قرار المصنع اخده من زمان، مش حاجة المندوب لازم يفتكرها في التليفون.</p>
+            </div>
+
+            <h3>لو العميل اتصل يسأل</h3>
+            <p>افتح الأوردر من <span class="ui">الطلبات</span>. تحت هتلاقي رسالة <strong>مكتوبة للعميل مش للمصنع</strong> — انسخها أو ابعتها واتساب من غير ما تعيد كتابة أي حاجة.</p>
+          </div>
+
+          <div class="en">
+            <h3>The tracking link</h3>
+            <p>Every customer gets a link the moment the order is created. <strong>No app to install and no login</strong> — it opens in the browser on any phone.</p>
+
+            <h3>What they see</h3>
+            <ul>
+              <li>What stage each piece has reached, and how far along</li>
+              <li>The promised date, and whether it is late</li>
+              <li>Photos from the stages the factory chose to show</li>
+            </ul>
+
+            <h3>What they do not</h3>
+            <p>Stages they were not meant to hear about. Cutting, sanding and curing count toward the progress <strong>but are never named</strong>; assembly, finishing, QC and packing are.</p>
+            <div class="note why">
+              <p>That is set <strong>once, in the routing</strong> — so what the customer hears is a decision the factory made long ago, not something a rep has to remember on the phone.</p>
+            </div>
+
+            <h3>If a customer rings to ask</h3>
+            <p>Open the order from <span class="ui">الطلبات</span>. Underneath is a message <strong>written for the customer, not for the factory</strong> — copy it, or send it on WhatsApp, without retyping anything.</p>
+          </div>
+        </article>
+
+        <!-- ============================================ SETUP -->
+        <article id="r-setup" hidden>
+          <h2><span class="ar">الإعداد — الأسبوع الأول</span><span class="en">First-week setup</span></h2>
+          <p class="role-strap">
+            <span class="ar">للمالك. مرة واحدة، بالترتيب، قبل ما أي حد تاني يدخل.</span>
+            <span class="en">For the owner. Once, in order, before anyone else signs in.</span>
+          </p>
+
+          <div class="ar">
+            <h3>بالترتيب</h3>
+            <ol class="steps">
+              <li><strong>الشركة والأماكن والناس.</strong> بيانات الشركة، المصنع والمعارض والمخازن، والمحطات <strong>بطاقتها اليومية الحقيقية</strong>. حساب لكل شخص — <strong>مفيش حسابات مشتركة أبداً</strong>.</li>
+              <li><strong>الخامات والموردين</strong> وحدود إعادة الطلب، والجرد الافتتاحي معدود بالفعل.</li>
+              <li><strong>الكتالوج.</strong> الأقسام، المنتجات، الأسعار، التكاليف، ومدة الضمان. المنتج من غير سعر مايتفعّلش، والمسودة ماتتطلبش.</li>
+              <li><strong>المواصفات المطلوبة</strong> لكل منتج. أنفع نص ساعة في الإعداد كله، وهي اللي الناس بتعديها.</li>
+              <li><strong>المسارات</strong> بالدقايق المعيارية الحقيقية، والمراحل اللي العميل يشوفها.</li>
+              <li><strong>الحدود</strong> لكل وظيفة، و<strong>معدلات التكاليف</strong>، و<strong>الضريبة</strong>.</li>
+            </ol>
+
+            <h3>المواصفات المطلوبة</h3>
+            <p>لكل حاجة لازم تتحدد قبل ما القطعة تتعمل — اللون، القماش، العرض — ضيف حقل:</p>
+            <ul>
+              <li><strong>اسم</strong> (اللون) و<strong>كود</strong> (COLOUR)</li>
+              <li><strong>اختيار من قايمة</strong> كل ما تقدر، والاختيارات كل واحد في سطر. <strong>القايمة معناها إن المعرض مايقدرش يوعد بلون مافيش ليه بويه</strong></li>
+              <li><strong>رقم</strong> بوحدة (سم) للمقاسات</li>
+              <li><strong>إجباري</strong> لأي حاجة المصنع فعلاً مايقدرش يكمّل من غيرها</li>
+            </ul>
+            <div class="note why">
+              <p><strong>الحقل الإجباري الفاضي بيوقف الأوردر.</strong> ده الغرض: الفراغ بيتلاقى عند البنك والعميل واقف قدامك، مش على البنك بعد أسبوع.</p>
+              <p>المنتج اللي مالوش حقول بيشتغل زي الأول بالظبط، <strong>فشغّلها منتج ورا منتج</strong>. ابدأ باللي بيغلط أكتر — غالباً اللون والقماش في المنجّد.</p>
+            </div>
+
+            <h3>وبعدين: جرّب، متطلقش</h3>
+            <p>اختار خط منتجات واحد وشغّله بالكامل لمدة أسبوعين قبل ما تحوّل المصنع كله. <strong>الإعداد الغلط اللي اتكتشف على منتج واحد رخيص؛ نفسه على الكتالوج كله غالي.</strong></p>
+          </div>
+
+          <div class="en">
+            <h3>In order</h3>
+            <ol class="steps">
+              <li><strong>Company, places, people.</strong> Company details, the factory, showrooms and warehouses, and stations with <strong>honest daily capacity</strong>. One account per person — <strong>never a shared login</strong>.</li>
+              <li><strong>Materials and suppliers</strong> with reorder points, and opening stock physically counted.</li>
+              <li><strong>The catalogue.</strong> Categories, products, prices, costs, warranty months. A product with no price cannot be activated, and a draft cannot be ordered.</li>
+              <li><strong>Spec fields</strong> per product. The most valuable half-hour in the whole setup, and the one people skip.</li>
+              <li><strong>Routings</strong> with real standard minutes, and which stages the customer sees.</li>
+              <li><strong>Ceilings</strong> per role, <strong>costing rates</strong>, and <strong>VAT</strong>.</li>
+            </ol>
+
+            <h3>Spec fields</h3>
+            <p>For each thing that must be settled before the piece can be made — colour, fabric, width — add a field:</p>
+            <ul>
+              <li>a <strong>name</strong> (اللون) and a <strong>code</strong> (COLOUR)</li>
+              <li><strong>a choice list</strong> wherever possible, one option per line. <strong>A list means the showroom cannot promise a colour you have no lacquer for</strong></li>
+              <li><strong>a number</strong> with a unit (سم) for measurements</li>
+              <li><strong>required</strong> for anything the factory genuinely cannot proceed without</li>
+            </ul>
+            <div class="note why">
+              <p><strong>A required field left blank stops the order.</strong> That is the point: the blank is found at the counter with the customer still standing there, not at the bench a week later.</p>
+              <p>A product with no fields behaves exactly as before, so <strong>switch it on one product at a time</strong>. Start with whatever goes wrong most — usually colour and fabric on upholstered pieces.</p>
+            </div>
+
+            <h3>Then: pilot, do not launch</h3>
+            <p>Pick one product line and run it fully for two weeks before switching the whole factory over. <strong>A setup mistake found on one product is cheap; the same mistake across the catalogue is not.</strong></p>
+          </div>
+        </article>
+
+        <!-- ============================================ TROUBLESHOOTING -->
+        <article id="r-trouble" hidden>
+          <h2><span class="ar">حل المشاكل</span><span class="en">When something goes wrong</span></h2>
+          <p class="role-strap">
+            <span class="ar">أغلب اللي الناس بتقول عليه «التطبيق باظ» هو التطبيق بيرفض بقصد.</span>
+            <span class="en">Most of what people call "the app is broken" is the app refusing on purpose.</span>
+          </p>
+
+          <div class="ar">
+            <h4>«التطبيق مش سايبني أأكّد الأوردر»</h4>
+            <p>دوّر على حقل محوّط بالأحمر تحت بند. في <strong>مواصفة إجبارية فاضية</strong> — لون، قماش، مقاس. مايتعداش، وده الغرض منه.</p>
+
+            <h4>«بيقولي الإجابة مش من ضمن الاختيارات»</h4>
+            <p>لأنها فعلاً مش منها. <strong>القايمة موجودة عشان المعرض مايوعدش بحاجة المصنع مالوش خامتها.</strong> اختار من القايمة، أو خلّي القايمة تتغيّر.</p>
+
+            <h4>«الشاشة رفضت الخصم»</h4>
+            <p>ده مش عطل. طلبت أكتر من حدك، والشاشة بتقولك حدك وطلبك وبتعرض <strong>تطلب موافقة</strong>. ابعتها؛ الرد بييجي على شاشتك. الموافقة صالحة ٤٨ ساعة وبتتصرف على أوردر واحد.</p>
+
+            <h4>«في رقم أحمر على تبويبة ومش عارف ليه»</h4>
+            <p>في حد مستنيك:</p>
+            <ul>
+              <li><span class="ui">الموافقات</span> — قرار مستنيك</li>
+              <li><span class="ui">التكاليف</span> — سعر اتغيّر وإنت ماقريتوش</li>
+              <li><span class="ui">المواصفات</span> — سؤال من المصنع، أو تغيير المصنع لسه ماشافوش</li>
+            </ul>
+
+            <h4>«الكارت بيقول المواصفات اتغيرت»</h4>
+            <p>اقرا كان إيه وبقى إيه، اشتغل على الجديد، وبعدين دوس <span class="ui">خلاص شفتها</span>. <strong>مابيروحش لوحده، وده مقصود.</strong></p>
+
+            <h4>«العميل عايز يغيّر بعد ما الشغل بدأ»</h4>
+            <p>ده بيمشي من المعرض في التطبيق، <strong>مش بمكالمة للمصنع</strong>. المندوب بيفتح <span class="ui">المواصفات ← غيّر المواصفات</span>، والتطبيق بيطلب سبب لأن القطعة بتتعمل. التغيير بينزل على الكارت بالأحمر.</p>
+
+            <h4>«الملصق مش بيتمسح»</h4>
+            <p>تراب أو بويه على الكود — امسحه. لو مقطوع، افتح <span class="ui">الملصقات</span>، دوّر بالسيريال، علّم عليه، و<span class="ui">اطبع المتختار</span>. <strong>إعادة الطباعة عادية.</strong></p>
+
+            <h4>«مسحت القطعة الغلط»</h4>
+            <p>دوس <span class="ui">تراجع</span> في نفس الوردية. بعد كده، المشرف بيسجّل تصحيح — وبيتكتب كقيد لوحده بسببه. <strong>مفيش حاجة بتتمسح، وده مقصود.</strong></p>
+
+            <h4>«رقم في تقرير شكله غلط»</h4>
+            <p>ماتتخانقش على الرقم، افتحه. كل رقم بينزل لحد الأحداث اللي طلّعته، وكل حدث معاه شخص ووقت وغالباً صورة. <strong>تسعة من عشرة، الرقم صح والافتراض هو الغلط.</strong></p>
+
+            <h4>«حد ساب الشغل»</h4>
+            <p>وقّف الحساب، <strong>متمسحوش</strong> — تاريخه لازم يفضل متعلّق بالشغل اللي عمله.</p>
+          </div>
+
+          <div class="en">
+            <h4>"The app will not let me confirm the order"</h4>
+            <p>Look for a field outlined in red under a line. A <strong>required spec answer is blank</strong> — colour, fabric, a measurement. It cannot be skipped, and that is the point.</p>
+
+            <h4>"It says my answer is not one of the choices"</h4>
+            <p>Because it is not. <strong>A choice list exists so the showroom cannot promise something the factory has no material for.</strong> Pick from the list, or get the list changed.</p>
+
+            <h4>"The screen refused my discount"</h4>
+            <p>Not a fault. You asked for more than your ceiling; the screen names your ceiling and what you asked, and offers to <strong>request approval</strong>. Send it. The approval is good for 48 hours and is spent on one order.</p>
+
+            <h4>"There is a red number and I do not know why"</h4>
+            <p>Somebody is waiting on you:</p>
+            <ul>
+              <li><span class="ui">الموافقات</span> — a decision waiting for you</li>
+              <li><span class="ui">التكاليف</span> — a price moved and you have not read it</li>
+              <li><span class="ui">المواصفات</span> — a question from the factory, or a change the floor has not taken in</li>
+            </ul>
+
+            <h4>"The card says the spec changed"</h4>
+            <p>Read what it changed from and to, work to the new one, then press <span class="ui">خلاص شفتها</span>. <strong>It does not clear by itself, and that is deliberate.</strong></p>
+
+            <h4>"The customer wants a change after production started"</h4>
+            <p>It goes through the showroom in the app, <strong>not by telephone to the factory</strong>. The rep opens <span class="ui">المواصفات → غيّر المواصفات</span>; the app requires a reason because the piece is being made. The change lands on the job card in red.</p>
+
+            <h4>"The label will not scan"</h4>
+            <p>Dust or finish on the code — wipe it. If it is torn, open <span class="ui">الملصقات</span>, search the serial, tick it and <span class="ui">اطبع المتختار</span>. <strong>Reprinting is normal.</strong></p>
+
+            <h4>"I scanned the wrong piece"</h4>
+            <p>Tap <span class="ui">تراجع</span> within the same shift. After that a supervisor posts a correction — recorded as its own entry with a reason. <strong>Nothing is ever deleted, and that is deliberate.</strong></p>
+
+            <h4>"A report number looks wrong"</h4>
+            <p>Do not argue about the number; open it. Every figure drills down to the events that produced it, each with a person, a time and often a photo. <strong>Nine times out of ten the number is right and the assumption is wrong.</strong></p>
+
+            <h4>"Someone left the company"</h4>
+            <p>Deactivate the account, <strong>do not delete it</strong> — their history must stay attached to the work they did.</p>
+          </div>
+        </article>
+
+      </div>
+    </div>
+
+    <footer>
+      <span class="ar">أورا للأثاث · ٦ أكتوبر · الدليل ده بيتحدّث مع التطبيق، فلو شاشة عندك مختلفة عن اللي مكتوب هنا، الشاشة هي الصح.</span>
+      <span class="en">Aura Furniture · 6th of October · This guide tracks the app. Where a screen differs from what is written here, the screen is right.</span>
+    </footer>
+
+  </div>
+</div>
+
+<script>
+(function () {
+  var page = document.getElementById("page");
+
+  var ROLES = [
+    ["r-owner",       "المالك",            "Owner"],
+    ["r-factory",     "مدير المصنع",       "Factory manager"],
+    ["r-production",  "مدير الإنتاج",      "Production manager"],
+    ["r-leader",      "رئيس العمال",       "Group leader"],
+    ["r-qc",          "الجودة والمخزن",    "Quality & store"],
+    ["r-purchasing",  "المشتريات",         "Purchasing"],
+    ["r-showroom",    "المعرض",            "Showroom"],
+    ["r-service",     "ما بعد البيع",      "After-sales"],
+    ["r-accountant",  "المحاسب",           "Accountant"],
+    ["r-costing",     "محاسب التكاليف",    "Cost accountant"],
+    ["r-driver",      "السائق",            "Driver"],
+    ["r-customer",    "العميل",            "Customer"],
+    ["r-setup",       "الإعداد",           "Setup"],
+    ["r-trouble",     "حل المشاكل",        "Troubleshooting"]
+  ];
+
+  var list = document.getElementById("roleList");
+  var buttons = [];
+
+  ROLES.forEach(function (r) {
+    var b = document.createElement("button");
+    b.className = "role-btn";
+    b.type = "button";
+    b.dataset.target = r[0];
+    b.innerHTML =
+      '<span class="ar">' + r[1] + "</span>" +
+      '<span class="en">' + r[2] + "</span>";
+    b.addEventListener("click", function () { select(r[0], true); });
+    list.appendChild(b);
+    buttons.push(b);
+  });
+
+  function select(id, scroll) {
+    ROLES.forEach(function (r) {
+      var el = document.getElementById(r[0]);
+      if (el) el.hidden = r[0] !== id;
+    });
+    buttons.forEach(function (b) {
+      b.setAttribute("aria-current", b.dataset.target === id ? "true" : "false");
+    });
+    try { localStorage.setItem("aura.guide.role", id); } catch (e) { /* private mode */ }
+    if (scroll) {
+      var el = document.getElementById(id);
+      if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  }
+
+  function setLang(lang) {
+    page.dataset.lang = lang;
+    page.dir = lang === "ar" ? "rtl" : "ltr";
+    document.documentElement.lang = lang;
+    arBtn.setAttribute("aria-pressed", lang === "ar" ? "true" : "false");
+    enBtn.setAttribute("aria-pressed", lang === "en" ? "true" : "false");
+    try { localStorage.setItem("aura.guide.lang", lang); } catch (e) { /* private mode */ }
+  }
+
+  var arBtn = document.getElementById("btn-ar");
+  var enBtn = document.getElementById("btn-en");
+  arBtn.addEventListener("click", function () { setLang("ar"); });
+  enBtn.addEventListener("click", function () { setLang("en"); });
+
+  var savedLang = "ar", savedRole = "r-owner";
+  try {
+    savedLang = localStorage.getItem("aura.guide.lang") || "ar";
+    savedRole = localStorage.getItem("aura.guide.role") || "r-owner";
+  } catch (e) { /* private mode: fall through to the defaults */ }
+  if (!document.getElementById(savedRole)) savedRole = "r-owner";
+
+  setLang(savedLang === "en" ? "en" : "ar");
+  select(savedRole, false);
+})();
+</script>

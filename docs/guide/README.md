@@ -22,6 +22,13 @@ Short, practical guides. **One page per job** — you only need to read yours.
 | [13. The customer's view](13-customer.md) · العميل | What the customer sees — read it so you can explain it | 6 min |
 | [14. When something goes wrong](14-troubleshooting.md) · حل المشاكل | Everyone | reference |
 
+**On a phone: [handbook.html](handbook.html)** — the same guide as one page, in
+both languages, with a picker for your job. Open it in a browser; nothing to
+install. A group leader is never going to read markdown on GitHub.
+
+**على الموبايل: [handbook.html](handbook.html)** — نفس الدليل في صفحة واحدة،
+باللغتين، وفيها اختيار لوظيفتك. افتحها في المتصفح — مفيش حاجة تتحمّل.
+
 ---
 
 ## Before you start / قبل البدء
