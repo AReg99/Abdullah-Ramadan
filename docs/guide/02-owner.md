@@ -49,32 +49,61 @@ Every alert names its **cause**, not just the order. That is the part to act on:
 If the same cause appears three weeks running, it is not an incident. It is how
 your factory works, and it needs a decision, not a phone call.
 
-### The approvals inbox
+### The approvals inbox (الموافقات)
 
-Discounts, purchase orders, promise-date changes, rush insertions, scrap
-write-offs, refunds. Each shows what is being asked, by whom, and the number.
-**Approve or reject with a reason** — the reason appears on your monthly override
-report, which is how you find out that one rep is discounting every deal.
+**The red number on the tab is the count of people standing still waiting for
+you.** That is the only reason it is there.
 
-Rush insertions show you what they push back and who has to be told. Approving a
-rush is deciding to make a different customer late; the screen shows you which
-one.
+Two kinds today: **a discount above a rep's ceiling**, and **a purchase above a
+buyer's ceiling**. Each shows what is being asked, by whom, and the number.
+Approve or reject **with a reason** — the reason is how you find out later that
+one rep discounts every deal.
+
+Three things worth knowing:
+
+- **An approval expires after 48 hours.** It is a permission for a specific sale
+  in front of a specific customer, not a standing allowance
+- **It is spent once**, on the order it was granted for, and cannot be reused
+- **A ceiling you never set is not a ceiling of zero.** Until you set limits in
+  Setup → الحدود, nothing is blocked and nobody has to ask. Setting them is a
+  decision to start asking
+
+### Limits (الإعدادات ← الحدود)
+
+Per role: the discount percentage they may give alone, and the purchase value
+they may commit alone. Set them once, deliberately.
+
+Set them too low and every sale becomes a phone call to you. Set them too high
+and you find out at the month end. The right number is the one where you are
+asked about the exceptional deal and not about the ordinary one.
 
 ### Reports — which to actually read
 
-You do not need twenty-two reports. Read these four:
+You do not need every screen. Read these five, and give them a fixed time —
+Saturday morning works. **A report nobody discusses changes nothing.**
 
-1. **On-time delivery, weekly** — with the list of misses and their causes.
-2. **Bottleneck analysis, weekly** — average time per stage against standard, and
-   where work is piling up. This is how you add capacity without buying a machine.
-3. **Cost and margin per order, monthly, sorted worst-first** — the loss-making
-   orders are the ones that teach you something.
-4. **Blocked time by reason, weekly** — turns "the factory is slow" into
-   "we lost 41 hours to missing material at upholstery".
+1. **التخطيط → المواعيد** — every promise the factory is about to miss, before it
+   misses it. The single most useful screen in the app.
+2. **التخطيط → الحمل** — where work is piling up. This is how you add capacity
+   without buying a machine.
+3. **التكاليف → قائمة الأسعار** — every product, worst margin first. The ones
+   losing money are at the top.
+4. **الجودة → التقرير** — defects by fault, by station, by crew. A total with
+   nobody attached to it changes nothing on the floor.
+5. **ما بعد البيع → التقرير** — which products come back. If one model is a third
+   of your complaints, it is costing more in service visits than it earns.
 
-The other eighteen are there when you have a specific question. Schedule the four
-above to arrive by email and set a fixed time to read them — Saturday morning
-works well. **A report nobody discusses changes nothing.**
+And once a month: **الحسابات → المديونيات** (worst first, with names) and
+**الأرباح**.
+
+### Where the money and the making meet
+
+Two screens answer two different questions and people confuse them:
+
+- **الحسابات** — did we get paid? The accountant's screen
+- **التكاليف** — was it worth making? The cost accountant's screen
+
+A business can be excellent at the first and quietly ruined by the second.
 
 ### Following one order end to end
 

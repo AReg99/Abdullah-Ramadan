@@ -1,4 +1,4 @@
-# 5. Quality & store · دليل الجودة والمخزن
+# 6. Quality & store · دليل الجودة والمخزن
 
 ---
 
@@ -61,6 +61,15 @@ the blocked report. Spread them through the day.
 
 ---
 
+**If the checklist does not say what it should be**, the job card has an **اسأل
+المعرض** button. Use it. Passing a piece you were not sure about is worse than
+stopping it.
+
+**لو الشيك ليست مش بتقول القطعة المفروض تبقى إزاي**، في زرار **«اسأل المعرض»**
+على الكارت. استخدمه. **إنك تمرّر قطعة إنت مش متأكد منها أسوأ من إنك توقفها.**
+
+---
+
 ## Part B — Storekeeper · أمين المخزن
 
 ### ENGLISH
@@ -120,3 +129,49 @@ change the number rather than living with the alert.
 طلب التحويل من المعرض بيوصل شاشتك. جهّز، أكّد، وارسل — والمعرض بيأكد الاستلام عنده.
 المسحتين مطلوبين؛ التحويل من غير مسح استلام بيخلي المخزون في مكانين في النظام
 ومش في أي مكان على الأرض.
+
+---
+
+## Part C — Printing labels · طباعة الملصقات
+
+### ENGLISH
+
+**الملصقات** lists every label in the system. You choose which ones to print —
+you do not print the book.
+
+1. Narrow the list first: search by serial, customer or product, filter to **one
+   order**, or filter to **لسه ماتطبعش** (not printed yet), which after the first
+   run is usually the whole job.
+2. **اختار المعروض** ticks everything the filter left, or tick them one by one.
+3. **اطبع المتختار** sends only those to the printer.
+4. When the paper comes out, answer **أيوه، علّمها اتطبعت**. Nothing marks itself
+   printed — the app cannot see your printer.
+
+**A ticked label still prints even if you then narrow the list and it disappears
+off the screen.** The count tells you how many are ticked but out of sight, so
+you never send half a batch by accident.
+
+**Reprinting is normal.** A label soaked in lacquer or torn off in transit gets
+another one; print it again and the date moves forward.
+
+Print on **synthetic label stock, not paper** — it has to survive dust and finish
+overspray.
+
+### بالعربية
+
+**الملصقات** فيها كل الملصقات. **إنت بتختار اللي هيتطبع** — مش بتطبع الكتاب كله.
+
+1. صفّي القايمة الأول: دوّر بالسيريال أو العميل أو المنتج، أو صفّي على **أوردر
+   واحد**، أو على **لسه ماتطبعش** — ودي غالباً هي الشغلانة بعد أول مرة.
+2. **اختار المعروض** بيعلّم على كل اللي الفلتر ساب، أو علّم واحد واحد.
+3. **اطبع المتختار** بيبعت دول بس للطابعة.
+4. لما الورق يطلع، رد بـ **أيوه، علّمها اتطبعت**. **مفيش حاجة بتعلّم نفسها** —
+   التطبيق مش شايف الطابعة بتاعتك.
+
+**الملصق المتعلّم بيتطبع حتى لو صفّيت القايمة بعد كده واختفى من الشاشة.** العدّاد
+بيقولك كام واحد متعلّم ومش ظاهر، عشان ماتبعتش نص الشغلانة بالغلط.
+
+**إعادة الطباعة عادية.** الملصق اللي اتبلّ ببويه أو اتقطع في الطريق بياخد واحد
+تاني، والتاريخ بيتحدّث.
+
+اطبع على **ورق صناعي مش ورق عادي** — لازم يستحمل التراب والدهان.

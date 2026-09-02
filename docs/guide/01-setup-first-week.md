@@ -75,15 +75,30 @@ on it. Do the count on a day the factory is closed.
 
 **3.1 Categories.** Bedrooms, dining, living, office, and so on.
 
-**3.2 Option groups.** The things a customer chooses: fabric, wood type, finish
-colour, dimensions, hardware. For each option, add the swatch photo, the price
-effect (fixed amount, percentage, or per metre), any extra days it adds, and
-**link it to its material** — this is what lets a fabric choice in the showroom
-reserve metres in the warehouse.
+**3.2 Products.** For each product: code, Arabic and English name, category,
+photos, base price, cost, warranty months, and lead days. A product with no price
+cannot be activated, and a draft product cannot be ordered — that is deliberate.
 
-**3.3 Products.** For each product: code, Arabic and English name, category,
-photos, base price, warranty period, and whether it is standard (جاهز),
-customisable, or both. Attach the option groups it offers.
+**3.3 What has to be decided about each product** — Setup → Products → a product
+→ **المواصفات المطلوبة**. This is the most valuable half-hour in the whole setup,
+and the one people skip.
+
+For each thing that must be settled before the piece can be made — colour,
+fabric, width, handedness — add a field:
+
+- a **name** (اللون) and a **code** (COLOUR)
+- **اختيار من قايمة** wherever possible, with the choices one per line. A list
+  means the showroom cannot promise a colour you have no lacquer for
+- **رقم** with a unit (سم) for measurements
+- **إجباري** for anything the factory genuinely cannot proceed without
+
+**A required field with no answer stops the order being taken.** That is the
+point: the blank is found at the counter with the customer still standing there,
+not at the bench a week later.
+
+**A product with no fields behaves exactly as before**, so switch this on one
+product at a time. Start with whatever goes wrong most — usually colour and
+fabric on upholstered pieces.
 
 **3.4 Bill of materials.** For each product, what it consumes: material,
 quantity per unit, and a waste percentage. Get your most experienced carpenter to
@@ -157,7 +172,11 @@ products, then bring in the showroom, then stop the paper.
 - [ ] Approval thresholds set
 - [ ] Materials, suppliers, reorder points
 - [ ] Opening stock counted physically
-- [ ] Categories, option groups with swatches, products, prices
+- [ ] Categories, products, prices, costs, warranty months
+- [ ] Spec fields on the products that go wrong most (المواصفات المطلوبة)
+- [ ] Discount and purchase ceilings per role (Setup → الحدود)
+- [ ] Costing rates: labour rate, overhead, minimum margin
+- [ ] VAT rate, and whether prices include it (Setup → الشركة)
 - [ ] Bills of materials checked by a carpenter
 - [ ] Routings with real standard minutes
 - [ ] Customer-visible stages chosen

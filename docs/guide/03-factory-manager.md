@@ -5,20 +5,25 @@ You are the only person who commits the factory to a date. Everything downstream
 depends on the decisions on this page.
 
 
-> **What is in the app today.** **Today** and **Floor** show you the live
-> factory, and the **Dispatch** tab is where production hands over: every piece
-> that has passed its last station appears there, and **Send to showroom** moves
-> it out of the factory and onto the showroom's board. Until a line is
-> dispatched it still counts as sitting in your building.
+> **Your screens.** **اليوم** and **المصنع** show the live factory. **التسليم
+> للمعرض** is where production hands over: every piece that has passed its last
+> station appears there, and **إرسال للمعرض** moves it out of the factory and
+> onto the showroom's board. Until a line is dispatched it still counts as
+> sitting in your building.
 >
-> The planning board and capacity commitments described below are the design for
-> a later phase.
+> **التخطيط** — the planning board, the station load and the promise dates — is
+> built and live. If you have a production manager, that board is theirs; see
+> guide 4. If you do not, it is yours.
 
-> **Your staff list.** Setup → Crews and Setup → Staff are yours: add a
+> **Your staff list.** Setup → المجموعات and Setup → الموظفين are yours: add a
 > supervisor, group leader, QC inspector, storekeeper or driver, and reset their
 > passwords when they forget one. The catalogue, the prices and the owner's own
-> account are not yours to change, and order values do not appear anywhere on
-> your screens — you run the factory, not the till.
+> account are not yours to change, and **order values do not appear anywhere on
+> your screens** — you run the factory, not the till.
+>
+> You can create the jobs you supervise and nothing above or beside them: not an
+> owner, not a showroom manager, not an accountant. That is not a slight; whoever
+> can create an owner can help themselves to every other permission in the app.
 
 
 ---
@@ -35,9 +40,22 @@ costs half a day.
 **08:00 — Incoming orders.** Accept or reject what the showroom sent yesterday.
 
 **08:15 — Publish the plan.** Confirm today's assignments on the planning board.
-Workers see their list when they log in.
+Workers see their list when they sign in.
 
-**Through the day.** React to blocked-stage alerts. Everything else can wait.
+**08:20 — Spec changes.** Open **المواصفات**. Anything the showroom changed on a
+piece already being made is sitting there until somebody on the floor marks it
+seen. An unseen change is a piece being made to a spec that is no longer true.
+
+**Through the day.** React to blocked stages and to questions from the benches.
+Everything else can wait.
+
+### Questions from the floor
+
+A group leader or an inspector who cannot tell what a piece is meant to be taps
+**اسأل المعرض** on the job card. It goes to the showroom, not to you — but it is
+your problem when it is not answered, because it is your bench standing still.
+The question shows **واقف مستني الرد** when somebody has actually stopped over
+it. Chase those.
 
 **17:00 — Tomorrow's plan.** Review the board, resolve overbooking, publish. The
 system notifies each station.
