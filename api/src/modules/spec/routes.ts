@@ -33,15 +33,48 @@ import { record } from "../../lib/events.js";
 
 const nm = (ar: string, en: string) => ({ nameAr: ar, nameEn: en });
 
+/**
+ * Whether a set of answers is one this product can actually be made from.
+ *
+ * Two ways it is not, and both have to be checked everywhere an answer is
+ * written — not only when the order is taken. A rule enforced at one door is a
+ * rule with a second door.
+ *
+ *   missing  a required field with no answer. The piece reaches the bench
+ *            undescribed, which is the failure this whole module exists for.
+ *   offList  an answer to a CHOICE field that is not one of its choices. The
+ *            point of a list is that the counter cannot promise a colour the
+ *            factory has no lacquer for; accepting free text against a list
+ *            gives that away for nothing.
+ *
+ * Both languages are accepted for a choice, because the screen sends whichever
+ * one the person is reading.
+ */
+export async function checkSpecs(productId: string, given: Record<string, string>) {
+  const fields = await db.specField.findMany({
+    where: { productId, isActive: true },
+    orderBy: { position: "asc" },
+    include: { options: true },
+  });
+  const missing: { code: string; nameAr: string; nameEn: string }[] = [];
+  const offList: { code: string; nameAr: string; nameEn: string; value: string }[] = [];
+  for (const f of fields) {
+    const v = (given[f.code] ?? "").trim();
+    if (f.required && !v) {
+      missing.push({ code: f.code, nameAr: f.nameAr, nameEn: f.nameEn });
+      continue;
+    }
+    if (v && f.kind === "CHOICE"
+        && !f.options.some((o) => o.nameAr === v || o.nameEn === v)) {
+      offList.push({ code: f.code, nameAr: f.nameAr, nameEn: f.nameEn, value: v });
+    }
+  }
+  return { missing, offList, ok: missing.length === 0 && offList.length === 0 };
+}
+
 /** The fields a product still needs answers to, given what the line has. */
 export async function missingSpecs(productId: string, given: Record<string, string>) {
-  const fields = await db.specField.findMany({
-    where: { productId, isActive: true, required: true },
-    orderBy: { position: "asc" },
-  });
-  return fields
-    .filter((f) => !(given[f.code] ?? "").trim())
-    .map((f) => ({ code: f.code, nameAr: f.nameAr, nameEn: f.nameEn }));
+  return (await checkSpecs(productId, given)).missing;
 }
 
 /**
@@ -299,6 +332,29 @@ export default async function specRoutes(app: FastifyInstance) {
     if (!line) return reply.code(404).send({ error: "not_found" });
     if (line.status === "CANCELLED") {
       return reply.code(409).send({ error: "line_cancelled" });
+    }
+
+    /**
+     * The answers this line would end up with — what it has now, with what is
+     * being sent written over it.
+     *
+     * Checked as a whole rather than field by field, because the failure is a
+     * property of the finished spec: erasing the colour of a piece already
+     * ordered leaves it exactly as undescribed as never having answered, and
+     * the counter reaching the bench with a blank colour is the thing this
+     * module exists to stop. The gate at order entry alone was a rule with a
+     * second door.
+     */
+    const held = await db.lineSpec.findMany({ where: { orderLineId: id } });
+    const merged: Record<string, string> = Object.fromEntries(
+      held.map((h) => [h.fieldCode, h.valueAr]));
+    for (const [k, v] of Object.entries(b.answers)) merged[k] = v;
+    const check = await checkSpecs(line.productId, merged);
+    if (!check.ok) {
+      return reply.code(400).send({
+        error: check.missing.length ? "spec_required" : "spec_not_an_option",
+        detail: { missing: check.missing, offList: check.offList },
+      });
     }
 
     const started = await inProduction(id);

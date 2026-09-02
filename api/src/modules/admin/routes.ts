@@ -7,7 +7,7 @@ import { guard } from "../../auth/jwt.js";
 import { BOOKS, CATALOGUE, READ_LOCATIONS, ROLE_KEYS, SELL, SETUP, STAFF_ADMIN,
          canGrant, grantableBy } from "../../auth/scopes.js";
 import { record } from "../../lib/events.js";
-import { missingSpecs, writeSpecs } from "../spec/routes.js";
+import { checkSpecs, writeSpecs } from "../spec/routes.js";
 import { applyVat, vatPolicy } from "../../lib/settings.js";
 import { nextNumber } from "../../lib/sequence.js";
 import { checkDiscount, claimApproval } from "../../lib/limits.js";
@@ -639,19 +639,25 @@ export default async function adminRoutes(app: FastifyInstance) {
      * that arrives one product at a time rather than on a flag day.
      */
     const blanks: { productId: string; nameAr: string; nameEn: string;
-                    missing: { code: string; nameAr: string; nameEn: string }[] }[] = [];
+                    missing: { code: string; nameAr: string; nameEn: string }[];
+                    offList: { code: string; nameAr: string; nameEn: string;
+                               value: string }[] }[] = [];
     for (const l of b.lines) {
-      const missing = await missingSpecs(l.productId, l.specs ?? {});
-      if (missing.length) {
+      const check = await checkSpecs(l.productId, l.specs ?? {});
+      if (!check.ok) {
         const p = products.find((x) => x.id === l.productId);
         blanks.push({
           productId: l.productId,
-          nameAr: p?.nameAr ?? "", nameEn: p?.nameEn ?? "", missing,
+          nameAr: p?.nameAr ?? "", nameEn: p?.nameEn ?? "",
+          missing: check.missing, offList: check.offList,
         });
       }
     }
     if (blanks.length) {
-      return reply.code(400).send({ error: "spec_required", detail: { lines: blanks } });
+      return reply.code(400).send({
+        error: blanks.some((x) => x.missing.length) ? "spec_required" : "spec_not_an_option",
+        detail: { lines: blanks },
+      });
     }
 
     // Resolved once, here, so the order carries the rate it was written at.
