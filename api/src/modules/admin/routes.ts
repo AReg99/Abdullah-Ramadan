@@ -7,6 +7,7 @@ import { guard } from "../../auth/jwt.js";
 import { BOOKS, CATALOGUE, READ_LOCATIONS, ROLE_KEYS, SELL, SETUP, STAFF_ADMIN,
          canGrant, grantableBy } from "../../auth/scopes.js";
 import { record } from "../../lib/events.js";
+import { missingSpecs, writeSpecs } from "../spec/routes.js";
 import { applyVat, vatPolicy } from "../../lib/settings.js";
 import { nextNumber } from "../../lib/sequence.js";
 import { checkDiscount, claimApproval } from "../../lib/limits.js";
@@ -539,6 +540,11 @@ export default async function adminRoutes(app: FastifyInstance) {
         /** Which store the piece leaves. */
         warehouseId: z.string().optional(),
         specNotes: z.string().optional(),
+        /**
+         * What the piece is meant to be, keyed by the product's own field
+         * codes. A required one left blank stops the order — see below.
+         */
+        specs: z.record(z.string().max(200)).optional(),
         lineKind: z.enum(["STANDARD", "CUSTOM"]).default("STANDARD"),
       })).min(1),
       /**
@@ -621,6 +627,33 @@ export default async function adminRoutes(app: FastifyInstance) {
       if (!claim.ok) return reply.code(409).send(claim);
       approval = { id: claim.approval.id };
     }
+    /**
+     * The piece has to be fully described before anybody is asked to make it.
+     *
+     * This is the whole reason the spec is fields rather than a sentence: a
+     * blank colour is visible here, at the counter, with the customer still
+     * standing there — instead of at the bench a week later, where the only
+     * two options are to stop the job or to guess.
+     *
+     * A product with no spec fields defined is unaffected, so this is a rule
+     * that arrives one product at a time rather than on a flag day.
+     */
+    const blanks: { productId: string; nameAr: string; nameEn: string;
+                    missing: { code: string; nameAr: string; nameEn: string }[] }[] = [];
+    for (const l of b.lines) {
+      const missing = await missingSpecs(l.productId, l.specs ?? {});
+      if (missing.length) {
+        const p = products.find((x) => x.id === l.productId);
+        blanks.push({
+          productId: l.productId,
+          nameAr: p?.nameAr ?? "", nameEn: p?.nameEn ?? "", missing,
+        });
+      }
+    }
+    if (blanks.length) {
+      return reply.code(400).send({ error: "spec_required", detail: { lines: blanks } });
+    }
+
     // Resolved once, here, so the order carries the rate it was written at.
     const tax = applyVat(lineTotal, await vatPolicy());
     const anyCustom = b.lines.some((l) => l.lineKind === "CUSTOM");
@@ -683,6 +716,12 @@ export default async function adminRoutes(app: FastifyInstance) {
           promisedDate: promised, specNotes: l.specNotes ?? null,
         },
       });
+      if (l.specs && Object.keys(l.specs).length) {
+        await writeSpecs({
+          orderLineId: line.id, productId: l.productId, answers: l.specs,
+          actorId: (req as any).user.id, orderId: order.id, afterStart: false,
+        });
+      }
       const wo = await db.workOrder.create({
         data: {
           code: `WO-${String(1000 + woSeq++).padStart(4, "0")}`,

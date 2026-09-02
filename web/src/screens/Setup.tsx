@@ -510,6 +510,128 @@ function ProductRowEditor({ product, cats, busy, run }: any) {
 }
 
 /**
+ * What has to be decided about this product before anybody can make it.
+ *
+ * This is the counter-to-bench contract, defined once per product. A field with
+ * a list of choices is worth far more than a text box: the counter cannot then
+ * promise a colour the factory has no lacquer for, and the answer is one of a
+ * set the bench already recognises.
+ *
+ * Options are typed one per line rather than added a row at a time — this is a
+ * furniture shop, and "بني غامق / أبيض / رمادي" is one thing somebody types,
+ * not three forms they fill in.
+ */
+function ProductSpec({ product, busy }: any) {
+  const { t, toast } = useApp();
+  const [open, setOpen] = useState(false);
+  const [rows, setRows] = useState<any[] | null>(null);
+  const [saving, setSaving] = useState(false);
+
+  const load = () => api.specFields(product.id)
+    .then((f) => setRows(f.map((x) => ({
+      code: x.code, nameAr: x.nameAr, nameEn: x.nameEn, kind: x.kind,
+      unit: x.unit ?? "", required: x.required,
+      options: x.options.map((o) => o.nameAr).join("\n"),
+    }))))
+    .catch(() => setRows([]));
+
+  useEffect(() => { if (open && !rows) load(); }, [open]);
+
+  if (!open) {
+    return (
+      <div className="between" style={{ marginTop: 9 }}>
+        <span className="sub">{t("specFields")}</span>
+        <button className="chip" onClick={() => setOpen(true)}>{t("edit")}</button>
+      </div>
+    );
+  }
+  if (!rows) return <p className="note">{t("loading")}</p>;
+
+  const set = (i: number, patch: any) =>
+    setRows(rows.map((r, k) => (k === i ? { ...r, ...patch } : r)));
+
+  const save = async () => {
+    setSaving(true);
+    try {
+      await api.setSpecFields(product.id, rows.map((r) => ({
+        code: r.code.trim().toUpperCase().replace(/[^A-Z0-9_]/g, "_"),
+        nameAr: r.nameAr.trim(), nameEn: (r.nameEn || r.nameAr).trim(),
+        kind: r.kind, unit: r.unit.trim() || undefined, required: r.required,
+        options: r.kind === "CHOICE"
+          ? r.options.split("\n").map((o: string) => o.trim()).filter(Boolean)
+              .map((o: string) => ({ nameAr: o, nameEn: o }))
+          : [],
+      })));
+      toast(t("saved"));
+      setOpen(false); setRows(null);
+    } catch (e: any) {
+      toast(e?.code ? t(e.code) : "error");
+    } finally { setSaving(false); }
+  };
+
+  return (
+    <div style={{ marginTop: 11 }}>
+      <span className="k">{t("specFields")}</span>
+      <p className="note" style={{ marginTop: 4 }}>{t("specFieldsHint")}</p>
+
+      {rows.map((r, i) => (
+        <div className="card" key={i} style={{ marginTop: 9 }}>
+          <div className="row wrap">
+            <input value={r.nameAr} placeholder={t("specFieldName")}
+                   onChange={(e) => set(i, { nameAr: e.target.value })} />
+          </div>
+          <input className="mono" value={r.code} placeholder={t("specFieldCode")}
+                 onChange={(e) => set(i, { code: e.target.value })} style={{ marginTop: 8 }} />
+          <select value={r.kind} onChange={(e) => set(i, { kind: e.target.value })}
+                  style={{ marginTop: 8 }}>
+            <option value="CHOICE">{t("specKindChoice")}</option>
+            <option value="TEXT">{t("specKindText")}</option>
+            <option value="NUMBER">{t("specKindNumber")}</option>
+          </select>
+          {r.kind === "CHOICE" && (
+            <>
+              <textarea value={r.options} placeholder={t("specOptionsHint")}
+                        onChange={(e) => set(i, { options: e.target.value })}
+                        rows={3} style={{ marginTop: 8 }} />
+            </>
+          )}
+          {r.kind === "NUMBER" && (
+            <input value={r.unit} placeholder={t("specUnit")}
+                   onChange={(e) => set(i, { unit: e.target.value })} style={{ marginTop: 8 }} />
+          )}
+          <div className="row wrap" style={{ marginTop: 9, alignItems: "center" }}>
+            <button className={`btn sm toggle ${r.required ? "pri" : "sec"}`}
+                    onClick={() => set(i, { required: !r.required })}>
+              {r.required ? t("specRequired") : t("specOptional")}
+            </button>
+            <button className="btn dang sm toggle"
+                    onClick={() => setRows(rows.filter((_, k) => k !== i))}>
+              {t("removeAccount")}
+            </button>
+          </div>
+        </div>
+      ))}
+
+      <div className="row wrap" style={{ marginTop: 10 }}>
+        <button className="btn sec sm toggle"
+                onClick={() => setRows([...rows, { code: "", nameAr: "", nameEn: "",
+                                                   kind: "CHOICE", unit: "", required: true,
+                                                   options: "" }])}>
+          {t("specAddField")}
+        </button>
+        <button className="btn pri sm toggle" disabled={busy || saving} onClick={save}>
+          {t("saveAccount")}
+        </button>
+        <button className="btn sec sm toggle"
+                onClick={() => { setOpen(false); setRows(null); }}>
+          {t("cancel")}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/**
  * A product's pictures. They attach after the product exists, which is why this
  * lives on the row rather than in the add form: there is nothing to attach a
  * photo to until the product has been saved.
@@ -572,6 +694,7 @@ function Products({ products, cats, busy, run, nm }: any) {
         <div className="card" key={x.id}>
           <ProductRowEditor product={x} cats={cats} busy={busy} run={run} />
           <ProductPhotos product={x} busy={busy} run={run} />
+          <ProductSpec product={x} busy={busy} />
         </div>
       ))}
 

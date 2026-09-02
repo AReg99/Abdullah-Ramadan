@@ -107,6 +107,30 @@ export const PRICE_NOTICES = [...new Set([...COSTING, ...SELL])];
 export const PRODUCTION = ["OWNER", "FACTORY_MANAGER", "PRODUCTION_MANAGER", "SUPERVISOR"];
 
 /**
+ * Asking the counter what a piece is meant to be. Everybody who has the piece
+ * in their hands, which is wider than PRODUCTION: the group leader at the bench
+ * and the inspector at the gate are the two people who actually notice that the
+ * colour on the job card is not the colour in the tin, and a question they
+ * cannot ask is a question they answer by guessing.
+ */
+export const SPEC_ASK = [...new Set([...PRODUCTION, "GROUP_LEADER", "QC"])];
+
+/**
+ * Answering it, and changing what was promised. The counter's, because it is
+ * the counter that spoke to the customer — a factory that can quietly edit what
+ * was ordered is a factory that can make its own life easier at the customer's
+ * expense.
+ */
+export const SPEC_ANSWER = [...SELL];
+
+/**
+ * Reading the questions and the changes: anyone on either side of the handover,
+ * because "what is this piece waiting on" is a question the floor, the counter
+ * and the office all ask.
+ */
+export const SPEC_READ = [...new Set([...SPEC_ASK, ...SELL, "STOREKEEPER", "ACCOUNTANT"])];
+
+/**
  * Deciding what gets made in what order, and reading where the queue is piling
  * up. Narrower than PRODUCTION on purpose: a supervisor runs the station in
  * front of them, and letting each of them reorder the whole factory is how two

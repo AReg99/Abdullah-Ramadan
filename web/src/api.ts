@@ -94,7 +94,7 @@ export const api = {
       body: JSON.stringify({ currentPassword, newPassword }) }),
 
   workToday: () => cachedGet<Stage[]>("/work/today", "today"),
-  stage: (id: string) => cachedGet<Stage & { previousAfterPhoto: string | null; crew: Person[] }>(`/work/stages/${id}`, `stage.${id}`),
+  stage: (id: string) => cachedGet<Stage & JobSpec & { previousAfterPhoto: string | null; crew: Person[] }>(`/work/stages/${id}`, `stage.${id}`),
   byLabel: (serial: string) => req<{ stageId: string }>(`/work/label/${encodeURIComponent(serial)}`),
   start: (id: string, clientEventId?: string, occurredAt?: string, workerIds?: string[]) =>
     req<any>(`/work/stages/${id}/start`, { method: "POST", body: JSON.stringify({ clientEventId, occurredAt, workerIds }) }),
@@ -106,6 +106,28 @@ export const api = {
     req<any>(`/work/stages/${id}/finish`, { method: "POST", body: JSON.stringify({ clientEventId, occurredAt }) }),
 
   labels: () => req<LabelRow[]>("/labels"),
+
+  // ---- the spec: what a piece is meant to be ----
+  specFields: (productId: string) => req<SpecFieldRow[]>(`/spec/fields/${productId}`),
+  setSpecFields: (productId: string, fields: SpecFieldInput[]) =>
+    req<{ ok: true; count: number }>(`/spec/fields/${productId}`,
+      { method: "PUT", body: JSON.stringify({ fields }) }),
+  lineSpec: (orderLineId: string) => req<LineSpecView>(`/spec/lines/${orderLineId}`),
+  setLineSpec: (orderLineId: string, body: {
+    answers: Record<string, string>; reason?: string; specNotes?: string }) =>
+    req<{ ok: true; changed: number; afterStart: boolean }>(`/spec/lines/${orderLineId}`,
+      { method: "PUT", body: JSON.stringify(body) }),
+  specQuestions: (open = true) =>
+    req<SpecQuestionRow[]>(`/spec/questions${open ? "" : "?open=0"}`),
+  askSpec: (body: { orderLineId: string; workOrderId?: string;
+                    question: string; blocking: boolean }) =>
+    req<SpecQuestionRow>("/spec/questions", { method: "POST", body: JSON.stringify(body) }),
+  answerSpec: (id: string, answer: string) =>
+    req<SpecQuestionRow>(`/spec/questions/${id}/answer`,
+      { method: "POST", body: JSON.stringify({ answer }) }),
+  unseenSpecChanges: () => req<SpecChangeRow[]>("/spec/changes/unseen"),
+  specChangesSeen: (ids: string[]) =>
+    req<{ seen: number }>("/spec/changes/seen", { method: "POST", body: JSON.stringify({ ids }) }),
   labelsPrinted: (ids: string[]) =>
     req<{ printedAt: string; count: number; missing: string[] }>("/labels/printed",
       { method: "POST", body: JSON.stringify({ ids }) }),
@@ -515,7 +537,36 @@ export type NewProduct = { cost?: number; sku: string; nameAr: string; nameEn?: 
 export type NewOrder = { customerId?: string; customerName?: string; customerPhone?: string;
   promisedDate?: string; approvalId?: string; quotationId?: string;
   lines: { productId: string; qty: number; unitPrice?: number;
-    discount?: number; warehouseId?: string; specNotes?: string; lineKind?: string }[] };
+    discount?: number; warehouseId?: string; specNotes?: string; lineKind?: string;
+    /** Keyed by the product's own field codes. A blank required one is refused. */
+    specs?: Record<string, string> }[] };
+export type SpecKind = "CHOICE" | "TEXT" | "NUMBER";
+export type SpecOptionRow = { nameAr: string; nameEn: string };
+export type SpecFieldRow = { id: string; code: string; nameAr: string; nameEn: string;
+  kind: SpecKind; unit: string | null; required: boolean; position: number;
+  options: (SpecOptionRow & { id: string })[] };
+export type SpecFieldInput = { code: string; nameAr: string; nameEn: string;
+  kind: SpecKind; unit?: string; required: boolean; options: SpecOptionRow[] };
+export type SpecAnswerRow = { code: string; nameAr: string; nameEn: string; kind: SpecKind;
+  unit: string | null; required: boolean; options: SpecOptionRow[];
+  value: string; answered: boolean };
+export type SpecChangeRow = { id: string; orderLineId?: string; orderCode?: string;
+  customer?: string; product?: { nameAr: string; nameEn: string };
+  code: string; nameAr: string; nameEn: string; from: string | null; to: string;
+  reason: string | null; afterStart?: boolean; seenAt?: string | null;
+  by: string; byEn: string; at: string };
+export type SpecQuestionRow = { id: string; question: string; blocking: boolean;
+  askedBy: string; askedByEn: string; askedAt: string;
+  answer: string | null; answeredBy: string | null; answeredByEn: string | null;
+  answeredAt: string | null;
+  orderLineId?: string; orderCode?: string; customer?: string;
+  product?: { nameAr: string; nameEn: string } };
+export type LineSpecView = { orderLineId: string; orderId: string; orderCode: string;
+  customer: string; product: { id: string; nameAr: string; nameEn: string };
+  inProduction: boolean; specs: SpecAnswerRow[];
+  retired: { code: string; nameAr: string; nameEn: string; value: string }[];
+  specNotes: string | null; changes: SpecChangeRow[]; questions: SpecQuestionRow[] };
+
 export type LabelRow = { id: string; serial: string; printedAt: string | null; workOrderCode: string;
   orderCode: string; customer: string; productAr: string; productEn: string; qty: number; promisedDate: string | null };
 export type Me = { id: string; nameAr: string; nameEn: string; phone: string; locale: "ar" | "en"; role: string; stationId: string | null };
@@ -526,11 +577,23 @@ export type Stage = {
   blockedReason: string | null;
   stage: { key: string; nameAr: string; nameEn: string; stdMinutes: number; isQcGate?: boolean; photoBefore: string; photoAfter: string; station: { code: string; nameAr: string; nameEn: string } | null };
   workOrder: { id: string; code: string; qty: number; serial: string | null; specNotes: string | null;
+    orderLineId: string;
+    /** Spec changes that landed after this piece was already being made. */
+    specAlert: number;
+    openQuestions: number;
     product: { sku: string; nameAr: string; nameEn: string; photo: string | null };
     order: { code: string; promisedDate: string | null } };
   photos: Photo[];
   /** Who the leader recorded as being on this stage. */
   workers: Person[];
+};
+/** The job card: everything about what the piece is meant to be. */
+export type JobSpec = {
+  specs: { code: string; nameAr: string; nameEn: string; unit: string | null; value: string }[];
+  retiredSpecs: { code: string; nameAr: string; nameEn: string; unit: string | null; value: string }[];
+  specChanges: SpecChangeRow[];
+  questions: SpecQuestionRow[];
+  attachments: { id: string; kind: string; filename: string; path: string; note: string | null }[];
 };
 export type Dashboard = {
   /** value is present only for roles that may see money. */

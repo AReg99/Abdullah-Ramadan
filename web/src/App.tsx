@@ -35,6 +35,7 @@ import Planning from "./screens/Planning";
 import Service from "./screens/Service";
 import Leads from "./screens/Leads";
 import Costing from "./screens/Costing";
+import Spec from "./screens/Spec";
 import QuoteDoc from "./screens/QuoteDoc";
 import Money from "./screens/Money";
 import { onSyncChange, queued } from "./outbox";
@@ -60,7 +61,7 @@ const NAVS: Record<string, Tab[]> = {
     ["/quality", "◎", "quality"], ["/run", "⇢", "run"],
     ["/purchasing", "⇩", "purchasing"], ["/approvals", "✓", "approvals"],
     ["/leads", "☏", "leadsTab"], ["/service", "⚒", "service"],
-    ["/costing", "%", "costing"], ["/setup", "⚙", "setup"],
+    ["/costing", "%", "costing"], ["/spec", "◫", "specTab"], ["/setup", "⚙", "setup"],
   ],
   // Runs the factory. Not the business: setup and order entry are the owner's,
   // and the showroom's, and money never appears on these screens.
@@ -70,7 +71,7 @@ const NAVS: Record<string, Tab[]> = {
     ["/orders", "▤", "orders"], ["/labels", "⌗", "labels"], ["/stock", "▥", "stock"],
     ["/attendance", "✓", "attendance"], ["/quality", "◎", "quality"],
     ["/purchasing", "⇩", "purchasing"], ["/service", "⚒", "service"],
-    ["/costing", "%", "costing"], ["/setup", "⚙", "setup"],
+    ["/costing", "%", "costing"], ["/spec", "◫", "specTab"], ["/setup", "⚙", "setup"],
   ],
   // Plans the work rather than running the plant. No setup, no staff form, no
   // money: the queue, the load, and everything needed to judge them — what is
@@ -81,7 +82,7 @@ const NAVS: Record<string, Tab[]> = {
     ["/orders", "▤", "orders"], ["/dispatch", "⇥", "dispatch"], ["/labels", "⌗", "labels"],
     ["/quality", "◎", "quality"], ["/attendance", "✓", "attendance"],
     ["/stock", "▥", "stock"], ["/purchasing", "⇩", "purchasing"],
-    ["/service", "⚒", "service"],
+    ["/service", "⚒", "service"], ["/spec", "◫", "specTab"],
   ],
   // Works out what a piece takes to make and what it therefore has to sell
   // for. The catalogue and the store's costs are theirs; the cash box is the
@@ -94,7 +95,7 @@ const NAVS: Record<string, Tab[]> = {
     ["/today", "◧", "today"], ["/floor", "▦", "floor"], ["/dispatch", "⇥", "dispatch"],
     ["/orders", "▤", "orders"], ["/labels", "⌗", "labels"],
     ["/attendance", "✓", "attendance"], ["/quality", "◎", "quality"],
-    ["/purchasing", "⇩", "purchasing"],
+    ["/purchasing", "⇩", "purchasing"], ["/spec", "◫", "specTab"],
   ],
   // The dispatch board is their queue, and a scanned label names the piece in
   // their hand. The whole order book is not part of the job.
@@ -104,9 +105,11 @@ const NAVS: Record<string, Tab[]> = {
                      ["/orders", "▤", "orders"], ["/new-order", "✎", "newOrder"],
                      ["/leads", "☏", "leadsTab"], ["/stock", "▥", "stock"],
                      ["/service", "⚒", "service"], ["/costing", "%", "cost_changes"],
+                     ["/spec", "◫", "specTab"],
                      ["/approvals", "✓", "approvals"], ["/setup", "⚙", "setup"]],
   SALES_REP: [["/leads", "☏", "leadsTab"], ["/showroom", "⌂", "showroom"],
               ["/orders", "▤", "orders"], ["/new-order", "✎", "newOrder"],
+              ["/spec", "◫", "specTab"],
               ["/costing", "%", "cost_changes"], ["/service", "⚒", "service"],
               ["/approvals", "✓", "approvals"], ["/setup", "⚙", "setup"]],
   // On the road between the factory and the showroom: what is on the van, and
@@ -153,7 +156,7 @@ const AREA: Record<string, string> = {
   "/labels": "area_floor", "/quality": "area_floor", "/attendance": "area_floor",
   "/showroom": "area_sell", "/orders": "area_sell", "/new-order": "area_sell",
   "/leads": "area_sell", "/dispatch": "area_sell", "/run": "area_sell",
-  "/service": "area_sell",
+  "/service": "area_sell", "/spec": "area_sell",
   "/summary": "area_money", "/money": "area_money", "/payroll": "area_money",
   "/costing": "area_money", "/approvals": "area_money",
   "/stock": "area_store", "/purchasing": "area_store",
@@ -168,6 +171,7 @@ export default function App() {
   const [online, setOnline] = useState(navigator.onLine);
   const [waiting, setWaiting] = useState(0);
   const [priceNews, setPriceNews] = useState(0);
+  const [specNews, setSpecNews] = useState(0);
   const [more, setMore] = useState(false);
 
   useEffect(() => { setMore(false); }, [loc.pathname]);
@@ -203,6 +207,26 @@ export default function App() {
     api.unseenPrices().then((r) => setPriceNews(r.count)).catch(() => setPriceNews(0));
   }, [me?.role, loc.pathname]);
 
+  /**
+   * What the other side of the handover is waiting on.
+   *
+   * For the counter that is an unanswered question — a bench standing still.
+   * For the factory it is a spec change nobody on the floor has taken in yet,
+   * which is a piece being made to a spec that is no longer true. Both are
+   * counted here because both are somebody else's work stopped.
+   */
+  useEffect(() => {
+    const counter = ["OWNER", "SHOWROOM_MANAGER", "SALES_REP"].includes(me?.role ?? "");
+    const floor = ["OWNER", "FACTORY_MANAGER", "PRODUCTION_MANAGER", "SUPERVISOR"]
+      .includes(me?.role ?? "");
+    if (!counter && !floor) return;
+    Promise.all([
+      counter ? api.specQuestions(true).then((q) => q.filter((x) => !x.answeredAt).length)
+              : Promise.resolve(0),
+      floor ? api.unseenSpecChanges().then((c) => c.length) : Promise.resolve(0),
+    ]).then(([a, b]) => setSpecNews(a + b)).catch(() => setSpecNews(0));
+  }, [me?.role, loc.pathname]);
+
   if (!ready) return <div className="empty">{t("loading")}</div>;
   if (!me) return <Login />;
 
@@ -211,7 +235,9 @@ export default function App() {
   const home = tabs[0][0];
 
   const badgeOf = (to: string) =>
-    to === "/approvals" ? waiting : to === "/costing" ? priceNews : 0;
+    to === "/approvals" ? waiting
+    : to === "/costing" ? priceNews
+    : to === "/spec" ? specNews : 0;
   // Four of their own, then everything else behind the fifth.
   const shown = tabs.length <= 5 ? tabs : tabs.slice(0, DAILY);
   const rest = tabs.length <= 5 ? [] : tabs.slice(DAILY);
@@ -263,6 +289,7 @@ export default function App() {
           <Route path="/service" element={<Service />} />
           <Route path="/leads" element={<Leads />} />
           <Route path="/costing" element={<Costing />} />
+          <Route path="/spec" element={<Spec />} />
           <Route path="/quote/:id" element={<QuoteDoc />} />
           <Route path="/run" element={<Run />} />
           <Route path="/money" element={<Money />} />

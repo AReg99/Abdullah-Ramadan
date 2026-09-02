@@ -2,13 +2,15 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useApp } from "../app-context";
 import { api, ApiError, type Approval, type LocationRow, type MyLimits,
-         type ProductRow, type PromiseDate } from "../api";
+         type ProductRow, type PromiseDate, type SpecFieldRow } from "../api";
 
 type Line = { productId: string; qty: string; unitPrice: string; discount: string;
-              warehouseId: string; specNotes: string; lineKind: "STANDARD" | "CUSTOM" };
+              warehouseId: string; specNotes: string; lineKind: "STANDARD" | "CUSTOM";
+              /** Answers keyed by the product's own field codes. */
+              specs: Record<string, string> };
 
 const BLANK: Line = { productId: "", qty: "1", unitPrice: "", discount: "",
-                      warehouseId: "", specNotes: "", lineKind: "STANDARD" };
+                      warehouseId: "", specNotes: "", lineKind: "STANDARD", specs: {} };
 
 /**
  * Order entry. Confirming an order is the moment the factory gets work: it
@@ -27,6 +29,12 @@ export default function NewOrder() {
   const [stores, setStores] = useState<LocationRow[]>([]);
   const [busy, setBusy] = useState(false);
   const [mine, setMine] = useState<MyLimits | null>(null);
+  /**
+   * What each product on this order needs decided. Fetched per product as it is
+   * picked, and cached, because a rep changing the quantity should not cost a
+   * round trip.
+   */
+  const [specs, setSpecs] = useState<Record<string, SpecFieldRow[]>>({});
   const [slips, setSlips] = useState<Approval[]>([]);
   const [using, setUsing] = useState<Approval | null>(null);
   const [blocked, setBlocked] = useState<
@@ -86,11 +94,33 @@ export default function NewOrder() {
     ? Infinity : Math.round(grossTotal * (mine.discountPct / 100) * 100) / 100;
   const overCeiling = discountTotal > ceiling + 0.005;
   const overdone = lines.some((l) => l.productId && (Number(l.discount) || 0) > lineGross(l));
+  /**
+   * Which required answers are still blank, per line.
+   *
+   * The server refuses the order over these too — this is the same rule said
+   * early, at the counter, while the customer is still standing there and can
+   * answer. A refusal at submit is correct but useless: by then the rep has
+   * typed everything and the customer has gone.
+   */
+  const blanksOf = (l: Line) =>
+    (specs[l.productId] ?? []).filter((f) => f.required && !(l.specs[f.code] ?? "").trim());
+  const anyBlank = lines.some((l) => l.productId && blanksOf(l).length > 0);
   const valid = customerName.trim()
-    && lines.some((l) => l.productId && Number(l.qty) > 0) && !overdone;
+    && lines.some((l) => l.productId && Number(l.qty) > 0) && !overdone && !anyBlank;
 
   const setLine = (i: number, patch: Partial<Line>) =>
     setLines((ls) => ls.map((l, k) => (k === i ? { ...l, ...patch } : l)));
+
+  useEffect(() => {
+    for (const id of new Set(lines.map((l) => l.productId).filter(Boolean))) {
+      if (specs[id]) continue;
+      api.specFields(id)
+        .then((f) => setSpecs((cur) => ({ ...cur, [id]: f })))
+        // A product whose fields cannot be read is not a product that can be
+        // sold blind: the server refuses it, and the rep sees that refusal.
+        .catch(() => setSpecs((cur) => ({ ...cur, [id]: [] })));
+    }
+  }, [lines.map((l) => l.productId).join(",")]);
 
   const addFiles = (picked: FileList | null) => {
     if (!picked) return;
@@ -205,6 +235,53 @@ export default function NewOrder() {
           {Number(l.discount) > lineGross(l) && Number(l.discount) > 0 && (
             <p className="note" style={{ color: "var(--bad)" }}>{t("discount_exceeds_line")}</p>
           )}
+          {/* What the piece is meant to be. Above the free-text note, because
+              this is the part that has to be right and the note is the part
+              that is only ever read if somebody remembers to. */}
+          {(specs[l.productId] ?? []).length > 0 && (
+            <div style={{ marginTop: 11 }}>
+              <span className="k">{t("specOf")}</span>
+              {(specs[l.productId] ?? []).map((f) => {
+                const v = l.specs[f.code] ?? "";
+                const blank = f.required && !v.trim();
+                const label = lang === "ar" ? f.nameAr : f.nameEn;
+                const put = (val: string) =>
+                  setLine(i, { specs: { ...l.specs, [f.code]: val } });
+                return (
+                  <div key={f.code} style={{ marginTop: 8 }}>
+                    <span className="sub">
+                      {label}{f.unit ? ` (${f.unit})` : ""}
+                      {!f.required && <span className="muted"> · {t("specOptional")}</span>}
+                    </span>
+                    {f.kind === "CHOICE" ? (
+                      <select value={v} onChange={(e) => put(e.target.value)}
+                              style={{ marginTop: 5,
+                                       borderColor: blank ? "var(--bad)" : undefined }}>
+                        <option value="">{`— ${label} —`}</option>
+                        {f.options.map((o) => (
+                          <option key={o.nameAr} value={lang === "ar" ? o.nameAr : o.nameEn}>
+                            {lang === "ar" ? o.nameAr : o.nameEn}
+                          </option>
+                        ))}
+                      </select>
+                    ) : (
+                      <input value={v} onChange={(e) => put(e.target.value)}
+                             inputMode={f.kind === "NUMBER" ? "numeric" : undefined}
+                             placeholder={label}
+                             style={{ marginTop: 5,
+                                      borderColor: blank ? "var(--bad)" : undefined }} />
+                    )}
+                  </div>
+                );
+              })}
+              {blanksOf(l).length > 0 && (
+                <p className="note" style={{ color: "var(--bad)" }}>
+                  {t("specMissing")}{" "}
+                  {blanksOf(l).map((f) => (lang === "ar" ? f.nameAr : f.nameEn)).join(" · ")}
+                </p>
+              )}
+            </div>
+          )}
           <input placeholder={t("specNotes")} value={l.specNotes}
             onChange={(e) => setLine(i, { specNotes: e.target.value })} style={{ marginTop: 8 }} />
           {/* Show the customer what they are buying, from the seller's own screen. */}
@@ -312,6 +389,7 @@ export default function NewOrder() {
               discount: Number(l.discount) || 0,
               warehouseId: l.warehouseId || undefined,
               specNotes: l.specNotes.trim() || undefined, lineKind: l.lineKind,
+              specs: Object.keys(l.specs).length ? l.specs : undefined,
             })),
             approvalId: using?.id,
           });

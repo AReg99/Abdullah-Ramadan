@@ -118,6 +118,10 @@ model User {
   quotes      Quotation[]  @relation("QuoteAuthor")
   priceChanges     PriceChange[] @relation("PriceChangeAuthor")
   priceChangesSeen PriceChange[] @relation("PriceChangeSeen")
+  specChanges      SpecChange[]  @relation("SpecChangeAuthor")
+  specChangesSeen  SpecChange[]  @relation("SpecChangeSeen")
+  questionsAsked    SpecQuestion[] @relation("SpecQuestionAsked")
+  questionsAnswered SpecQuestion[] @relation("SpecQuestionAnswered")
 }
 
 /// A crew working one station under one leader.
@@ -236,6 +240,7 @@ model Product {
   bom        BomLine[]
   quotationLines QuotationLine[]
   priceChanges PriceChange[]
+  specFields SpecField[]
 }
 
 // ---------------------------------------------------------------- sales
@@ -374,6 +379,9 @@ model OrderLine {
 
   workOrders WorkOrder[]
   deliveries DeliveryAttempt[]
+  specs       LineSpec[]
+  specChanges SpecChange[]
+  questions   SpecQuestion[]
 
   @@index([status, promisedDate])
   serviceTickets ServiceTicket[]
@@ -442,6 +450,7 @@ model WorkOrder {
   labels UnitLabel[]
   photos StagePhoto[]
   inspections Inspection[]
+  questions SpecQuestion[]
 }
 
 
@@ -1433,4 +1442,147 @@ model PriceChange {
 
   @@index([productId, createdAt])
   @@index([seenAt])
+}
+
+// ------------------------------------------------ the spec: counter to bench
+
+/// What has to be decided about a piece before anybody can make it.
+///
+/// An order goes wrong on the axes nobody wrote down — the colour, the fabric,
+/// which way a corner unit faces. Until now the whole channel was one free-text
+/// box on the line, so "the factory was not told the colour" and "the factory
+/// was told and did not read it" looked identical afterwards, and neither could
+/// be prevented: a sentence cannot be checked for a missing answer, a field can.
+///
+/// Defined per product, because what must be decided about a wardrobe is not
+/// what must be decided about a dining chair. A product with no fields behaves
+/// exactly as it did before, which is what makes this safe to switch on one
+/// product at a time.
+model SpecField {
+  id        String   @id @default(uuid())
+  productId String
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  code      String
+  nameAr    String
+  nameEn    String
+  kind      String @default("CHOICE")
+  /// For NUMBER: what the number is in — cm, mm. Printed beside the answer.
+  unit      String?
+  /// A required field with no answer stops the order being taken. This is the
+  /// whole point; it is settable only because a genuinely optional note
+  /// ("اسم العميل على اللوحة") should not block a sale.
+  required  Boolean  @default(true)
+  position  Int      @default(0)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  options SpecOption[]
+  answers LineSpec[]
+
+  @@unique([productId, code])
+  @@index([productId, position])
+}
+
+
+/// One of the answers a CHOICE field offers.
+///
+/// Replaced wholesale when the list is edited, which is only safe because an
+/// answer copies the text it chose rather than pointing at the row: retiring
+/// "بني غامق" from the list next year must not rewrite what was ordered
+/// last year.
+model SpecOption {
+  id       String    @id @default(uuid())
+  fieldId  String
+  field    SpecField @relation(fields: [fieldId], references: [id], onDelete: Cascade)
+  nameAr   String
+  nameEn   String
+  position Int       @default(0)
+
+  @@index([fieldId, position])
+}
+
+/// The answer, on the line. What the piece is actually meant to be.
+///
+/// The label is copied alongside the value for the same reason the value is:
+/// this row has to still read correctly years later, when the field it came
+/// from has been renamed or retired.
+model LineSpec {
+  id          String     @id @default(uuid())
+  orderLineId String
+  orderLine   OrderLine  @relation(fields: [orderLineId], references: [id], onDelete: Cascade)
+  fieldId     String?
+  field       SpecField? @relation(fields: [fieldId], references: [id], onDelete: SetNull)
+  fieldCode   String
+  labelAr     String
+  labelEn     String
+  valueAr     String
+  valueEn     String
+  updatedAt   DateTime   @updatedAt
+
+  @@unique([orderLineId, fieldCode])
+}
+
+/// Every time an answer moves, and why.
+///
+/// The customer who rings on Tuesday to say walnut, not oak, is the single
+/// commonest way a factory makes the wrong thing: the call reaches one person
+/// at the counter and never reaches the bench. Append-only, so the argument
+/// afterwards is about a record rather than about who said what.
+model SpecChange {
+  id          String    @id @default(uuid())
+  orderLineId String
+  orderLine   OrderLine @relation(fields: [orderLineId], references: [id], onDelete: Cascade)
+  fieldCode   String
+  labelAr     String
+  labelEn     String
+  /// Null on the first answer: there was nothing there before.
+  fromAr      String?
+  fromEn      String?
+  toAr        String
+  toEn        String
+  reason      String?
+  /// Whether the piece was already being made. Before the factory starts, a
+  /// change is a correction; after, it is rework somebody has to decide about,
+  /// and the floor has to be told rather than discovering it at delivery.
+  afterStart  Boolean   @default(false)
+  /// Cleared when the floor has taken it in, so this is a queue that empties
+  /// rather than a badge that is always on.
+  seenAt      DateTime?
+  seenById    String?
+  seenBy      User?     @relation("SpecChangeSeen", fields: [seenById], references: [id])
+  actorId     String
+  actor       User      @relation("SpecChangeAuthor", fields: [actorId], references: [id])
+  createdAt   DateTime  @default(now())
+
+  @@index([orderLineId, createdAt])
+  @@index([seenAt])
+}
+
+/// A question from the bench to the counter, and the answer that comes back.
+///
+/// The bench's only previous move when something was unclear was to block the
+/// stage with AWAITING_CUSTOMER — which names nobody, carries no question and
+/// expects no answer. So nobody asked, and the alternative to asking is
+/// guessing, and a guess about a colour is a piece made twice.
+model SpecQuestion {
+  id           String     @id @default(uuid())
+  orderLineId  String
+  orderLine    OrderLine  @relation(fields: [orderLineId], references: [id], onDelete: Cascade)
+  /// Which job the question was asked from, where it was asked from one.
+  workOrderId  String?
+  workOrder    WorkOrder? @relation(fields: [workOrderId], references: [id], onDelete: SetNull)
+  question     String
+  /// Whether the bench has stopped over it. An answer to a blocking question
+  /// is somebody standing idle, which is why the board sorts on it.
+  blocking     Boolean    @default(false)
+  askedById    String
+  askedBy      User       @relation("SpecQuestionAsked", fields: [askedById], references: [id])
+  askedAt      DateTime   @default(now())
+  answer       String?
+  answeredById String?
+  answeredBy   User?      @relation("SpecQuestionAnswered", fields: [answeredById], references: [id])
+  answeredAt   DateTime?
+
+  @@index([answeredAt, blocking])
+  @@index([orderLineId, askedAt])
 }

@@ -135,6 +135,24 @@ a{color:var(--p)}
 .sub{font-size:.8rem;color:var(--g6);margin-top:3px;display:block}
 .spec{display:grid;grid-template-columns:auto 1fr;gap:7px 16px;font-size:.92rem;margin:0}
 .spec dt{color:var(--g6)} .spec dd{margin:0;font-weight:600}
+/* An answered spec line reads heavier than the label beside it: the colour is
+   the thing the bench is looking for, not the word "colour". */
+.spec dd.specval{font-size:1.02rem}
+
+/* Something the person has to take in before they carry on. Louder than a note
+   and quieter than a refusal — a spec that changed under a piece already being
+   made is the one message on this screen that cannot be skimmed past. */
+.alert{border-radius:var(--r);padding:12px 13px;font-size:.88rem;
+  border:1px solid var(--g3);background:var(--g2)}
+.alert.bad{border-color:var(--bad);background:var(--badS);color:var(--bad)}
+.alert.bad .muted,.alert.bad .sub{color:inherit;opacity:.75}
+.alert b{display:block;margin-bottom:2px}
+
+/* A question and the answer under it, as a thread rather than two lists. */
+.qa{border-inline-start:3px solid var(--g3);padding-inline-start:11px;margin-top:11px}
+.qa.open{border-inline-start-color:var(--warn)}
+.qa-q{font-size:.92rem}
+.qa-a{margin-top:6px;font-size:.92rem}
 .strip{display:flex;gap:7px;margin-top:9px}
 .thumb{flex:1;aspect-ratio:1;border-radius:var(--r);background:var(--g2);border:1px solid var(--g3);
   display:flex;align-items:center;justify-content:center;font-size:.68rem;color:var(--g6);
@@ -168,6 +186,14 @@ a{color:var(--p)}
 .empty{text-align:center;padding:44px 20px;color:var(--g6)}
 input,select{width:100%;min-height:54px;padding:0 14px;font-size:1.05rem;border-radius:var(--r);
   border:1px solid var(--g3);background:var(--g1);color:var(--g9)}
+/* Sentences, not values. Same box as an input so a form does not change
+   material halfway down. */
+textarea{width:100%;padding:12px 14px;font:inherit;font-size:1.02rem;line-height:1.5;
+  border-radius:var(--r);border:1px solid var(--g3);background:var(--g1);color:var(--g9);
+  resize:vertical;min-height:76px}
+textarea:focus{outline:none;border-color:var(--p);
+  box-shadow:0 0 0 3px color-mix(in srgb,var(--p) 22%,transparent)}
+textarea::placeholder{color:var(--g6);opacity:.85}
 input:focus,select:focus{outline:none;border-color:var(--p);
   box-shadow:0 0 0 3px color-mix(in srgb,var(--p) 22%,transparent)}
 input::placeholder{color:var(--g6);opacity:.85}

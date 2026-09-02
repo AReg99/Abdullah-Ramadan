@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useApp } from "../app-context";
-import { api, compress, patchCachedStage, ApiError, type Stage, type Person } from "../api";
+import { api, compress, patchCachedStage, ApiError, type JobSpec, type Stage, type Person } from "../api";
 import { enqueue, newId } from "../sync";
 import { REASONS } from "../i18n";
 
@@ -11,7 +11,7 @@ export default function Job() {
   const { id = "" } = useParams();
   const { t, lang, toast } = useApp();
   const nav = useNavigate();
-  const [s, setS] = useState<(Stage & { previousAfterPhoto: string | null; crew: Person[] }) | null>(null);
+  const [s, setS] = useState<(Stage & JobSpec & { previousAfterPhoto: string | null; crew: Person[] }) | null>(null);
   /** Everyone is assumed present; the leader taps whoever is not. */
   const [absent, setAbsent] = useState<Set<string>>(new Set());
   const [mode, setMode] = useState<Mode>("card");
@@ -32,6 +32,10 @@ export default function Job() {
   if (!s) return <div className="empty">{t("loading")}</div>;
 
   const name = (a: string, e: string) => (lang === "ar" ? a : e);
+  const unseen = (s.specChanges ?? []).filter((c) => c.afterStart && !c.seenAt);
+  // The fields the product asks for now, plus any it has since stopped asking
+  // for that this piece was still ordered with.
+  const allSpecs = [...(s.specs ?? []), ...(s.retiredSpecs ?? [])];
   const has = (k: string) => s.photos.some((p) => p.kind === k);
   const elapsed = s.startedAt ? Math.floor((tickNow - new Date(s.startedAt).getTime()) / 1000) : 0;
   const hhmm = (sec: number) =>
@@ -144,12 +148,82 @@ export default function Job() {
             {name(s.workOrder.product.nameAr, s.workOrder.product.nameEn)}
           </div>
         </div>
+        {/* Somebody changed what this is meant to be after it was already on
+            the bench. Loudest thing on the card, above everything, because the
+            whole cost of it is a worker who carries on with the old spec. */}
+        {unseen.length > 0 && (
+          <div className="alert bad" style={{ marginBottom: 12 }}>
+            <b>{t("specChangedTitle")}</b>
+            {unseen.map((c) => (
+              <div key={c.id} style={{ marginTop: 7 }}>
+                <span className="nm">{name(c.nameAr, c.nameEn)}</span>{" "}
+                <span className="muted">{t("specChangeFrom")}</span>{" "}
+                <s>{c.from ?? "—"}</s>{" "}
+                <span className="muted">{t("specChangeTo")}</span>{" "}
+                <b>{c.to}</b>
+                {c.reason && <div className="sub">{t("specChangeWhy")}: {c.reason}</div>}
+                <div className="sub muted">{name(c.by, c.byEn)}</div>
+              </div>
+            ))}
+            <button className="btn sm sec toggle" style={{ marginTop: 10 }} disabled={busy}
+              onClick={async () => {
+                setBusy(true);
+                try { await api.specChangesSeen(unseen.map((c) => c.id)); await load(); }
+                catch { toast("error"); } finally { setBusy(false); }
+              }}>
+              {t("specSeen")}
+            </button>
+          </div>
+        )}
+
+        {/* What the piece is, field by field. This is the part that was one
+            line of grey text and is now the reason the card exists. */}
+        {allSpecs.length > 0 && (
+          <>
+            <dl className="spec">
+              {allSpecs.map((f) => (
+                <span key={f.code} style={{ display: "contents" }}>
+                  <dt>{name(f.nameAr, f.nameEn)}</dt>
+                  <dd className={f.value ? "specval" : "muted"}>
+                    {f.value ? `${f.value}${f.unit ? ` ${f.unit}` : ""}` : t("specNotAnswered")}
+                  </dd>
+                </span>
+              ))}
+            </dl>
+            <div className="divide" />
+          </>
+        )}
+
         <dl className="spec">
-          <dt>{t("spec")}</dt><dd>{s.workOrder.specNotes ?? "—"}</dd>
+          {s.workOrder.specNotes && <><dt>{t("spec")}</dt><dd>{s.workOrder.specNotes}</dd></>}
           <dt>{t("qty")}</dt><dd className="mono">{s.workOrder.qty}</dd>
           {s.workOrder.serial && <><dt>{t("serial")}</dt><dd className="mono">{s.workOrder.serial}</dd></>}
           <dt>{t("std")}</dt><dd><span className="mono">{s.stage.stdMinutes}</span> {t("min")}</dd>
         </dl>
+
+        {/* The drawing the customer actually approved. It lived on the order
+            screen, which nobody at a bench has ever opened. */}
+        {s.attachments?.length > 0 && (
+          <>
+            <div className="divide" />
+            <span className="k">{t("specDrawings")}</span>
+            <div className="strip" style={{ marginTop: 7 }}>
+              {s.attachments.map((a) => (
+                <a key={a.id} href={`/uploads/${a.path}`} target="_blank" rel="noreferrer"
+                   className="thumb" style={{ width: 74, height: 74, overflow: "hidden" }}>
+                  {a.kind === "IMAGE"
+                    ? <img src={`/uploads/${a.path}`} alt={a.filename}
+                           style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                    : <span style={{ fontSize: ".6rem", padding: 4 }}>{a.filename}</span>}
+                </a>
+              ))}
+            </div>
+          </>
+        )}
+
+        {/* Asking, instead of guessing. */}
+        <div className="divide" />
+        <AskShowroom stage={s} onDone={load} />
 
         <div className="divide" />
         <span className="k">{t("stagePhotos")}</span>
@@ -260,5 +334,92 @@ function Thumb({ src, label, dim }: { src?: string; label: string; dim?: boolean
     <div className={`thumb${src ? " has" : ""}`} style={dim ? { opacity: 0.6 } : undefined}>
       {src ? <><img src={`/uploads/${src}`} alt="" /><span className="cap">{label}</span></> : label}
     </div>
+  );
+}
+
+/**
+ * The bench asking the counter what a piece is meant to be.
+ *
+ * The only previous move when something was unclear was to block the stage with
+ * AWAITING_CUSTOMER, which names nobody, carries no question and expects no
+ * answer — so in practice nobody blocked, and the alternative to asking is
+ * guessing. A guess about a colour is a piece made twice.
+ *
+ * Answers are shown here rather than anywhere else, because here is where the
+ * question was asked and here is where the person who asked it will look.
+ */
+function AskShowroom({ stage, onDone }: { stage: any; onDone: () => void }) {
+  const { t, lang, toast } = useApp();
+  const [open, setOpen] = useState(false);
+  const [q, setQ] = useState("");
+  const [blocking, setBlocking] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const name = (a: string, e: string) => (lang === "ar" ? a : e);
+  const questions: any[] = stage.questions ?? [];
+
+  const send = async () => {
+    setBusy(true);
+    try {
+      await api.askSpec({
+        orderLineId: stage.workOrder.orderLineId,
+        workOrderId: stage.workOrder.id,
+        question: q.trim(), blocking,
+      });
+      setQ(""); setBlocking(false); setOpen(false);
+      toast(t("saved"));
+      onDone();
+    } catch (e: any) {
+      toast(e?.code ? t(e.code) : "error");
+    } finally { setBusy(false); }
+  };
+
+  return (
+    <>
+      <span className="k">{t("specAskTitle")}</span>
+
+      {questions.map((x) => (
+        <div key={x.id} className={`qa${x.answer ? "" : " open"}`}>
+          <div className="qa-q">
+            {x.blocking && !x.answer && <span className="pill bad">{t("specBlocking")}</span>}
+            <div>{x.question}</div>
+            <span className="sub muted">{name(x.askedBy, x.askedByEn)} · {t("specAsked")}</span>
+          </div>
+          {x.answer
+            ? (
+              <div className="qa-a">
+                <b>{x.answer}</b>
+                <span className="sub muted">
+                  {name(x.answeredBy ?? "", x.answeredByEn ?? "")} · {t("specAnswered")}
+                </span>
+              </div>
+            )
+            : <div className="qa-a muted">{t("specWaiting")}…</div>}
+        </div>
+      ))}
+
+      {open ? (
+        <div style={{ marginTop: 9 }}>
+          <textarea value={q} onChange={(e) => setQ(e.target.value)} rows={3}
+                    placeholder={t("specQuestion")} />
+          <div className="row wrap" style={{ marginTop: 9 }}>
+            <button className={`btn sm toggle ${blocking ? "dang" : "sec"}`}
+                    onClick={() => setBlocking(!blocking)}>
+              {t("specBlocking")}
+            </button>
+            <button className="btn pri sm toggle" disabled={busy || q.trim().length < 3}
+                    onClick={send}>
+              {t("specAsk")}
+            </button>
+            <button className="btn sec sm toggle" onClick={() => setOpen(false)}>
+              {t("cancel")}
+            </button>
+          </div>
+        </div>
+      ) : (
+        <button className="btn sec sm" style={{ marginTop: 9 }} onClick={() => setOpen(true)}>
+          {t("specAskTitle")}
+        </button>
+      )}
+    </>
   );
 }

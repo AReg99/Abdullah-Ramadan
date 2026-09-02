@@ -84,7 +84,14 @@ export default async function workRoutes(app: FastifyInstance) {
         workOrder: { include: {
           // The reference picture: what the finished piece should look like.
           product: { include: { photos: { orderBy: { sortOrder: "asc" }, take: 1 } } },
-          orderLine: { include: { order: true } }, labels: true } },
+          orderLine: { include: {
+            order: true,
+            // A change that landed after this piece was already on the bench,
+            // which nobody on the floor has taken in yet. This is the thing
+            // the worker most needs to know and least expects to be told.
+            specChanges: { where: { seenAt: null, afterStart: true }, select: { id: true } },
+            questions: { where: { answeredAt: null }, select: { id: true } },
+          } }, labels: true } },
         photos: true,
         workers: { include: { user: true } },
       },
@@ -103,7 +110,14 @@ export default async function workRoutes(app: FastifyInstance) {
         workOrder: { include: {
           // The reference picture: what the finished piece should look like.
           product: { include: { photos: { orderBy: { sortOrder: "asc" }, take: 1 } } },
-          orderLine: { include: { order: true } }, labels: true } },
+          orderLine: { include: {
+            order: true,
+            // A change that landed after this piece was already on the bench,
+            // which nobody on the floor has taken in yet. This is the thing
+            // the worker most needs to know and least expects to be told.
+            specChanges: { where: { seenAt: null, afterStart: true }, select: { id: true } },
+            questions: { where: { answeredAt: null }, select: { id: true } },
+          } }, labels: true } },
         photos: true,
         workers: { include: { user: true } },
       },
@@ -119,10 +133,65 @@ export default async function workRoutes(app: FastifyInstance) {
       where: { groupId: user.groupId ?? "-", isActive: true, canLogin: false },
       orderBy: { nameAr: "asc" },
     });
+    /**
+     * Everything about what this piece is meant to be, in the one place the
+     * person making it is already looking.
+     *
+     * Before this the card carried a single line of free text and the product's
+     * catalogue photo. The drawing the customer actually approved lived on the
+     * order, where nobody at a bench has ever looked, and a spec change lived
+     * in a telephone call.
+     */
+    const line = await db.orderLine.findUnique({
+      where: { id: s.workOrder.orderLineId },
+      include: {
+        specs: true,
+        specChanges: { orderBy: { createdAt: "desc" }, take: 10, include: { actor: true } },
+        questions: {
+          orderBy: { askedAt: "desc" }, take: 20,
+          include: { askedBy: true, answeredBy: true },
+        },
+        order: { include: { attachments: { orderBy: { uploadedAt: "desc" } } } },
+      },
+    });
+    const fields = await db.specField.findMany({
+      where: { productId: s.workOrder.productId, isActive: true },
+      orderBy: { position: "asc" },
+    });
+    const byCode = new Map((line?.specs ?? []).map((x) => [x.fieldCode, x]));
+
     return {
       ...view(s),
       previousAfterPhoto: prev?.photos.find((p) => p.kind === "AFTER")?.path ?? null,
       crew: crew.map((c) => ({ id: c.id, nameAr: c.nameAr, nameEn: c.nameEn })),
+      specs: fields.map((f) => ({
+        code: f.code, nameAr: f.nameAr, nameEn: f.nameEn, unit: f.unit,
+        value: byCode.get(f.code)?.valueAr ?? "",
+      })),
+      // Answers to fields the product has since stopped asking for. This piece
+      // was still ordered with them, so the bench still needs to see them.
+      retiredSpecs: (line?.specs ?? [])
+        .filter((x) => !fields.some((f) => f.code === x.fieldCode))
+        .map((x) => ({ code: x.fieldCode, nameAr: x.labelAr, nameEn: x.labelEn,
+                       unit: null, value: x.valueAr })),
+      specChanges: (line?.specChanges ?? []).map((c) => ({
+        id: c.id, nameAr: c.labelAr, nameEn: c.labelEn,
+        from: c.fromAr, to: c.toAr, reason: c.reason,
+        afterStart: c.afterStart, seenAt: c.seenAt,
+        by: c.actor.nameAr, byEn: c.actor.nameEn, at: c.createdAt,
+      })),
+      questions: (line?.questions ?? []).map((q) => ({
+        id: q.id, question: q.question, blocking: q.blocking,
+        askedBy: q.askedBy.nameAr, askedByEn: q.askedBy.nameEn, askedAt: q.askedAt,
+        answer: q.answer,
+        answeredBy: q.answeredBy?.nameAr ?? null, answeredByEn: q.answeredBy?.nameEn ?? null,
+        answeredAt: q.answeredAt,
+      })),
+      // The drawing the customer signed off, which never used to leave the
+      // order screen.
+      attachments: (line?.order.attachments ?? []).map((a) => ({
+        id: a.id, kind: a.kind, filename: a.filename, path: a.path, note: a.note,
+      })),
     };
   });
 
@@ -360,6 +429,14 @@ const view = (s: any) => ({
       promisedDate: s.workOrder.orderLine.order.promisedDate,
     },
     specNotes: s.workOrder.orderLine.specNotes,
+    orderLineId: s.workOrder.orderLineId,
+    /**
+     * Somebody changed what this piece is meant to be after it was already
+     * being made. Carried on the list as well as the card: a worker who has to
+     * open a job to find out it changed will find out after they have made it.
+     */
+    specAlert: (s.workOrder.orderLine.specChanges ?? []).length,
+    openQuestions: (s.workOrder.orderLine.questions ?? []).length,
   },
   photos: (s.photos ?? []).map((p: any) => ({ id: p.id, kind: p.kind, path: p.path })),
   workers: (s.workers ?? []).map((w: any) => ({
