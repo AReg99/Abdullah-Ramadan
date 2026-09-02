@@ -198,6 +198,19 @@ input.mono{font-family:"IBM Plex Mono",monospace}
 
 /* ---- unit labels ---- */
 .labelsheet{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:10px}
+/* One label, plus the row above it for choosing. The choosing row lives on the
+   app's own surface rather than on the sticker, so nothing about picking a
+   label changes what gets printed on it. */
+.labelpick{display:flex;flex-direction:column;gap:6px;break-inside:avoid}
+.labelpick.hide{display:none}
+.labelbar{display:flex;align-items:center;gap:8px;width:100%;padding:7px 9px;
+  border:1px solid var(--g3);border-radius:var(--r);background:var(--g1);
+  color:var(--g9);font-size:.76rem;min-height:44px}
+.labelpick.on .labelbar{border-color:var(--p);background:var(--muted)}
+.labelbar .box{width:22px;height:22px;flex:none;border-radius:6px;border:1.5px solid var(--g3);
+  background:var(--g1);display:flex;align-items:center;justify-content:center;
+  font-size:.8rem;font-weight:700;color:var(--on)}
+.labelpick.on .labelbar .box{background:var(--p);border-color:var(--p)}
 .label{display:flex;gap:12px;align-items:center;background:#fff;color:#111;
   border:1px solid #bbb;border-radius:6px;padding:10px}
 .label-txt{display:flex;flex-direction:column;gap:2px;font-size:.76rem;min-width:0}
@@ -216,6 +229,11 @@ input.mono{font-family:"IBM Plex Mono",monospace}
   body,.shell{background:#fff;border:0}
   .labelsheet{grid-template-columns:repeat(3,1fr)}
   .label{break-inside:avoid}
+  /* What comes out of the printer is what was ticked — including a label the
+     filter has since hidden from the screen, which is otherwise a silent way
+     to lose half a batch. */
+  .labelpick{display:flex !important}
+  .labelpick:not(.on){display:none !important}
 }
 /* ---- sync banner ---- */
 .syncbar{display:flex;align-items:center;gap:8px;justify-content:center;padding:7px 12px;

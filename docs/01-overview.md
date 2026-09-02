@@ -104,3 +104,29 @@ removed at installation.
 Every scan of that label is a tracking event with a station, an actor, and a
 timestamp. This single mechanism is what makes "follow everything" true rather
 than aspirational — and it is why the worker app must be two taps, not a form.
+
+### Printing them
+
+A label is created with the work order, but it is not printed then — printing
+is a choice made at the printer, and the Labels screen is where it is made.
+
+Pick the ones you want by ticking them. Narrow the list first if it is long:
+search by serial, customer or product, filter to one order, or filter to the
+ones **not printed yet** — which after the first run is usually the whole job.
+"Select shown" ticks everything the filter left. Only the ticked labels go to
+the printer; the rest are not on the sheet.
+
+Two behaviours worth knowing:
+
+- **A ticked label prints even if the filter has since hidden it.** Narrowing
+  the list after ticking must not silently drop half a batch, so it does not —
+  and the screen says how many are ticked but out of sight.
+- **Marking is the operator's word, not the browser's.** Nothing can tell the
+  app whether paper actually came out, so after the print dialog closes it
+  asks. Say yes and those labels carry a printed date; say no and nothing
+  changes, so a jammed printer does not cost you the batch.
+
+Reprinting is normal — a label soaked in lacquer or torn off in transit gets
+another — so a label already printed can be printed again and its date moves
+forward. `LABEL_PRINTED` is recorded per label either way, so the count of
+reprints on a piece is answerable.

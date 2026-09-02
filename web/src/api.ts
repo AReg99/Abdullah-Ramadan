@@ -106,6 +106,9 @@ export const api = {
     req<any>(`/work/stages/${id}/finish`, { method: "POST", body: JSON.stringify({ clientEventId, occurredAt }) }),
 
   labels: () => req<LabelRow[]>("/labels"),
+  labelsPrinted: (ids: string[]) =>
+    req<{ printedAt: string; count: number; missing: string[] }>("/labels/printed",
+      { method: "POST", body: JSON.stringify({ ids }) }),
 
   // ---- setup & order entry ----
   stations: () => req<Station[]>("/admin/stations"),
