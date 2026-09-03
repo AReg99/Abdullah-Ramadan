@@ -6,26 +6,8 @@ import fastifyStatic from "@fastify/static";
 import path from "node:path";
 import { mkdirSync } from "node:fs";
 import { env } from "./env.js";
-import authRoutes from "./auth/routes.js";
-import workRoutes from "./modules/work/routes.js";
-import photoRoutes from "./modules/photos/routes.js";
-import dashboardRoutes from "./modules/dashboard/routes.js";
-import flowRoutes from "./modules/flow/routes.js";
-import moneyRoutes from "./modules/money/routes.js";
-import orderRoutes from "./modules/orders/routes.js";
-import labelRoutes from "./modules/labels/routes.js";
-import adminRoutes from "./modules/admin/routes.js";
-import settingsRoutes from "./modules/settings/routes.js";
-import stockRoutes from "./modules/stock/routes.js";
-import qualityRoutes from "./modules/quality/routes.js";
-import deliveryRoutes from "./modules/delivery/routes.js";
-import purchasingRoutes from "./modules/purchasing/routes.js";
-import approvalRoutes from "./modules/approvals/routes.js";
-import planningRoutes from "./modules/planning/routes.js";
-import serviceRoutes from "./modules/service/routes.js";
-import leadRoutes from "./modules/leads/routes.js";
-import costingRoutes from "./modules/costing/routes.js";
-import specRoutes from "./modules/spec/routes.js";
+import kernelRoutes from "./kernel/routes.js";
+import { loadModules } from "./kernel/registry.js";
 
 export async function build() {
   const app = Fastify({ logger: { level: "warn" } });
@@ -71,28 +53,15 @@ export async function build() {
 
   app.get("/health", async () => ({ ok: true }));
 
-  // Modular monolith: each module owns its tables and is reached only through
-  // its routes and services. The seams are here if one ever needs extracting.
-  await app.register(authRoutes);
-  await app.register(workRoutes);
-  await app.register(photoRoutes);
-  await app.register(dashboardRoutes);
-  await app.register(orderRoutes);
-  await app.register(flowRoutes);
-  await app.register(moneyRoutes);
-  await app.register(labelRoutes);
-  await app.register(adminRoutes);
-  await app.register(settingsRoutes);
-  await app.register(stockRoutes);
-  await app.register(qualityRoutes);
-  await app.register(deliveryRoutes);
-  await app.register(purchasingRoutes);
-  await app.register(approvalRoutes);
-  await app.register(planningRoutes);
-  await app.register(serviceRoutes);
-  await app.register(leadRoutes);
-  await app.register(costingRoutes);
-  await app.register(specRoutes);
+  /**
+   * The apps, in dependency order, and only the ones this business installed.
+   *
+   * An uninstalled app registers nothing at all — no route to reach and no
+   * screen to find — which is the difference between switching a feature off
+   * and merely hiding it.
+   */
+  await app.register(kernelRoutes);
+  await loadModules(app);
 
   return app;
 }

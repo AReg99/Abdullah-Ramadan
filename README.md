@@ -94,6 +94,7 @@ web/   React + Vite — worker app and owner console, RTL-first
 | [21 — Cost accounting](docs/21-cost-accounting.md) | What a piece really costs, the margin on it, and telling the counter when a price moves |
 | [22 — Promise dates](docs/22-promise-dates.md) | A delivery date built from the real queue, and a warning before a promise slips |
 | [23 — The spec](docs/23-the-spec.md) | What a piece is meant to be, how the factory is told, and what happens when it changes |
+| [24 — The apps](docs/24-the-apps.md) | A kernel and fifteen apps: what each owns, what it needs, and switching one off |
 | [**User guide**](docs/guide/README.md) | How to actually use the app, one short guide per role, in Arabic and English |
 
 ## Design principles

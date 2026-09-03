@@ -288,3 +288,62 @@ export const APPROVE = ["OWNER"];
 export const LIMITS = ["OWNER"];
 
 export const seesMoney = (roleKey: string) => MONEY.includes(roleKey);
+
+// ---------------------------------------------------------------- menu scopes
+//
+// Every screen a module puts in somebody's menu names its audience here rather
+// than listing roles at the menu entry. The registry refuses to boot on a menu
+// whose roles are not one of these constants — which is what finally kills the
+// bug this file exists for: a nav offering a screen the server then refuses.
+// Nine of these are new only because the old nav listed its roles by hand,
+// twelve times over, and nobody had ever had to name what they had in common.
+
+/**
+ * Whoever stands at a station with a piece in their hands. The leader carries
+ * the phone for a crew, the inspector carries it for a gate; both work from a
+ * scanned label rather than from a list of orders.
+ */
+export const BENCH = ["GROUP_LEADER", "QC"];
+
+/**
+ * Anything a person might need to set up. Not one screen — the owner's is the
+ * whole business, the showroom manager's is the catalogue, the cost
+ * accountant's is the rates. What they share is that Setup has a tab for them.
+ */
+export const CONFIGURE = [...new Set([...SETUP, "FACTORY_MANAGER", "COST_ACCOUNTANT",
+                                      "SHOWROOM_MANAGER", "SALES_REP"])];
+
+/** Reading what a piece costs, or being told a price moved. */
+export const READ_COSTING = [...new Set([...COSTING, ...SELL,
+                                         "FACTORY_MANAGER", "ACCOUNTANT"])];
+
+/** Reading the store: what is on the shelf and what it is worth. */
+export const READ_STOCK = [...new Set([...STOCK_ADMIN, "PRODUCTION_MANAGER",
+                                       "STOREKEEPER", "SHOWROOM_MANAGER"])];
+
+/** Loading the van and driving it. */
+export const DELIVERY_RUN = ["OWNER", "SHOWROOM_MANAGER", "DRIVER"];
+
+/**
+ * The after-sales screen's audience: anyone who deals with a piece already in a
+ * customer's house. Written out rather than derived from SERVICE, which
+ * includes the accountant — a complaint is not a transaction, and its cost
+ * reaches them through the books like everything else.
+ */
+export const READ_SERVICE = ["OWNER", "FACTORY_MANAGER", "PRODUCTION_MANAGER",
+                             "SHOWROOM_MANAGER", "SALES_REP", "DRIVER"];
+
+/**
+ * The two ends of the counter-to-bench handover: the floor that asks and the
+ * counter that answers. Not the bench itself — a leader asks from the job card
+ * in their hand, not from a board of every open question in the factory.
+ */
+export const SPEC_DESK = [...new Set([...PRODUCTION, ...SELL])];
+
+/**
+ * Whose screen the approvals inbox is: the counter that runs into a discount
+ * ceiling, the owner who answers, and the accountant who has to explain the
+ * month's overrides. Reading a request is open to anyone signed in — this is
+ * only about whose menu carries the tab.
+ */
+export const SEES_APPROVALS = [...new Set([...SELL, "ACCOUNTANT"])];

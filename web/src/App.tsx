@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Navigate, Route, Routes, NavLink, useLocation } from "react-router-dom";
 import { useApp } from "./app-context";
-import { api } from "./api";
+import { api, type MenuEntry } from "./api";
 import { Wordmark } from "./logo";
 import Login from "./screens/Login";
 import Work from "./screens/Work";
@@ -44,103 +44,14 @@ import { startSyncLoop } from "./sync";
 type Tab = [string, string, string];
 
 /**
- * What each role gets, rather than one "office" bucket for everyone. The bucket
- * was wrong in both directions: a showroom manager fell through it into the
- * group leader's shop-floor nav and could not do their job at all, and an
- * accountant was handed the setup screens.
- *
- * Roles not listed here work on the floor and get the leader's three tabs.
- */
-const NAVS: Record<string, Tab[]> = {
-  OWNER: [
-    ["/summary", "◈", "summary"],
-    ["/today", "◧", "today"], ["/floor", "▦", "floor"], ["/planning", "≡", "planning"],
-    ["/dispatch", "⇥", "dispatch"], ["/showroom", "⌂", "showroom"], ["/orders", "▤", "orders"], ["/new-order", "✎", "newOrder"],
-    ["/labels", "⌗", "labels"], ["/stock", "▥", "stock"], ["/money", "₤", "money"],
-    ["/attendance", "✓", "attendance"], ["/payroll", "☰", "payroll"],
-    ["/quality", "◎", "quality"], ["/run", "⇢", "run"],
-    ["/purchasing", "⇩", "purchasing"], ["/approvals", "✓", "approvals"],
-    ["/leads", "☏", "leadsTab"], ["/service", "⚒", "service"],
-    ["/costing", "%", "costing"], ["/spec", "◫", "specTab"], ["/setup", "⚙", "setup"],
-  ],
-  // Runs the factory. Not the business: setup and order entry are the owner's,
-  // and the showroom's, and money never appears on these screens.
-  FACTORY_MANAGER: [
-    ["/today", "◧", "today"], ["/floor", "▦", "floor"], ["/planning", "≡", "planning"],
-    ["/dispatch", "⇥", "dispatch"],
-    ["/orders", "▤", "orders"], ["/labels", "⌗", "labels"], ["/stock", "▥", "stock"],
-    ["/attendance", "✓", "attendance"], ["/quality", "◎", "quality"],
-    ["/purchasing", "⇩", "purchasing"], ["/service", "⚒", "service"],
-    ["/costing", "%", "costing"], ["/spec", "◫", "specTab"], ["/setup", "⚙", "setup"],
-  ],
-  // Plans the work rather than running the plant. No setup, no staff form, no
-  // money: the queue, the load, and everything needed to judge them — what is
-  // on the floor, who turned up, what quality is sending back, and what the
-  // store is running out of.
-  PRODUCTION_MANAGER: [
-    ["/planning", "≡", "planning"], ["/today", "◧", "today"], ["/floor", "▦", "floor"],
-    ["/orders", "▤", "orders"], ["/dispatch", "⇥", "dispatch"], ["/labels", "⌗", "labels"],
-    ["/quality", "◎", "quality"], ["/attendance", "✓", "attendance"],
-    ["/stock", "▥", "stock"], ["/purchasing", "⇩", "purchasing"],
-    ["/service", "⚒", "service"], ["/spec", "◫", "specTab"],
-  ],
-  // Works out what a piece takes to make and what it therefore has to sell
-  // for. The catalogue and the store's costs are theirs; the cash box is the
-  // accountant's, and hiring is nobody's but the owner's.
-  COST_ACCOUNTANT: [
-    ["/costing", "%", "costing"], ["/stock", "▥", "stock"],
-    ["/setup", "⚙", "setup"],
-  ],
-  SUPERVISOR: [
-    ["/today", "◧", "today"], ["/floor", "▦", "floor"], ["/dispatch", "⇥", "dispatch"],
-    ["/orders", "▤", "orders"], ["/labels", "⌗", "labels"],
-    ["/attendance", "✓", "attendance"], ["/quality", "◎", "quality"],
-    ["/purchasing", "⇩", "purchasing"], ["/spec", "◫", "specTab"],
-  ],
-  // The dispatch board is their queue, and a scanned label names the piece in
-  // their hand. The whole order book is not part of the job.
-  STOREKEEPER: [["/dispatch", "⇥", "dispatch"], ["/stock", "▥", "stock"],
-                ["/purchasing", "⇩", "purchasing"], ["/labels", "⌗", "labels"]],
-  SHOWROOM_MANAGER: [["/showroom", "⌂", "showroom"], ["/run", "⇢", "run"],
-                     ["/orders", "▤", "orders"], ["/new-order", "✎", "newOrder"],
-                     ["/leads", "☏", "leadsTab"], ["/stock", "▥", "stock"],
-                     ["/service", "⚒", "service"], ["/costing", "%", "cost_changes"],
-                     ["/spec", "◫", "specTab"],
-                     ["/approvals", "✓", "approvals"], ["/setup", "⚙", "setup"]],
-  SALES_REP: [["/leads", "☏", "leadsTab"], ["/showroom", "⌂", "showroom"],
-              ["/orders", "▤", "orders"], ["/new-order", "✎", "newOrder"],
-              ["/spec", "◫", "specTab"],
-              ["/costing", "%", "cost_changes"], ["/service", "⚒", "service"],
-              ["/approvals", "✓", "approvals"], ["/setup", "⚙", "setup"]],
-  // On the road between the factory and the showroom: what is on the van, and
-  // signing it in when it lands.
-  DRIVER: [["/run", "⇢", "run"], ["/service", "⚒", "service"],
-           ["/showroom", "⌂", "showroom"]],
-  // Not the ops dashboard — that is guarded to production roles, and pointing
-  // the accountant at it landed them on a 403 the moment they signed in.
-  // The books are the whole job: the cash box, the invoices, what is owed.
-  ACCOUNTANT: [["/summary", "◈", "summary"], ["/money", "₤", "money"],
-               ["/costing", "%", "costing"], ["/leads", "☏", "leadsTab"],
-               ["/payroll", "☰", "payroll"], ["/attendance", "✓", "attendance"],
-               ["/stock", "▥", "stock"], ["/purchasing", "⇩", "purchasing"],
-               ["/approvals", "✓", "approvals"], ["/orders", "▤", "orders"]],
-  // QC stands at a station like a leader does, so they get the floor tabs.
-  QC: [["/work", "▤", "work"], ["/scan", "⌗", "scan"],
-       ["/quality", "◎", "quality"], ["/myday", "◔", "myday"]],
-};
-
-const FLOOR: Tab[] = [["/work", "▤", "work"], ["/scan", "⌗", "scan"], ["/myday", "◔", "myday"]];
-
-/**
  * Five tabs, and everything else behind one more.
  *
- * The owner's nav had grown to twenty-one. A phone shows about five, so the
- * other sixteen lived in a horizontal scroll nobody knew to drag — screens that
- * exist, that the person is entitled to, and that they will never find.
+ * The owner's nav had grown to twenty-two. A phone shows about five, so the
+ * rest lived in a horizontal scroll nobody knew to drag — screens that exist,
+ * that the person is entitled to, and that they will never find.
  *
- * The first four of a role's list are their day; the fifth button opens the
- * whole index. The order inside NAVS is already deliberate, so nothing else has
- * to be decided here.
+ * The first four of a person's screens are their day; the fifth button opens
+ * the whole index. The order comes from the modules themselves.
  */
 const DAILY = 4;
 
@@ -162,6 +73,11 @@ const AREA: Record<string, string> = {
   "/stock": "area_store", "/purchasing": "area_store",
   "/setup": "area_admin",
 };
+/**
+ * The order the index groups appear in. Which group a screen belongs to is
+ * declared by the module that owns the screen, not listed here — that list was
+ * a second copy of the nav and drifted from it like the first one did.
+ */
 const AREAS = ["area_floor", "area_sell", "area_store", "area_money", "area_admin"];
 
 export default function App() {
@@ -173,8 +89,23 @@ export default function App() {
   const [priceNews, setPriceNews] = useState(0);
   const [specNews, setSpecNews] = useState(0);
   const [more, setMore] = useState(false);
+  /**
+   * The screens this person may open, as the server declares them.
+   *
+   * This used to be a hand-kept array per role in this file, and it drifted
+   * from what the API would actually serve six separate times — a tab offered
+   * to somebody the server then refused. Now each app declares its own menu
+   * beside its own routes, filtered by the same scope that guards them, so the
+   * two cannot disagree.
+   */
+  const [menu, setMenu] = useState<MenuEntry[] | null>(null);
 
   useEffect(() => { setMore(false); }, [loc.pathname]);
+
+  useEffect(() => {
+    if (!me) { setMenu(null); return; }
+    api.menu().then(setMenu).catch(() => setMenu([]));
+  }, [me?.id]);
 
   useEffect(() => {
     const off = onSyncChange((n, on) => { setPending(n); setOnline(on); });
@@ -230,9 +161,14 @@ export default function App() {
   if (!ready) return <div className="empty">{t("loading")}</div>;
   if (!me) return <Login />;
 
-  const tabs = NAVS[me.role] ?? FLOOR;
-  const office = tabs !== FLOOR;
-  const home = tabs[0][0];
+  if (!menu) return <div className="empty">{t("loading")}</div>;
+
+  const tabs: Tab[] = menu.map((e) => [e.path, e.icon, e.labelKey]);
+  const areaOf = (path: string) =>
+    menu.find((e) => e.path === path)?.area ?? "area_admin";
+  // The floor's three screens fit a phone; an office nav needs the wide shell.
+  const office = tabs.length > 3 || tabs.some(([p]) => p === "/setup");
+  const home = tabs.length ? tabs[0][0] : "/account";
 
   const badgeOf = (to: string) =>
     to === "/approvals" ? waiting
@@ -304,7 +240,8 @@ export default function App() {
       </div>
 
       {more && (
-        <MoreSheet tabs={tabs} badgeOf={badgeOf} onClose={() => setMore(false)} />
+        <MoreSheet tabs={tabs} areaOf={areaOf} badgeOf={badgeOf}
+                   onClose={() => setMore(false)} />
       )}
 
       <div className="nav">
@@ -342,14 +279,17 @@ export default function App() {
  * Including the four already on the bar: this is a map, and a map with holes in
  * it sends people back to hunting.
  */
-function MoreSheet({ tabs, badgeOf, onClose }: {
-  tabs: Tab[]; badgeOf: (to: string) => number; onClose: () => void;
+function MoreSheet({ tabs, areaOf, badgeOf, onClose }: {
+  tabs: Tab[]; areaOf: (to: string) => string;
+  badgeOf: (to: string) => number; onClose: () => void;
 }) {
   const { t } = useApp();
   const groups = AREAS
-    .map((area) => [area, tabs.filter(([to]) => (AREA[to] ?? "area_admin") === area)] as const)
+    .map((area) => [area, tabs.filter(([to]) => areaOf(to) === area)] as const)
     .filter(([, list]) => list.length > 0);
-  const loose = tabs.filter(([to]) => !AREA[to]);
+  // A screen whose module named a group this shell does not know about still
+  // has to appear somewhere.
+  const loose = tabs.filter(([to]) => !AREAS.includes(areaOf(to)));
 
   return (
     <div className="sheet" onClick={onClose}>

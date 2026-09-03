@@ -58,6 +58,21 @@ const ROUTE: [string, string, string, string, number, boolean, PhotoRule, PhotoR
  * creates what is absent — it never edits or removes anything already there.
  */
 async function ensureBaseline() {
+  // A row per app this release knows about, so the Apps screen has something to
+  // show and an upgrade that adds one does not leave it invisible. Existing
+  // rows are never touched: whether an app is switched on is the owner's
+  // decision, and a deploy must not quietly reverse it.
+  const { MODULES } = await import("../src/kernel/modules.js");
+  let addedModules = 0;
+  for (const m of MODULES) {
+    const seen = await db.module.findUnique({ where: { key: m.key } });
+    if (!seen) {
+      await db.module.create({ data: { key: m.key, installed: true, installedAt: new Date() } });
+      addedModules++;
+    }
+  }
+  if (addedModules) console.log(`  registered ${addedModules} app(s)`);
+
   // The books need somewhere for money to land; without an account the first
   // deposit anyone tries to take has nowhere to go.
   const accounts = [

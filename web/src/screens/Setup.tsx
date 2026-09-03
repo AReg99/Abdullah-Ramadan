@@ -1,9 +1,9 @@
 import { useEffect, useState } from "react";
 import { useApp } from "../app-context";
-import { api, type GroupRow, type LocationRow, type PersonRow, type ProductPhoto,
+import { api, type ModuleRow, type GroupRow, type LocationRow, type PersonRow, type ProductPhoto,
          type ProductRow, type RoleLimitRow, type Station } from "../api";
 
-type Tab = "crews" | "staff" | "products" | "company" | "limits";
+type Tab = "crews" | "staff" | "products" | "company" | "limits" | "apps";
 
 /**
  * Where the business puts its own people and catalogue in.
@@ -92,6 +92,8 @@ export default function Setup() {
                     onClick={() => setTab("company")}>{t("companyTab")}</button>
             <button className={`btn sm ${tab === "limits" ? "pri" : "sec"}`}
                     onClick={() => setTab("limits")}>{t("limitsTab")}</button>
+            <button className={`btn sm ${tab === "apps" ? "pri" : "sec"}`}
+                    onClick={() => setTab("apps")}>{t("appsTab")}</button>
           </>
         )}
       </div>
@@ -103,6 +105,7 @@ export default function Setup() {
       {tab === "products" && catalogue && <Products products={products} cats={cats} busy={busy} run={run} nm={nm} />}
       {tab === "company" && owner && <Company />}
       {tab === "limits" && owner && <Limits />}
+      {tab === "apps" && owner && <Apps />}
     </>
   );
 }
@@ -985,5 +988,87 @@ function RoleCard({ r, ar, t, toast, onDone }: {
                 }}>{t("save")}</button>
       )}
     </div>
+  );
+}
+
+/**
+ * الأبليكيشنات — which apps this business runs.
+ *
+ * The system is a kernel plus a set of apps, and a workshop that buys
+ * everything for cash has no use for purchasing in every menu it owns.
+ * Switching one off is not hiding it: an uninstalled app registers no routes at
+ * all, so there is no screen to find and no endpoint to reach.
+ */
+function Apps() {
+  const { t, lang, toast } = useApp();
+  const [rows, setRows] = useState<ModuleRow[] | null>(null);
+  const [busy, setBusy] = useState("");
+  const [restart, setRestart] = useState(false);
+
+  const load = () => api.modules().then(setRows).catch(() => setRows([]));
+  useEffect(() => { load(); }, []);
+  if (!rows) return <p className="note">{t("loading")}</p>;
+
+  const nm = (ar: string, en: string) => (lang === "ar" ? ar : en);
+  const nameOf = (key: string) => {
+    const m = rows.find((r) => r.key === key);
+    return m ? nm(m.nameAr, m.nameEn) : key;
+  };
+
+  const flip = async (m: ModuleRow) => {
+    setBusy(m.key);
+    try {
+      const r = await api.setModule(m.key, !m.installed);
+      if (r.restartRequired) setRestart(true);
+      toast(t("saved"));
+      await load();
+    } catch (e: any) {
+      // Name what is in the way rather than refusing blankly.
+      if (e?.code === "module_needed_by") {
+        const who = (e.detail?.blockers ?? []).map(nameOf).join(" · ");
+        toast(`${t("module_needed_by")}: ${who}`);
+      } else toast(e?.code ? t(e.code) : "error");
+    } finally { setBusy(""); }
+  };
+
+  return (
+    <>
+      <p className="note" style={{ marginTop: 0 }}>{t("appsHint")}</p>
+      {restart && (
+        <div className="alert bad" style={{ marginBottom: 12 }}>
+          <b>{t("appsRestart")}</b>
+        </div>
+      )}
+      {rows.map((m) => (
+        <div className="card" key={m.key} style={{ marginBottom: 10 }}>
+          <div className="between">
+            <span style={{ flex: 1 }}>
+              <span className="nm">{nm(m.nameAr, m.nameEn)}</span>
+              <span className="sub">{nm(m.summaryAr, m.summaryEn)}</span>
+            </span>
+            {m.required
+              ? <span className="pill pri">{t("appAlways")}</span>
+              : <button className={`btn sm toggle ${m.installed ? "dang" : "pri"}`}
+                        disabled={busy === m.key}
+                        onClick={() => flip(m)}>
+                  {m.installed ? t("appOff") : t("appOn")}
+                </button>}
+          </div>
+          <div className="row wrap" style={{ marginTop: 8, alignItems: "center" }}>
+            {m.stranded && <span className="pill bad">{t("appStranded")}</span>}
+            {m.depends.length > 0 && (
+              <span className="sub">
+                {t("appNeeds")}: {m.depends.map(nameOf).join(" · ")}
+              </span>
+            )}
+            {m.screens > 0 && (
+              <span className="sub muted">
+                {m.screens === 1 ? t("appScreenOne") : `${m.screens} ${t("appScreens")}`}
+              </span>
+            )}
+          </div>
+        </div>
+      ))}
+    </>
   );
 }

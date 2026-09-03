@@ -105,6 +105,17 @@ export const api = {
   finish: (id: string, clientEventId?: string, occurredAt?: string) =>
     req<any>(`/work/stages/${id}/finish`, { method: "POST", body: JSON.stringify({ clientEventId, occurredAt }) }),
 
+  // ---- the apps this business runs ----
+  /**
+   * The screens this person may open. Cached, because a leader who opens the
+   * app in a workshop with no signal still needs a nav.
+   */
+  menu: () => cachedGet<MenuEntry[]>("/modules/menu", "menu"),
+  modules: () => req<ModuleRow[]>("/modules"),
+  setModule: (key: string, installed: boolean) =>
+    req<{ key: string; installed: boolean; restartRequired: boolean }>(`/modules/${key}`,
+      { method: "POST", body: JSON.stringify({ installed }) }),
+
   labels: () => req<LabelRow[]>("/labels"),
 
   // ---- the spec: what a piece is meant to be ----
@@ -540,6 +551,14 @@ export type NewOrder = { customerId?: string; customerName?: string; customerPho
     discount?: number; warehouseId?: string; specNotes?: string; lineKind?: string;
     /** Keyed by the product's own field codes. A blank required one is refused. */
     specs?: Record<string, string> }[] };
+/** One screen in somebody's menu, as the server declares it. */
+export type MenuEntry = { module: string; path: string; icon: string;
+  labelKey: string; area: string; order: number };
+export type ModuleRow = { key: string; nameAr: string; nameEn: string;
+  summaryAr: string; summaryEn: string; depends: string[]; required: boolean;
+  installed: boolean; stranded: boolean; loaded: boolean;
+  neededBy: string[]; screens: number };
+
 export type SpecKind = "CHOICE" | "TEXT" | "NUMBER";
 export type SpecOptionRow = { nameAr: string; nameEn: string };
 export type SpecFieldRow = { id: string; code: string; nameAr: string; nameEn: string;

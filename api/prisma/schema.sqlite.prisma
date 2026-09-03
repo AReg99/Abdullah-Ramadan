@@ -1586,3 +1586,25 @@ model SpecQuestion {
   @@index([answeredAt, blocking])
   @@index([orderLineId, askedAt])
 }
+
+// ------------------------------------------------------------- the app registry
+
+/// Which apps this business has switched on.
+///
+/// The system is a set of apps over a shared kernel — catalogue, sales,
+/// manufacturing, purchasing, accounting and so on — and a business that does
+/// not buy anything on credit has no use for the purchasing app cluttering
+/// every menu it owns. A module that is not installed does not register its
+/// routes at all, so an uninstalled app is absent rather than merely hidden:
+/// there is no screen to find and no endpoint to reach.
+///
+/// A row per known module, seeded on every start. Absent means "never seen",
+/// which is treated as installed — an upgrade that adds an app must not switch
+/// it on silently for a business that has not asked for it, but nor may it
+/// leave an existing deployment missing something it has been using.
+model Module {
+  key         String    @id
+  installed   Boolean   @default(true)
+  installedAt DateTime?
+  updatedAt   DateTime  @updatedAt
+}
