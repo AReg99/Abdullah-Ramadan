@@ -2,6 +2,12 @@ import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { useApp } from "../app-context";
 import { api, type CashAccount, type OrderDetail as OD } from "../api";
+import { Chatter, StatusBar, type ChatterEntry } from "../views";
+import { useCrumb } from "../shell/crumb";
+
+/** The stages an order moves through, for the bar across the top. */
+const ORDER_STAGES = ["DRAFT", "QUOTED", "CONFIRMED", "IN_PRODUCTION",
+                      "READY", "DELIVERED", "CLOSED"];
 
 export default function OrderDetail() {
   const { id = "" } = useParams();
@@ -9,6 +15,7 @@ export default function OrderDetail() {
   const [busy, setBusy] = useState(false);
   const [d, setD] = useState<OD | null>(null);
   useEffect(() => { api.order(id).then(setD).catch(() => {}); }, [id]);
+  useCrumb(d?.code);
   if (!d) return <div className="empty">{t("loading")}</div>;
   const when = (s: string) => new Date(s).toLocaleString(lang === "ar" ? "ar-EG" : "en-GB",
     { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" });
@@ -16,10 +23,13 @@ export default function OrderDetail() {
   return (
     <>
       <div className="card">
-        <div className="between">
+        <div className="between" style={{ marginBottom: 11 }}>
           <b className="mono" style={{ fontSize: "1.1rem" }}>{d.code}</b>
-          <span className="pill pri">{d.status}</span>
         </div>
+        {/* Where this order has got to, at a glance — the question being asked
+            of this screen nine times out of ten. */}
+        <StatusBar current={d.status}
+                   stages={ORDER_STAGES.map((k) => ({ key: k, label: t(`st_${k}` as any) }))} />
         <dl className="spec" style={{ marginTop: 11 }}>
           <dt>{t("customer")}</dt><dd>{d.customer.name}</dd>
           {d.total !== undefined && (
@@ -67,7 +77,7 @@ export default function OrderDetail() {
         <div className="card" key={l.id}>
           <div className="between">
             <b>{lang === "ar" ? l.productAr : l.productEn}</b>
-            <span className="pill">{l.status}</span>
+            <span className="pill">{t(`st_${l.status}` as any)}</span>
           </div>
           {l.workOrders.map((w) => (
             <div key={w.code} style={{ marginTop: 10 }}>
@@ -123,19 +133,25 @@ export default function OrderDetail() {
       )}
 
       <div className="card">
-        <span className="k">{t("timeline")}</span>
-        <div style={{ marginTop: 8 }}>
-          {d.events.map((e) => (
-            <div key={e.id} className="evt">
-              <span className="t">{when(e.occurredAt)}</span>
-              <span>
-                {t(e.code as any)}
-                {e.actor && <span className="muted"> · {lang === "ar" ? e.actor.nameAr : e.actor.nameEn}</span>}
-                {e.payload?.reason && <span className="muted"> · {t(e.payload.reason)}</span>}
-              </span>
-            </div>
-          ))}
-        </div>
+        <Chatter
+          entries={d.events.map((e): ChatterEntry => ({
+            id: e.id,
+            kind: e.code === "NOTE" ? "note" : "event",
+            when: e.occurredAt,
+            who: e.actor ? (lang === "ar" ? e.actor.nameAr : e.actor.nameEn) : null,
+            title: e.code === "NOTE" ? t("logNote") : t(e.code as any),
+            body: e.code === "NOTE"
+              ? (e.payload?.note ?? null)
+              : (e.payload?.reason ? t(e.payload.reason) : null),
+          }))}
+          busy={busy}
+          onNote={async (note) => {
+            setBusy(true);
+            try { await api.addOrderNote(d.id, note); setD(await api.order(id)); toast(t("noteAdded")); }
+            catch (e: any) { toast(e?.code ? t(e.code) : "error"); }
+            finally { setBusy(false); }
+          }}
+        />
       </div>
     </>
   );

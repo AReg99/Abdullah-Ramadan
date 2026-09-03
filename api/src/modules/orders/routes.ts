@@ -20,12 +20,18 @@ export default async function orderRoutes(app: FastifyInstance) {
     const orders = await db.order.findMany({
       where: scoped ? { showroomId: user.locationId } : {},
       orderBy: { createdAt: "desc" },
-      include: { customer: true, lines: { include: { product: true } } },
+      include: { customer: true, showroom: true,
+                 lines: { include: { product: true } } },
     });
     return orders.map((o) => ({
       id: o.id, code: o.code, status: o.status, kind: o.kind,
       customer: o.customer.name, promisedDate: o.promisedDate,
-      ...(money ? { total: Number(o.total) } : {}),
+      // A list has to be sortable and groupable by something other than the
+      // order it happens to come back in.
+      createdAt: o.createdAt,
+      invoiceNo: o.invoiceNo,
+      showroom: o.showroom ? { nameAr: o.showroom.nameAr, nameEn: o.showroom.nameEn } : null,
+      ...(money ? { total: Number(o.total), paidTotal: Number(o.paidTotal) } : {}),
       lines: o.lines.map((l) => ({
         id: l.id, status: l.status, qty: l.qty,
         productAr: l.product.nameAr, productEn: l.product.nameEn,
@@ -84,6 +90,35 @@ export default async function orderRoutes(app: FastifyInstance) {
         station: e.station ? { nameAr: e.station.nameAr, nameEn: e.station.nameEn } : null,
       })),
     };
+  });
+
+  /**
+   * A note on the order.
+   *
+   * The order already carried a complete history — every scan, every stage,
+   * every payment — and no way for a person to add a sentence to it. So the
+   * things that actually explain an order ("customer rang, wants it after the
+   * Eid", "left a message twice") lived in a rep's head or a paper diary, and
+   * the next person to pick the order up had no way to know them.
+   *
+   * It lands in the same event stream as everything else, so it appears in the
+   * history in its right place among the machine's own events rather than in a
+   * separate list nobody reads.
+   */
+  app.post("/orders/:id/notes", { preHandler: guard(READ_ORDERS) }, async (req, reply) => {
+    const { id } = req.params as { id: string };
+    const { note } = z.object({ note: z.string().trim().min(1).max(2000) })
+      .parse(req.body ?? {});
+    const order = await db.order.findUnique({ where: { id }, select: { id: true } });
+    if (!order) return reply.code(404).send({ error: "not_found" });
+    const e = await record({
+      code: "NOTE", entityType: "order", entityId: id, orderId: id,
+      actorId: (req as any).user.id, payload: { note },
+      // The customer's tracking page is for where the piece is, not for what
+      // the showroom said to each other about them.
+      isCustomerVisible: false,
+    });
+    return { id: e.id, occurredAt: e.occurredAt, note };
   });
 
   /**

@@ -38,6 +38,8 @@ import Costing from "./screens/Costing";
 import Spec from "./screens/Spec";
 import QuoteDoc from "./screens/QuoteDoc";
 import Money from "./screens/Money";
+import { Desk } from "./shell/Desk";
+import { CrumbProvider } from "./shell/crumb";
 import { onSyncChange, queued } from "./outbox";
 import { startSyncLoop } from "./sync";
 
@@ -99,6 +101,14 @@ export default function App() {
    * two cannot disagree.
    */
   const [menu, setMenu] = useState<MenuEntry[] | null>(null);
+  /**
+   * Wide enough for a desk.
+   *
+   * The office shell is a rail and a breadcrumb; below this it is worse than
+   * the phone shell in every way, so the same account signing in on a phone
+   * still gets the phone.
+   */
+  const [wide, setWide] = useState(() => window.innerWidth >= 1000);
 
   useEffect(() => { setMore(false); }, [loc.pathname]);
 
@@ -106,6 +116,12 @@ export default function App() {
     if (!me) { setMenu(null); return; }
     api.menu().then(setMenu).catch(() => setMenu([]));
   }, [me?.id]);
+
+  useEffect(() => {
+    const onResize = () => setWide(window.innerWidth >= 1000);
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
 
   useEffect(() => {
     const off = onSyncChange((n, on) => { setPending(n); setOnline(on); });
@@ -179,6 +195,27 @@ export default function App() {
   const rest = tabs.length <= 5 ? [] : tabs.slice(DAILY);
   const restBadges = rest.reduce((n, [to]) => n + badgeOf(to), 0);
 
+  /**
+   * The floor keeps its phone. A leader, an inspector and a driver work in a
+   * workshop on a handset, and the shell their job needs is the one they have —
+   * five big targets and a scanner. The desk is for people at a desk.
+   */
+  const desk = wide && office && !tabs.some(([p]) => p === "/scan");
+
+  const routes = <CrumbProvider><Screens home={home} /></CrumbProvider>;
+
+  if (desk) {
+    return (
+      <CrumbProvider>
+      <Desk menu={menu} badgeOf={badgeOf} onSignOut={signOut}>
+        {!online && <div className="syncbar off">{t("offline")}{pending > 0 && ` · ${pending}`}</div>}
+        {online && pending > 0 && <div className="syncbar pend">{pending} {t("pending")}</div>}
+        <Screens home={home} />
+      </Desk>
+      </CrumbProvider>
+    );
+  }
+
   return (
     <div className={`shell${office ? " wide" : ""}`}>
       <div className="top">
@@ -194,50 +231,7 @@ export default function App() {
       {!online && <div className="syncbar off">{t("offline")}{pending > 0 && ` · ${pending}`}</div>}
       {online && pending > 0 && <div className="syncbar pend">{pending} {t("pending")}</div>}
 
-      <div className="body">
-        <Routes>
-          <Route path="/work" element={<Work />} />
-          <Route path="/work/:id" element={<Job />} />
-          <Route path="/scan" element={<Scan />} />
-          <Route path="/myday" element={<MyDay />} />
-          <Route path="/labels" element={<Labels />} />
-          <Route path="/new-order" element={<NewOrder />} />
-          <Route path="/setup" element={<Setup />} />
-          <Route path="/today" element={<Today />} />
-          <Route path="/floor" element={<Floor />} />
-          <Route path="/orders" element={<Orders />} />
-          <Route path="/orders/:id" element={<OrderDetail />} />
-          {/* What the showroom reads to the customer, as opposed to the
-              factory's own record of the same order. */}
-          <Route path="/track/:id" element={<Track />} />
-          <Route path="/invoice/:id" element={<Invoice />} />
-          <Route path="/payroll" element={<Payroll />} />
-          <Route path="/voucher/:id" element={<Voucher />} />
-          <Route path="/purchase/:id" element={<PurchaseDoc />} />
-          <Route path="/summary" element={<Summary />} />
-          <Route path="/stock" element={<Stock />} />
-          <Route path="/attendance" element={<Attendance />} />
-          <Route path="/inspect/:id" element={<Inspect />} />
-          <Route path="/quality" element={<Quality />} />
-          <Route path="/purchasing" element={<Purchasing />} />
-          <Route path="/approvals" element={<Approvals />} />
-          <Route path="/planning" element={<Planning />} />
-          <Route path="/service" element={<Service />} />
-          <Route path="/leads" element={<Leads />} />
-          <Route path="/costing" element={<Costing />} />
-          <Route path="/spec" element={<Spec />} />
-          <Route path="/quote/:id" element={<QuoteDoc />} />
-          <Route path="/run" element={<Run />} />
-          <Route path="/money" element={<Money />} />
-          <Route path="/dispatch" element={<Dispatch />} />
-          <Route path="/showroom" element={<Showroom />} />
-          {/* Every role has this one. */}
-          <Route path="/account" element={<Account />} />
-          {/* Landing on the first tab of your own nav, so nobody opens the app
-              on a screen their role cannot load. */}
-          <Route path="*" element={<Navigate to={home} replace />} />
-        </Routes>
-      </div>
+      <div className="body">{routes}</div>
 
       {more && (
         <MoreSheet tabs={tabs} areaOf={areaOf} badgeOf={badgeOf}
@@ -323,5 +317,57 @@ function MoreSheet({ tabs, areaOf, badgeOf, onClose }: {
         )}
       </div>
     </div>
+  );
+}
+
+/**
+ * Every screen, once. Both shells render this — the chrome differs, the app
+ * does not, and a route that existed in one and not the other would be a screen
+ * somebody can reach from a laptop and not from a phone.
+ */
+function Screens({ home }: { home: string }) {
+  return (
+        <Routes>
+          <Route path="/work" element={<Work />} />
+          <Route path="/work/:id" element={<Job />} />
+          <Route path="/scan" element={<Scan />} />
+          <Route path="/myday" element={<MyDay />} />
+          <Route path="/labels" element={<Labels />} />
+          <Route path="/new-order" element={<NewOrder />} />
+          <Route path="/setup" element={<Setup />} />
+          <Route path="/today" element={<Today />} />
+          <Route path="/floor" element={<Floor />} />
+          <Route path="/orders" element={<Orders />} />
+          <Route path="/orders/:id" element={<OrderDetail />} />
+          {/* What the showroom reads to the customer, as opposed to the
+              factory's own record of the same order. */}
+          <Route path="/track/:id" element={<Track />} />
+          <Route path="/invoice/:id" element={<Invoice />} />
+          <Route path="/payroll" element={<Payroll />} />
+          <Route path="/voucher/:id" element={<Voucher />} />
+          <Route path="/purchase/:id" element={<PurchaseDoc />} />
+          <Route path="/summary" element={<Summary />} />
+          <Route path="/stock" element={<Stock />} />
+          <Route path="/attendance" element={<Attendance />} />
+          <Route path="/inspect/:id" element={<Inspect />} />
+          <Route path="/quality" element={<Quality />} />
+          <Route path="/purchasing" element={<Purchasing />} />
+          <Route path="/approvals" element={<Approvals />} />
+          <Route path="/planning" element={<Planning />} />
+          <Route path="/service" element={<Service />} />
+          <Route path="/leads" element={<Leads />} />
+          <Route path="/costing" element={<Costing />} />
+          <Route path="/spec" element={<Spec />} />
+          <Route path="/quote/:id" element={<QuoteDoc />} />
+          <Route path="/run" element={<Run />} />
+          <Route path="/money" element={<Money />} />
+          <Route path="/dispatch" element={<Dispatch />} />
+          <Route path="/showroom" element={<Showroom />} />
+          {/* Every role has this one. */}
+          <Route path="/account" element={<Account />} />
+          {/* Landing on the first tab of your own nav, so nobody opens the app
+              on a screen their role cannot load. */}
+          <Route path="*" element={<Navigate to={home} replace />} />
+        </Routes>
   );
 }

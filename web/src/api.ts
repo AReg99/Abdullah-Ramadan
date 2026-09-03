@@ -491,6 +491,9 @@ export const api = {
   today: () => req<Dashboard>("/dashboard/today"),
   floor: () => req<StationCard[]>("/dashboard/floor"),
   orders: () => req<OrderRow[]>("/orders"),
+  addOrderNote: (id: string, note: string) =>
+    req<{ id: string; occurredAt: string; note: string }>(`/orders/${id}/notes`,
+      { method: "POST", body: JSON.stringify({ note }) }),
   order: (id: string) => req<OrderDetail>(`/orders/${id}`),
   orderProgress: (id: string) => req<Progress>(`/orders/${id}/progress`),
   cancelOrder: (id: string, reason: string) =>
@@ -627,7 +630,11 @@ export type StationCard = {
   active: { stageId: string; orderCode: string; productAr: string; productEn: string; worker: { nameAr: string; nameEn: string } | null; minutes: number; stdMinutes: number }[];
   blocked: { stageId: string; orderCode: string; reason: string; minutes: number }[];
 };
-export type OrderRow = { id: string; code: string; status: string; kind: string; customer: string; total?: number; promisedDate: string | null; lines: { id: string; status: string; qty: number; productAr: string; productEn: string }[] };
+export type OrderRow = { id: string; code: string; status: string; kind: string;
+  customer: string; total?: number; paidTotal?: number; promisedDate: string | null;
+  createdAt: string; invoiceNo: string | null;
+  showroom: { nameAr: string; nameEn: string } | null;
+  lines: { id: string; status: string; qty: number; productAr: string; productEn: string }[] };
 export type CashAccount = { id: string; code: string; nameAr: string; nameEn: string;
   kind: "CASH" | "BANK"; isActive: boolean; openingBalance: number;
   totalIn: number; totalOut: number; balance: number };
